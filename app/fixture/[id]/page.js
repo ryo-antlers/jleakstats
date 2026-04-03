@@ -210,10 +210,10 @@ async function getRefereeAliases(refereeEn) {
   return rows.length > 0 ? rows.map(r => r.name_en) : [refereeEn]
 }
 
-async function getRefereeHistory(refereeEn, teamId, excludeId) {
+async function getRefereeHistory(refereeEn, teamId, excludeId, limit = 5) {
   if (!refereeEn) return []
   const aliases = await getRefereeAliases(refereeEn)
-  return await sql`
+  const rows = await sql`
     SELECT f.id, f.date, f.home_team_id, f.away_team_id,
            f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
            COALESCE(ht.name_ja, ht.name_en, f.home_team_id::text) AS home_name,
@@ -238,8 +238,8 @@ async function getRefereeHistory(refereeEn, teamId, excludeId) {
       AND f.id != ${excludeId}
       AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
     ORDER BY f.date DESC
-    LIMIT 5
   `.catch(() => [])
+  return limit ? rows.slice(0, limit) : rows
 }
 
 async function getRefereeJa(refereeEn) {
@@ -494,10 +494,12 @@ export default async function FixturePage({ params }) {
     !isFinished ? getExactScoreOdds(fixture.id) : Promise.resolve([]),
   ])
 
-  const [homeRefereeHistory, awayRefereeHistory, refereeJa] = isFinished && fixture.referee_en
+  const hasReferee = !!fixture.referee_en
+  const refereeLimit = isFinished ? 5 : null  // 試合前は全件、終了後は5件
+  const [homeRefereeHistory, awayRefereeHistory, refereeJa] = hasReferee
     ? await Promise.all([
-        getRefereeHistory(fixture.referee_en, fixture.home_team_id, fixture.id),
-        getRefereeHistory(fixture.referee_en, fixture.away_team_id, fixture.id),
+        getRefereeHistory(fixture.referee_en, fixture.home_team_id, fixture.id, refereeLimit),
+        getRefereeHistory(fixture.referee_en, fixture.away_team_id, fixture.id, refereeLimit),
         getRefereeJa(fixture.referee_en),
       ])
     : [[], [], null]
@@ -766,10 +768,10 @@ export default async function FixturePage({ params }) {
       )}
 
       {/* 審判担当履歴 */}
-      {isFinished && (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
+      {(homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
         <section style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 15, color: '#fff', marginBottom: 12 }}>
-            {refereeJa ?? fixture.referee_en}の直近担当5試合
+            {refereeJa ?? fixture.referee_en}{isFinished ? 'の直近担当5試合' : 'の担当履歴（全件）'}
           </p>
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>

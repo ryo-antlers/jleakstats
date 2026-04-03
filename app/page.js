@@ -14,26 +14,21 @@ const TEAM_ORDER = [
 
 // ---- データ取得 ----
 
-async function getAllRounds() {
-  const rows = await sql`
-    SELECT DISTINCT round_number FROM fixtures
+const MAIN_ROUND_MIN_MATCHES = 5
+
+async function getRoundInfo() {
+  return await sql`
+    SELECT round_number, MIN(date) AS first_date, COUNT(*) AS match_count
+    FROM fixtures
     WHERE season = 2026 AND round_number IS NOT NULL
-    ORDER BY round_number ASC
-  `
-  return rows.map(r => r.round_number)
+    GROUP BY round_number
+    ORDER BY MIN(date) ASC
+  `.catch(() => [])
 }
 
-async function getCurrentRound(rounds) {
-  const row = await sql`
-    SELECT round_number FROM fixtures
-    WHERE season = 2026 AND status IN ('FT', 'AET', 'PEN', 'LIVE', 'HT')
-      AND round_number IS NOT NULL
-    GROUP BY round_number
-    HAVING COUNT(*) >= 5
-    ORDER BY round_number DESC LIMIT 1
-  `
-  if (row.length > 0) return row[0].round_number
-  return rounds[0] ?? 1
+function toJSTDayNum(dateStr) {
+  const d = new Date(new Date(dateStr).getTime() + 9 * 60 * 60 * 1000)
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()
 }
 
 async function getFixturesByRound(roundNumber) {
@@ -50,7 +45,7 @@ async function getFixturesByRound(roundNumber) {
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
     WHERE f.season = 2026 AND f.round_number = ${roundNumber}
-  `
+  `.catch(() => [])
   return rows.sort((a, b) => {
     const dateDiff = new Date(a.date) - new Date(b.date)
     if (dateDiff !== 0) return dateDiff
@@ -60,12 +55,9 @@ async function getFixturesByRound(roundNumber) {
   })
 }
 
-async function getEarlyFixtures(excludeRounds) {
-  const now = new Date()
-  const from = new Date(now)
-  from.setDate(from.getDate() - 3)
-  const to = new Date(now)
-  to.setDate(to.getDate() + 3)
+async function getEarlyFixtures(fromDate, toDate, excludeRounds) {
+  const excludeA = excludeRounds[0]
+  const excludeB = excludeRounds[1] ?? excludeRounds[0]
   const rows = await sql`
     SELECT
       f.*,
@@ -77,88 +69,11 @@ async function getEarlyFixtures(excludeRounds) {
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
     WHERE f.season = 2026
-      AND f.date >= ${from.toISOString()}
-      AND f.date <= ${to.toISOString()}
-      AND f.round_number NOT IN (${excludeRounds[0]}, ${excludeRounds[1] ?? excludeRounds[0]})
+      AND f.date >= ${fromDate}
+      AND f.date < ${toDate}
+      AND f.round_number NOT IN (${excludeA}, ${excludeB})
   `.catch(() => [])
   return rows.sort((a, b) => new Date(a.date) - new Date(b.date))
-}
-
-async function getStandings() {
-  return await sql`
-    SELECT s.*, tm.name_ja, tm.name_en, tm.short_name, tm.color_primary
-    FROM standings s
-    LEFT JOIN teams_master tm ON s.team_id = tm.id
-    WHERE s.season = 2026
-    ORDER BY s.group_name ASC, s.rank ASC
-  `.catch(() => [])
-}
-
-async function getBestXIPlayers(roundNumber) {
-  return await sql`
-    SELECT
-      fps.player_id, fps.position, fps.rating, fps.minutes,
-      fps.goals, fps.assists,
-      pm.name_en, pm.name_ja,
-      tm.color_primary AS team_color, tm.short_name AS team_short,
-      tm.group_name AS team_group
-    FROM fixture_player_stats fps
-    JOIN fixtures f ON fps.fixture_id = f.id
-    LEFT JOIN players_master pm ON fps.player_id = pm.id
-    LEFT JOIN teams_master tm ON fps.team_id = tm.id
-    WHERE f.season = 2026 AND f.round_number = ${roundNumber}
-      AND fps.rating IS NOT NULL
-      AND fps.minutes >= 45
-    ORDER BY fps.rating DESC
-  `.catch(() => [])
-}
-
-// ---- ベストイレブン選出ロジック ----
-
-function pickBestXI(players) {
-  const byPos = { G: [], D: [], M: [], F: [] }
-  for (const p of players) {
-    const pos = (p.position ?? '').charAt(0).toUpperCase()
-    if (byPos[pos]) byPos[pos].push(p)
-  }
-  for (const pos of Object.keys(byPos)) {
-    byPos[pos].sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))
-  }
-
-  const gk = byPos.G.slice(0, 1)
-  if (gk.length === 0) return null
-
-  const selected = {
-    D: byPos.D.slice(0, 3),
-    M: byPos.M.slice(0, 3),
-    F: byPos.F.slice(0, 1),
-  }
-
-  const pool = [
-    ...byPos.D.slice(3).map(p => ({ ...p, _pos: 'D', _max: 5 })),
-    ...byPos.M.slice(3).map(p => ({ ...p, _pos: 'M', _max: 6 })),
-    ...byPos.F.slice(1).map(p => ({ ...p, _pos: 'F', _max: 3 })),
-  ].sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))
-
-  let spots = 10 - selected.D.length - selected.M.length - selected.F.length
-  for (const p of pool) {
-    if (spots === 0) break
-    if (selected[p._pos].length < p._max) {
-      selected[p._pos].push(p)
-      spots--
-    }
-  }
-
-  const total = gk.length + selected.D.length + selected.M.length + selected.F.length
-  if (total < 11) return null
-
-  return { gk, df: selected.D, mf: selected.M, fw: selected.F }
-}
-
-function playerDisplayName(p) {
-  if (p.name_ja) return p.name_ja
-  const parts = (p.name_en ?? '?').split(' ')
-  return parts[parts.length - 1]
 }
 
 // ---- UIコンポーネント ----
@@ -314,106 +229,11 @@ function UpcomingFixtureCard({ fixture }) {
   )
 }
 
-function PlayerPin({ player }) {
-  const name = playerDisplayName(player)
-  const rating = player.rating ? parseFloat(player.rating).toFixed(1) : null
-  return (
-    <Link href={`/player/${player.player_id}`} style={{ textDecoration: 'none' }}>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 72 }}>
-      <div style={{
-        width: 38, height: 38, borderRadius: '50%',
-        backgroundColor: player.team_color ?? '#555',
-        border: '2px solid rgba(255,255,255,0.7)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {rating && (
-          <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
-            {rating}
-          </span>
-        )}
-      </div>
-      <span style={{
-        color: '#fff', fontSize: 11, fontWeight: 600, textAlign: 'center',
-        textShadow: '0 1px 3px rgba(0,0,0,0.9)', lineHeight: 1.3,
-        maxWidth: 70, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-      }}>
-        {name}
-      </span>
-    </div>
-    </Link>
-  )
-}
-
-function PitchRow({ players }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-evenly', width: '100%', padding: '0 8px' }}>
-      {players.map(p => <PlayerPin key={p.player_id} player={p} />)}
-    </div>
-  )
-}
-
-function BestXI({ xi }) {
-  return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <div style={{
-        background: 'linear-gradient(180deg, #1e6b30 0%, #256b35 50%, #1e6b30 100%)',
-        position: 'relative',
-        padding: '20px 8px',
-        display: 'flex', flexDirection: 'column', gap: 20,
-      }}>
-        <div style={{
-          position: 'absolute', top: '50%', left: 16, right: 16,
-          height: 1, backgroundColor: 'rgba(255,255,255,0.2)',
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 60, height: 60, borderRadius: '50%',
-          border: '1px solid rgba(255,255,255,0.2)',
-        }} />
-        <PitchRow players={xi.fw} />
-        <PitchRow players={xi.mf} />
-        <PitchRow players={xi.df} />
-        <PitchRow players={xi.gk} />
-      </div>
-    </div>
-  )
-}
-
-function StandingsTable({ rows }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 12 }}>
-      {rows.map((row) => (
-        <div key={row.team_id} style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          backgroundColor: row.color_primary ?? '#333',
-          borderRadius: 8,
-          padding: '10px 14px',
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 900, color: 'rgba(255,255,255,0.7)', width: 24, flexShrink: 0 }}>
-            {row.rank}
-          </span>
-          <Link href={`/team/${row.team_id}`} style={{ textDecoration: 'none', color: '#fff', fontSize: 13, fontWeight: 800, letterSpacing: '0.05em' }}>
-            {row.name_en ?? row.name_ja}
-          </Link>
-          <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 900, color: '#fff' }}>
-            {row.points}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ---- メインページ ----
 
-export default async function HomePage({ searchParams }) {
-  const { round: roundParam } = await searchParams
-
-  const rounds = await getAllRounds()
-  if (rounds.length === 0) {
+export default async function HomePage() {
+  const roundInfo = await getRoundInfo()
+  if (roundInfo.length === 0) {
     return (
       <div className="text-center py-20" style={{ color: 'var(--text-secondary)' }}>
         <p className="text-lg mb-2">試合データがまだありません</p>
@@ -424,48 +244,44 @@ export default async function HomePage({ searchParams }) {
     )
   }
 
-  const currentRound = await getCurrentRound(rounds)
-  const roundNumber = roundParam ? parseInt(roundParam) : currentRound
-  const validRound = rounds.includes(roundNumber) ? roundNumber : currentRound
+  // JSTで今日の日付数値（YYYYMMDD）
+  const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const todayJSTNum = nowJST.getUTCFullYear() * 10000 + (nowJST.getUTCMonth() + 1) * 100 + nowJST.getUTCDate()
 
-  const idx = rounds.indexOf(validRound)
-  const prevRound = idx > 0 ? rounds[idx - 1] : null
-  const nextRound = idx < rounds.length - 1 ? rounds[idx + 1] : null
+  // メイン節 = 5試合以上ある節
+  const mainRounds = roundInfo.filter(r => Number(r.match_count) >= MAIN_ROUND_MIN_MATCHES)
 
-  const [fixtures, standingsRows, playerRows, nextFixtures, earlyFixtures] = await Promise.all([
-    getFixturesByRound(validRound),
-    getStandings(),
-    getBestXIPlayers(validRound),
-    nextRound ? getFixturesByRound(nextRound) : Promise.resolve([]),
-    getEarlyFixtures([validRound, nextRound ?? validRound]),
+  // 現在のメイン節 = JSTで初戦日 ≤ 今日 の中で最新
+  const currentMain = mainRounds.filter(r => toJSTDayNum(r.first_date) <= todayJSTNum).at(-1)
+    ?? mainRounds[0]
+  const currentMainIdx = mainRounds.indexOf(currentMain)
+  const nextMain = mainRounds[currentMainIdx + 1] ?? null
+
+  // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
+  const earlyWindowEnd = nextMain?.first_date ?? new Date('2099-01-01').toISOString()
+
+  const [fixtures, nextFixtures, earlyFixtures] = await Promise.all([
+    getFixturesByRound(currentMain.round_number),
+    nextMain ? getFixturesByRound(nextMain.round_number) : Promise.resolve([]),
+    getEarlyFixtures(
+      currentMain.first_date,
+      earlyWindowEnd,
+      [currentMain.round_number, nextMain?.round_number ?? currentMain.round_number]
+    ),
   ])
-  const isCurrentRound = validRound === currentRound
-  const hasScore = fixtures.some(f => ['FT', 'AET', 'PEN', 'LIVE', 'HT'].includes(f.status))
 
-  const eastFixtures = fixtures.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
-  const westFixtures = fixtures.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
   const sortByDateTime = (arr) => [...arr].sort((a, b) => {
     const dateDiff = new Date(a.date) - new Date(b.date)
     if (dateDiff !== 0) return dateDiff
     return (TEAM_ORDER.indexOf(a.home_team_id) ?? 999) - (TEAM_ORDER.indexOf(b.home_team_id) ?? 999)
   })
+
+  const eastFixtures = fixtures.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
+  const westFixtures = fixtures.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
   const eastNextFixtures = sortByDateTime(nextFixtures.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST'))
   const westNextFixtures = sortByDateTime(nextFixtures.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST'))
-
-  // 早期開催試合（±3日以内・現在節と次節を除く）
-  const earlyFinished = earlyFixtures.filter(f => ['FT', 'AET', 'PEN'].includes(f.status))
-  const earlyUpcoming = earlyFixtures.filter(f => !['FT', 'AET', 'PEN', 'LIVE', 'HT'].includes(f.status))
-  const eastEarlyFinished = earlyFinished.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
-  const westEarlyFinished = earlyFinished.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
-  const eastEarlyUpcoming = earlyUpcoming.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
-  const westEarlyUpcoming = earlyUpcoming.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
-  const eastStandings = standingsRows.filter(r => r.group_name === 'EAST')
-  const westStandings = standingsRows.filter(r => r.group_name === 'WEST')
-
-  const eastPlayers = playerRows.filter(p => p.team_group === 'EAST')
-  const westPlayers = playerRows.filter(p => p.team_group === 'WEST')
-  const eastXI = eastPlayers.length > 0 ? pickBestXI(eastPlayers) : null
-  const westXI = westPlayers.length > 0 ? pickBestXI(westPlayers) : null
+  const eastEarlyFixtures = earlyFixtures.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
+  const westEarlyFixtures = earlyFixtures.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
 
   return (
     <div>
@@ -474,7 +290,6 @@ export default async function HomePage({ searchParams }) {
         <h1 className="site-title" style={{ fontWeight: 900, color: '#fff', letterSpacing: '0.07em', lineHeight: 1 }}>
           J.Leak Stats
         </h1>
-        {/* 装飾円（Jリーグロゴイメージ） */}
         <div className="deco-circles" style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
           <div className="deco-circle-white" style={{
             position: 'absolute', top: 0, right: 0,
@@ -490,8 +305,8 @@ export default async function HomePage({ searchParams }) {
       </div>
 
       <GroupTabs
-        validRound={validRound}
-        nextRound={nextRound}
+        validRound={currentMain.round_number}
+        nextRound={nextMain?.round_number ?? null}
         eastColor="#ffffff"
         westColor="#ffffff"
         eastContent={
@@ -501,7 +316,7 @@ export default async function HomePage({ searchParams }) {
                 {eastFixtures.map(f => <FixtureCard key={f.id} fixture={f} />)}
               </div>
             )}
-            <EarlyFixtureGroup fixtures={[...eastEarlyFinished, ...eastEarlyUpcoming]} finished={false} />
+            <EarlyFixtureGroup fixtures={eastEarlyFixtures} />
             <div className="grid-charts-2col" style={{ marginTop: 60 }}>
               <PointsChart group="EAST" />
               <StandingsChart group="EAST" />
@@ -517,7 +332,7 @@ export default async function HomePage({ searchParams }) {
                 {westFixtures.map(f => <FixtureCard key={f.id} fixture={f} />)}
               </div>
             )}
-            <EarlyFixtureGroup fixtures={[...westEarlyFinished, ...westEarlyUpcoming]} finished={false} />
+            <EarlyFixtureGroup fixtures={westEarlyFixtures} />
             <div className="grid-charts-2col" style={{ marginTop: 60 }}>
               <PointsChart group="WEST" />
               <StandingsChart group="WEST" />
@@ -537,7 +352,6 @@ export default async function HomePage({ searchParams }) {
           </div>
         ) : null}
       />
-
     </div>
   )
 }
