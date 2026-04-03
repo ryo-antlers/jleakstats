@@ -1,0 +1,17 @@
+name: Sync Odds (Daily)
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 毎日0時UTC（JST 9時）
+  workflow_dispatch:       # 手動実行も可能
+
+jobs:
+  sync-odds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync odds for upcoming fixtures
+        run: |
+          curl -f -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/odds
+        continue-on-error: true

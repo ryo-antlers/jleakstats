@@ -2,13 +2,18 @@ import sql from '@/lib/db'
 import { fetchOdds } from '@/lib/api-football'
 
 // 開催前試合のオッズを同期
-export async function GET() {
+export async function GET(request) {
+  if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   try {
+    // 7日以内に開催される未終了試合を対象（オッズは毎日変動するので既取得分も更新）
+    const in7days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const fixtures = await sql`
       SELECT id FROM fixtures
       WHERE season = 2026
         AND status NOT IN ('FT', 'AET', 'PEN')
-        AND id NOT IN (SELECT DISTINCT fixture_id FROM fixture_odds)
+        AND date <= ${in7days}
       ORDER BY date ASC
       LIMIT 20
     `
