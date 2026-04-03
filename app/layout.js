@@ -16,7 +16,11 @@ export default function RootLayout({ children }) {
           {children}
         </main>
         <footer style={{ borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)' }} className="text-center text-xs py-4">
-          © 2026 J.Leak Stats · データ提供: API-FOOTBALL
+          <div>© 2026 J.Leak Stats · データ提供: API-FOOTBALL</div>
+          <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 16 }}>
+            <a href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>プライバシーポリシー</a>
+            <a href="/contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>お問い合わせ</a>
+          </div>
         </footer>
       </body>
     </html>
