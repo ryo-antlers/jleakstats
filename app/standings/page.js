@@ -1,8 +1,9 @@
 import sql from '@/lib/db'
+import Link from 'next/link'
 
 async function getStandings() {
   const rows = await sql`
-    SELECT s.*, tm.name_ja, tm.short_name, tm.motif, tm.color_primary
+    SELECT s.*, tm.name_ja, tm.short_name, tm.color_primary, tm.color_secondary
     FROM standings s
     LEFT JOIN teams_master tm ON s.team_id = tm.id
     WHERE s.season = 2026
@@ -63,12 +64,18 @@ function StandingsTable({ title, rows }) {
               gap: '0',
             }}
           >
-            <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>{row.rank}</span>
+            <div className="flex items-center gap-0.5">
+              <span className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>{row.rank}</span>
+              {row.prev_rank && row.prev_rank !== row.rank && (
+                <span className="text-xs leading-none" style={{ color: row.prev_rank > row.rank ? 'var(--accent)' : 'var(--danger)' }}>
+                  {row.prev_rank > row.rank ? '↑' : '↓'}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-base leading-none">{row.motif ?? '⚽'}</span>
-              <span className="truncate font-medium" style={{ color: 'var(--text-primary)' }}>
+<Link href={`/team/${row.team_id}`} className="truncate font-medium" style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>
                 {row.short_name ?? row.name_ja}
-              </span>
+              </Link>
             </div>
             <span className="text-center text-xs" style={{ color: 'var(--text-secondary)' }}>{row.played}</span>
             <span className="text-center text-xs" style={{ color: 'var(--text-primary)' }}>{row.win}</span>
