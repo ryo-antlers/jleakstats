@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "J.Leak Stats - J1リーグ データ可視化",
+  title: "J.Leak Stats",
   description: "J1リーグの試合結果・順位表・AI予測・オッズ情報",
 };
 
