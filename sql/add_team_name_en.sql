@@ -1,0 +1,22 @@
+ALTER TABLE teams_master ADD COLUMN IF NOT EXISTS name_en TEXT;
+
+UPDATE teams_master SET name_en = 'KASHIMA ANTLERS'          WHERE id = 290;
+UPDATE teams_master SET name_en = 'KASHIWA REYSOL'           WHERE id = 281;
+UPDATE teams_master SET name_en = 'URAWA RED DIAMONDS'       WHERE id = 287;
+UPDATE teams_master SET name_en = 'FC TOKYO'                 WHERE id = 292;
+UPDATE teams_master SET name_en = 'KAWASAKI FRONTALE'        WHERE id = 294;
+UPDATE teams_master SET name_en = 'YOKOHAMA F.MARINOS'       WHERE id = 296;
+UPDATE teams_master SET name_en = 'MACHIDA ZELVIA'           WHERE id = 303;
+UPDATE teams_master SET name_en = 'MITO HOLLYHOCK'           WHERE id = 305;
+UPDATE teams_master SET name_en = 'TOKYO VERDY'              WHERE id = 306;
+UPDATE teams_master SET name_en = 'JEFS UNITED CHIBA'        WHERE id = 301;
+UPDATE teams_master SET name_en = 'SANFRECCE HIROSHIMA'      WHERE id = 282;
+UPDATE teams_master SET name_en = 'SHIMIZU S-PULSE'          WHERE id = 283;
+UPDATE teams_master SET name_en = 'V-VAREN NAGASAKI'         WHERE id = 285;
+UPDATE teams_master SET name_en = 'NAGOYA GRAMPUS'           WHERE id = 288;
+UPDATE teams_master SET name_en = 'VISSEL KOBE'              WHERE id = 289;
+UPDATE teams_master SET name_en = 'CEREZO OSAKA'             WHERE id = 291;
+UPDATE teams_master SET name_en = 'GAMBA OSAKA'              WHERE id = 293;
+UPDATE teams_master SET name_en = 'KYOTO SANGA FC'           WHERE id = 302;
+UPDATE teams_master SET name_en = 'FAGIANO OKAYAMA'          WHERE id = 310;
+UPDATE teams_master SET name_en = 'AVISPA FUKUOKA'           WHERE id = 316;

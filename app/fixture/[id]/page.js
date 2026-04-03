@@ -502,16 +502,15 @@ export default async function FixturePage({ params }) {
       ])
     : [[], [], null]
 
-  const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows, teamStandings] = !hasStarted
+  const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows] = !hasStarted
     ? await Promise.all([
         getSeasonAllFixtures(),
         getAllTeams(),
         getSeasonTeamStats(fixture.home_team_id, fixture.away_team_id),
         getSeasonPlayerStats(fixture.home_team_id, fixture.away_team_id),
         getRecentForm(fixture.home_team_id, fixture.away_team_id),
-        sql`SELECT team_id, rank, points, goals_diff FROM standings WHERE season = 2026 AND team_id IN (${fixture.home_team_id}, ${fixture.away_team_id})`.catch(() => []),
       ])
-    : [[], [], [], [], [], []]
+    : [[], [], [], [], []]
 
   const hid = Number(fixture.home_team_id), aid = Number(fixture.away_team_id)
   const homeRecentForm = recentFormRows.filter(f => Number(f.home_team_id) === hid || Number(f.away_team_id) === hid).slice(0, 5)
@@ -803,7 +802,7 @@ export default async function FixturePage({ params }) {
               homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id}
               homeColor={homeColor} awayColor={awayColor}
               currentRound={fixture.round_number}
-              teamStandings={teamStandings}
+
             />
           </div>
           {/* レーダーチャート 2列 */}

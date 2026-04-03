@@ -1,13 +1,50 @@
 import sql from '@/lib/db'
 
 async function getStandings(group) {
-  return await sql`
-    SELECT s.goals_for, s.goals_against, s.points, s.rank,
-           tm.abbr, tm.color_primary, tm.id AS team_id
-    FROM standings s
-    LEFT JOIN teams_master tm ON s.team_id = tm.id
-    WHERE s.season = 2026 AND tm.group_name = ${group}
-  `.catch(() => [])
+  const [fixtures, teams] = await Promise.all([
+    sql`
+      SELECT f.home_team_id, f.away_team_id,
+             f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status
+      FROM fixtures f
+      JOIN teams_master ht ON f.home_team_id = ht.id
+      JOIN teams_master at ON f.away_team_id = at.id
+      WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+        AND ht.group_name = ${group} AND at.group_name = ${group}
+    `.catch(() => []),
+    sql`
+      SELECT id AS team_id, abbr, color_primary
+      FROM teams_master WHERE group_name = ${group}
+    `.catch(() => []),
+  ])
+
+  const stats = {}
+  for (const t of teams) stats[t.team_id] = { ...t, gf: 0, ga: 0, points: 0 }
+
+  for (const f of fixtures) {
+    const h = f.home_team_id, a = f.away_team_id
+    if (!stats[h] || !stats[a]) continue
+    const hs = Number(f.home_score), as_ = Number(f.away_score)
+    const isPK = f.status === 'PEN' && f.home_penalty != null
+    stats[h].gf += hs; stats[h].ga += as_
+    stats[a].gf += as_; stats[a].ga += hs
+    if (hs > as_) { stats[h].points += 3 }
+    else if (hs < as_) { stats[a].points += 3 }
+    else if (isPK) {
+      if (Number(f.home_penalty) > Number(f.away_penalty)) { stats[h].points += 2; stats[a].points += 1 }
+      else { stats[a].points += 2; stats[h].points += 1 }
+    } else { stats[h].points += 1; stats[a].points += 1 }
+  }
+
+  const sorted = Object.values(stats).sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points
+    const gdA = a.gf - a.ga, gdB = b.gf - b.ga
+    if (gdB !== gdA) return gdB - gdA
+    return b.gf - a.gf
+  })
+  return sorted.map((s, i) => ({
+    team_id: s.team_id, abbr: s.abbr, color_primary: s.color_primary,
+    goals_for: s.gf, goals_against: s.ga, points: s.points, rank: i + 1,
+  }))
 }
 
 async function getStatsByTeam(group) {
