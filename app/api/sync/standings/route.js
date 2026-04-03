@@ -13,6 +13,7 @@ export async function GET() {
         season INTEGER,
         group_name TEXT,
         rank INTEGER,
+        prev_rank INTEGER,
         points INTEGER,
         goals_diff INTEGER,
         form TEXT,
@@ -34,6 +35,10 @@ export async function GET() {
         PRIMARY KEY (team_id, season)
       )
     `
+    // 既存テーブルにprev_rankがなければ追加
+    await sql`
+      ALTER TABLE standings ADD COLUMN IF NOT EXISTS prev_rank INTEGER
+    `
 
     let upserted = 0
     for (const group of groups) {
@@ -42,14 +47,14 @@ export async function GET() {
         const t = entry
         await sql`
           INSERT INTO standings (
-            team_id, season, group_name, rank, points, goals_diff, form,
+            team_id, season, group_name, rank, prev_rank, points, goals_diff, form,
             played, win, draw, lose, goals_for, goals_against,
             home_played, home_win, home_draw, home_lose,
             away_played, away_win, away_draw, away_lose,
             updated_at
           ) VALUES (
             ${t.team.id}, 2026, ${groupName},
-            ${t.rank}, ${t.points}, ${t.goalsDiff}, ${t.form},
+            ${t.rank}, ${t.rank}, ${t.points}, ${t.goalsDiff}, ${t.form},
             ${t.all.played}, ${t.all.win}, ${t.all.draw}, ${t.all.lose},
             ${t.all.goals.for}, ${t.all.goals.against},
             ${t.home.played}, ${t.home.win}, ${t.home.draw}, ${t.home.lose},
@@ -58,6 +63,7 @@ export async function GET() {
           )
           ON CONFLICT (team_id, season) DO UPDATE SET
             group_name = EXCLUDED.group_name,
+            prev_rank = standings.rank,
             rank = EXCLUDED.rank,
             points = EXCLUDED.points,
             goals_diff = EXCLUDED.goals_diff,
