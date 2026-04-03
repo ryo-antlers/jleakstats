@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import sql from '@/lib/db'
-import { formatDateJa } from '@/lib/utils'
+
 import GroupTabs from '@/app/components/GroupTabs'
 import StandingsChart from '@/app/components/StandingsChart'
 import PointsChart from '@/app/components/PointsChart'
@@ -176,14 +176,15 @@ function FixtureCard({ fixture }) {
             </div>
           </div>
         ) : (
-          <div style={{
-            width: '100%', height: 70,
-            backgroundColor: '#2a2a2a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 700, color: '#555',
-          }}>
-            {formatDateJa(fixture.date)}
-          </div>
+          <>
+            <div style={{ display: 'flex', width: '100%' }}>
+              <div style={{ flex: 1, height: 40, backgroundColor: fixture.home_color ?? '#444' }} />
+              <div style={{ flex: 1, height: 40, backgroundColor: fixture.away_color ?? '#444' }} />
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#fff', letterSpacing: '0.05em', marginTop: 2 }}>
+              {formatUpcomingLabel(fixture.date)}
+            </span>
+          </>
         )}
 
         {/* PK */}
