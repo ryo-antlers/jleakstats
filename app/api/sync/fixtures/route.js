@@ -1,7 +1,10 @@
 import sql from '@/lib/db'
 import { fetchFixtures } from '@/lib/api-football'
 
-export async function GET() {
+export async function GET(request) {
+  if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   try {
     const response = await fetchFixtures()
 

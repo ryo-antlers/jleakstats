@@ -1,0 +1,31 @@
+name: Auto Sync
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 毎時0分に実行（UTC）
+  workflow_dispatch:       # 手動実行も可能
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync fixtures (scores & status)
+        run: |
+          curl -f -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/fixtures
+        continue-on-error: true
+
+      - name: Sync pre-match lineups
+        run: |
+          curl -f -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/pre-match
+        continue-on-error: true
+
+      - name: Sync post-match details (stats & events)
+        run: |
+          curl -f -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/fixture-details
+        continue-on-error: true

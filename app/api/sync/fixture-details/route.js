@@ -11,7 +11,10 @@ import {
 // スタッツが未取得の試合のみ対象（リクエスト数節約）
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
-  const fixtureId = searchParams.get('fixture_id') // 単体指定も可能
+  const fixtureId = searchParams.get('fixture_id')
+  if (!fixtureId && request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
     let fixtures
