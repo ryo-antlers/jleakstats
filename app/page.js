@@ -178,8 +178,8 @@ function FixtureCard({ fixture }) {
         ) : (
           <>
             <div style={{ display: 'flex', width: '100%' }}>
-              <div style={{ flex: 1, height: 40, backgroundColor: fixture.home_color ?? '#444' }} />
-              <div style={{ flex: 1, height: 40, backgroundColor: fixture.away_color ?? '#444' }} />
+              <div style={{ flex: 1, height: 50, backgroundColor: fixture.home_color ?? '#444' }} />
+              <div style={{ flex: 1, height: 50, backgroundColor: fixture.away_color ?? '#444' }} />
             </div>
             <span style={{ fontSize: 10, fontWeight: 600, color: '#fff', letterSpacing: '0.05em', marginTop: 2 }}>
               {formatUpcomingLabel(fixture.date)}
@@ -218,8 +218,8 @@ function UpcomingFixtureCard({ fixture }) {
         </div>
         {/* カラーブロック（空） */}
         <div style={{ display: 'flex', width: '100%' }}>
-          <div style={{ flex: 1, height: 40, backgroundColor: fixture.home_color ?? '#444' }} />
-          <div style={{ flex: 1, height: 40, backgroundColor: fixture.away_color ?? '#444' }} />
+          <div style={{ flex: 1, height: 50, backgroundColor: fixture.home_color ?? '#444' }} />
+          <div style={{ flex: 1, height: 50, backgroundColor: fixture.away_color ?? '#444' }} />
         </div>
         {/* 日付・時刻 */}
         <span style={{ fontSize: 10, fontWeight: 600, color: '#fff', letterSpacing: '0.05em', marginTop: 2 }}>
