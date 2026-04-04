@@ -2,14 +2,25 @@ name: Auto Sync
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 毎時0分に実行（UTC）
-  workflow_dispatch:       # 手動実行も可能
+    - cron: '*/15 3-13 * * *'  # JST 12:00〜22:45、15分ごと
+  workflow_dispatch:             # 手動実行も可能
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Check if matches today (JST)
+        id: check
+        run: |
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/check-today)
+          echo "response=$RESPONSE"
+          HAS_MATCHES=$(echo $RESPONSE | grep -o '"hasMatches":true' | wc -l)
+          echo "has_matches=$HAS_MATCHES" >> $GITHUB_OUTPUT
+
       - name: Sync fixtures (scores & status)
+        if: steps.check.outputs.has_matches == '1'
         run: |
           curl -f -s \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
@@ -17,6 +28,7 @@ jobs:
         continue-on-error: true
 
       - name: Sync pre-match lineups
+        if: steps.check.outputs.has_matches == '1'
         run: |
           curl -f -s \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
@@ -24,6 +36,7 @@ jobs:
         continue-on-error: true
 
       - name: Sync post-match details (stats & events)
+        if: steps.check.outputs.has_matches == '1'
         run: |
           curl -f -s \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
