@@ -125,7 +125,8 @@ async function getStatistics(fixtureId) {
 
 async function getEvents(fixtureId) {
   const rows = await sql`
-    SELECT fe.*,
+    SELECT DISTINCT ON (fe.elapsed, fe.team_id, fe.type, fe.detail, fe.player_id)
+      fe.*,
       tm.name_ja AS team_name,
       pm.name_ja AS player_name_ja,
       pm2.name_ja AS assist_name_ja
@@ -134,7 +135,7 @@ async function getEvents(fixtureId) {
     LEFT JOIN players_master pm ON fe.player_id = pm.id
     LEFT JOIN players_master pm2 ON fe.assist_id = pm2.id
     WHERE fe.fixture_id = ${fixtureId}
-    ORDER BY fe.elapsed ASC
+    ORDER BY fe.elapsed, fe.team_id, fe.type, fe.detail, fe.player_id ASC
   `
   return rows
 }
@@ -495,7 +496,7 @@ export default async function FixturePage({ params }) {
   ])
 
   const hasReferee = !!fixture.referee_en
-  const refereeLimit = isFinished ? 5 : null  // 試合前は全件、終了後は5件
+  const refereeLimit = 5
   const [homeRefereeHistory, awayRefereeHistory, refereeJa] = hasReferee
     ? await Promise.all([
         getRefereeHistory(fixture.referee_en, fixture.home_team_id, fixture.id, refereeLimit),
@@ -549,8 +550,24 @@ export default async function FixturePage({ params }) {
     if (e.assist_id) subInMap[e.assist_id] = { name: e.player_name_ja ?? e.player_name_en, elapsed: e.elapsed }
   }
 
-  const homeGoalEvents = events.filter(e => e.team_id === fixture.home_team_id && e.type === 'Goal')
-  const awayGoalEvents = events.filter(e => e.team_id === fixture.away_team_id && e.type === 'Goal')
+  const dedupeGoals = (goals) => {
+    const seen = new Set()
+    return goals.filter(e => {
+      const key = `${e.elapsed}-${e.player_id ?? e.player_name_en}-${e.detail}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+  const allHomeGoals = dedupeGoals(events.filter(e => e.team_id === fixture.home_team_id && e.type === 'Goal'))
+  const allAwayGoals = dedupeGoals(events.filter(e => e.team_id === fixture.away_team_id && e.type === 'Goal'))
+  // PEN試合はPK戦キッカーを除外（home_score/away_scoreは延長込みの実得点数）
+  const homeGoalEvents = fixture.status === 'PEN'
+    ? allHomeGoals.slice(0, fixture.home_score ?? allHomeGoals.length)
+    : allHomeGoals
+  const awayGoalEvents = fixture.status === 'PEN'
+    ? allAwayGoals.slice(0, fixture.away_score ?? allAwayGoals.length)
+    : allAwayGoals
 
   const homeColor = fixture.home_color ?? '#444'
   const awayColor = fixture.away_color ?? '#444'
@@ -593,18 +610,32 @@ export default async function FixturePage({ params }) {
 
       {/* スコアタイル */}
       <div style={{ display: 'flex', marginBottom: 4 }}>
-        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: homeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: homeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {hasStarted && (
-            <span style={{ fontSize: 60, fontWeight: 900, color: textColor(homeColor), lineHeight: 1 }}>
-              {fixture.home_score ?? 0}
-            </span>
+            <>
+              <span style={{ fontSize: 60, fontWeight: 900, color: textColor(homeColor), lineHeight: 1 }}>
+                {fixture.home_score ?? 0}
+              </span>
+              {fixture.status === 'PEN' && fixture.home_penalty != null && (
+                <span style={{ fontSize: 28, fontWeight: 900, color: textColor(homeColor), opacity: 0.7, lineHeight: 1 }}>
+                  ({fixture.home_penalty})
+                </span>
+              )}
+            </>
           )}
         </div>
-        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: awayColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: awayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {hasStarted && (
-            <span style={{ fontSize: 60, fontWeight: 900, color: textColor(awayColor), lineHeight: 1 }}>
-              {fixture.away_score ?? 0}
-            </span>
+            <>
+              {fixture.status === 'PEN' && fixture.away_penalty != null && (
+                <span style={{ fontSize: 28, fontWeight: 900, color: textColor(awayColor), opacity: 0.7, lineHeight: 1 }}>
+                  ({fixture.away_penalty})
+                </span>
+              )}
+              <span style={{ fontSize: 60, fontWeight: 900, color: textColor(awayColor), lineHeight: 1 }}>
+                {fixture.away_score ?? 0}
+              </span>
+            </>
           )}
         </div>
       </div>
@@ -641,12 +672,6 @@ export default async function FixturePage({ params }) {
         </div>
       </div>
 
-      {/* PK */}
-      {fixture.status === 'PEN' && fixture.home_penalty != null && (
-        <p style={{ textAlign: 'center', marginBottom: 24, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-          PK {fixture.home_penalty} - {fixture.away_penalty}
-        </p>
-      )}
 
       {/* 試合スタッツ */}
       {isFinished && homeStats && awayStats && (
@@ -771,7 +796,7 @@ export default async function FixturePage({ params }) {
       {(homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
         <section style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 15, color: '#fff', marginBottom: 12 }}>
-            {refereeJa ?? fixture.referee_en}{isFinished ? 'の直近担当5試合' : 'の担当履歴（全件）'}
+            {`主審：${refereeJa ?? fixture.referee_en} 直近担当5試合`}
           </p>
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>
