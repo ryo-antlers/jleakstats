@@ -103,7 +103,7 @@ function EarlyFixtureGroup({ fixtures }) {
           </div>
           <div className="grid-fixtures-5col">
             {g.items.map(f => {
-              const isFinished = ['FT', 'AET', 'PEN', 'LIVE', 'HT'].includes(f.status)
+              const isFinished = ['FT', 'AET', 'PEN'].includes(f.status)
               return isFinished
                 ? <FixtureCard key={f.id} fixture={f} />
                 : <UpcomingFixtureCard key={f.id} fixture={f} />
@@ -138,8 +138,7 @@ function textColor(hex) {
 
 function FixtureCard({ fixture }) {
   const isFinished = ['FT', 'AET', 'PEN'].includes(fixture.status)
-  const isLive = fixture.status === 'LIVE' || fixture.status === 'HT'
-  const hasScore = isFinished || isLive
+  const hasScore = isFinished
 
   return (
     <Link href={`/fixture/${fixture.id}`} style={{ textDecoration: 'none' }}>
@@ -194,10 +193,6 @@ function FixtureCard({ fixture }) {
           </span>
         )}
 
-        {/* LIVE */}
-        {isLive && (
-          <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>● LIVE</span>
-        )}
       </div>
     </Link>
   )
