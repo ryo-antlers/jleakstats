@@ -2,7 +2,7 @@ name: Auto Sync
 
 on:
   schedule:
-    - cron: '*/30 3-13 * * *'  # JST 12:00〜22:30、30分ごと
+    - cron: '*/30 * * * *'  # 30分ごと（終日）
   workflow_dispatch:             # 手動実行も可能
 
 jobs:
