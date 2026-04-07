@@ -74,12 +74,6 @@ export default function SignInPage() {
     letterSpacing: '0.1em', transition: 'background-color 0.15s',
   })
 
-  if (!isLoaded) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-      <span style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em' }}>LOADING...</span>
-    </div>
-  )
-
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
