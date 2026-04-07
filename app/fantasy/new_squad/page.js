@@ -180,11 +180,11 @@ export default function NewSquadPage() {
             <button
               onClick={async () => {
                 if (!minMet) return
-                setActionLoading(true)
+                setActionLoading('confirm')
                 try {
                   await fetch('/api/fantasy/squad/auto-starters', { method: 'POST' })
                 } catch {}
-                setActionLoading(false)
+                setActionLoading(null)
                 router.push('/fantasy')
               }}
               disabled={!minMet || actionLoading !== null}
@@ -400,7 +400,7 @@ export default function NewSquadPage() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}
                       >
-                        {actionLoading === p.id ? (
+                        {String(actionLoading) === String(p.id) ? (
                           <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                         ) : '＋'}
                       </button>
@@ -482,7 +482,7 @@ export default function NewSquadPage() {
                               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', width: 72, textAlign: 'left' }}>{formatPrice(p.bought_price)}</span>
                               <button
                                 onClick={() => removePlayer(p)}
-                                disabled={actionLoading}
+                                disabled={actionLoading !== null}
                                 style={{
                                   width: 34, height: 34, borderRadius: '50%', fontSize: 16, fontWeight: 700,
                                   backgroundColor: p.team_color ?? '#555',
