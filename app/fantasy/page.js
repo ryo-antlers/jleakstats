@@ -353,7 +353,7 @@ export default function FantasyPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/fantasy/me').then(r => r.json()),
+      fetch('/api/fantasy/me').then(r => { if (!r.ok && r.status === 401) throw new Error('401'); return r.json() }),
       fetch('/api/fantasy/squad').then(r => r.json()),
     ]).then(([u, s]) => {
       if (!u.user) { router.push('/fantasy/setup'); return }
@@ -376,6 +376,8 @@ export default function FantasyPage() {
           setStarterIds(new Set(auto.starters.map(p => p.player_id)))
         }
       }
+    }).catch(() => {
+      router.push('/fantasy/setup')
     }).finally(() => setLoading(false))
   }, [])
 
@@ -556,6 +558,7 @@ export default function FantasyPage() {
   }
 
   if (loading) return null
+  if (!user) { router.push('/fantasy/setup'); return null }
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
