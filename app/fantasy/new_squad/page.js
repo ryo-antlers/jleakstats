@@ -48,7 +48,7 @@ export default function NewSquadPage() {
   const [mainTab, setMainTab] = useState('candidates')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState(null) // player_id or 'remove_xxx'
   const [message, setMessage] = useState(null)
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function NewSquadPage() {
   const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos]) && squad.length >= minTotal
 
   async function addPlayer(player) {
-    setActionLoading(true)
+    setActionLoading(player.id)
     setMessage(null)
     const cost = player.price * 10
     // 楽観的更新
@@ -120,11 +120,11 @@ export default function NewSquadPage() {
       setUser(prev => ({ ...prev, budget: Number(prev.budget) + cost }))
       setMessage({ type: 'error', text: data.error })
     }
-    setActionLoading(false)
+    setActionLoading(null)
   }
 
   async function removePlayer(player) {
-    setActionLoading(true)
+    setActionLoading('remove_' + player.player_id)
     setMessage(null)
     const refund = player.bought_price * 10
     // 楽観的更新
@@ -143,7 +143,7 @@ export default function NewSquadPage() {
       setUser(prev => ({ ...prev, budget: Number(prev.budget) - refund }))
       setMessage({ type: 'error', text: data.error })
     }
-    setActionLoading(false)
+    setActionLoading(null)
   }
 
   if (loading) return null
@@ -187,7 +187,7 @@ export default function NewSquadPage() {
                 setActionLoading(false)
                 router.push('/fantasy')
               }}
-              disabled={!minMet || actionLoading}
+              disabled={!minMet || actionLoading !== null}
               style={{
                 padding: '10px 20px', borderRadius: 0, fontSize: 13, fontWeight: 700,
                 backgroundColor: minMet ? 'var(--accent)' : 'var(--bg-tertiary)',
@@ -196,7 +196,7 @@ export default function NewSquadPage() {
                 border: 'none', whiteSpace: 'nowrap',
               }}
             >
-              {actionLoading ? '設定中…' : 'メンバー確定'}
+              メンバー確定
             </button>
             {/* ポジション枠 */}
             <div style={{ display: 'flex', gap: 8 }}>
@@ -391,15 +391,18 @@ export default function NewSquadPage() {
                     ) : (
                       <button
                         onClick={() => addPlayer(p)}
-                        disabled={!canAdd || actionLoading}
+                        disabled={!canAdd || actionLoading !== null}
                         style={{
                           width: 34, padding: '4px 0', borderRadius: 40, fontSize: 16, fontWeight: 700,
                           backgroundColor: canAdd ? (p.team_color ?? '#555') : 'var(--bg-tertiary)',
                           color: canAdd ? textColor(p.team_color) : 'var(--text-secondary)',
                           cursor: canAdd ? 'pointer' : 'not-allowed', border: 'none',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}
                       >
-                        ＋
+                        {actionLoading === p.id ? (
+                          <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                        ) : '＋'}
                       </button>
                     )}
                   </div>
