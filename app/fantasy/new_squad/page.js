@@ -393,15 +393,16 @@ export default function NewSquadPage() {
                         onClick={() => addPlayer(p)}
                         disabled={!canAdd || actionLoading !== null}
                         style={{
-                          width: 34, padding: '4px 0', borderRadius: 40, fontSize: 16, fontWeight: 700,
+                          padding: '4px 6px', borderRadius: 40, fontSize: String(actionLoading) === String(p.id) ? 10 : 16, fontWeight: 700,
                           backgroundColor: (!canAdd || actionLoading !== null) ? 'var(--bg-tertiary)' : (p.team_color ?? '#555'),
                           color: (!canAdd || actionLoading !== null) ? 'var(--text-secondary)' : textColor(p.team_color),
                           cursor: (!canAdd || actionLoading !== null) ? 'not-allowed' : 'pointer', border: 'none',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          opacity: actionLoading !== null && canAdd ? 0.4 : 1,
+                          opacity: actionLoading !== null && canAdd && String(actionLoading) !== String(p.id) ? 0.4 : 1,
+                          minWidth: 34, whiteSpace: 'nowrap',
                         }}
                       >
-                        ＋
+                        {String(actionLoading) === String(p.id) ? '購入中' : '＋'}
                       </button>
                     )}
                   </div>
