@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 const isFantasyRoute = createRouteMatcher(['/fantasy(.*)'])
 
-export default clerkMiddleware(async (auth, request) => {
+const clerkHandler = clerkMiddleware(async (auth, request) => {
   const { pathname } = new URL(request.url)
 
   // /admin はBasic Auth保護
@@ -33,6 +33,10 @@ export default clerkMiddleware(async (auth, request) => {
 
   return NextResponse.next()
 })
+
+export function proxy(request, event) {
+  return clerkHandler(request, event)
+}
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
