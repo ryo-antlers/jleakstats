@@ -19,7 +19,6 @@ export default function SignInPage() {
 
   async function submitEmail(e) {
     e.preventDefault()
-    if (!isLoaded) return
     setError('')
     setLoading(true)
     try {
@@ -39,7 +38,6 @@ export default function SignInPage() {
 
   async function submitCode(e) {
     e.preventDefault()
-    if (!isLoaded) return
     setError('')
     setLoading(true)
     try {
