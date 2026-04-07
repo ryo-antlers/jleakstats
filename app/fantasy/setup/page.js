@@ -76,8 +76,8 @@ export default function FantasySetupPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
       router.push('/fantasy/new_squad')
-    } catch {
-      setError('エラーが発生しました')
+    } catch (err) {
+      setError(`エラー: ${err?.message ?? String(err)}`)
     } finally {
       setLoading(false)
     }
