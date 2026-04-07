@@ -491,7 +491,9 @@ export default function NewSquadPage() {
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}
                               >
-                                ×
+                                {String(actionLoading) === 'remove_' + String(p.player_id) ? (
+                                  <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                ) : '×'}
                               </button>
                             </div>
                           </div>
