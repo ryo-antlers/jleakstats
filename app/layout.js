@@ -1,4 +1,5 @@
 import { ClerkProvider } from '@clerk/nextjs'
+import { jaJP } from '@clerk/localizations'
 import "./globals.css";
 
 export const metadata = {
@@ -16,7 +17,7 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Anta&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-full flex flex-col" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-        <ClerkProvider appearance={{
+        <ClerkProvider localization={jaJP} appearance={{
           variables: {
             colorBackground: '#111111',
             colorInputBackground: '#1a1a1a',
