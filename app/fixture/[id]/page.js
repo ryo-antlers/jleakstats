@@ -550,17 +550,30 @@ export default async function FixturePage({ params }) {
     if (e.assist_id) subInMap[e.assist_id] = { name: e.player_name_ja ?? e.player_name_en, elapsed: e.elapsed }
   }
 
+  // カードmap: player_id → { yellow, red, redElapsed }
+  const cardMap = {}
+  for (const e of events.filter(e => e.type === 'Card')) {
+    if (!e.player_id) continue
+    if (!cardMap[e.player_id]) cardMap[e.player_id] = { yellow: 0, red: 0, redElapsed: null }
+    if (e.detail === 'Yellow Card') cardMap[e.player_id].yellow++
+    if (e.detail === 'Red Card' || e.detail === 'Yellow Red Card') {
+      cardMap[e.player_id].red++
+      cardMap[e.player_id].redElapsed = e.elapsed
+    }
+  }
+
   const dedupeGoals = (goals) => {
     const seen = new Set()
     return goals.filter(e => {
-      const key = `${e.elapsed}-${e.player_id ?? e.player_name_en}-${e.detail}`
+      const name = e.player_name_ja ?? e.player_name_en ?? ''
+      const key = `${e.elapsed}-${name}-${e.detail}`
       if (seen.has(key)) return false
       seen.add(key)
       return true
     })
   }
-  const allHomeGoals = dedupeGoals(events.filter(e => e.team_id === fixture.home_team_id && e.type === 'Goal'))
-  const allAwayGoals = dedupeGoals(events.filter(e => e.team_id === fixture.away_team_id && e.type === 'Goal'))
+  const allHomeGoals = dedupeGoals(events.filter(e => e.team_id === fixture.home_team_id && e.type === 'Goal' && e.detail !== 'Missed Penalty'))
+  const allAwayGoals = dedupeGoals(events.filter(e => e.team_id === fixture.away_team_id && e.type === 'Goal' && e.detail !== 'Missed Penalty'))
   // PEN試合はPK戦キッカーを除外（home_score/away_scoreは延長込みの実得点数）
   const homeGoalEvents = fixture.status === 'PEN'
     ? allHomeGoals.slice(0, fixture.home_score ?? allHomeGoals.length)
@@ -706,12 +719,15 @@ export default async function FixturePage({ params }) {
               </div>
               {homeStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
+                const card = cardMap[p.player_id]
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                     <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20, textAlign: 'right' }}>{p.position}</span>
                     <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16, textAlign: 'right' }}>{p.number}</span>
                     <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginLeft: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
-                    {subOut && <span style={{ fontSize: 9, color: '#e55', marginLeft: 8 }}>▼{subOut.elapsed}'</span>}
+                    {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px', marginLeft: 4 }}>YR</span>}
+                    {card?.red > 0 && <><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2, marginLeft: 4 }} /><span style={{ fontSize: 9, color: '#e53', marginLeft: 2 }}>▼{card.redElapsed}'</span></>}
+                    {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginLeft: 4 }}>▼{subOut.elapsed}'</span>}
                   </div>
                 )
               })}
@@ -743,9 +759,12 @@ export default async function FixturePage({ params }) {
               </div>
               {awayStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
+                const card = cardMap[p.player_id]
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
-                    {subOut && <span style={{ fontSize: 9, color: '#e55', marginRight: 8 }}>▼{subOut.elapsed}'</span>}
+                    {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginRight: 4 }}>▼{subOut.elapsed}'</span>}
+                    {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px' }}>YR</span>}
+                    {card?.red > 0 && <><span style={{ fontSize: 9, color: '#e53', marginRight: 2 }}>▼{card.redElapsed}'</span><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2 }} /></>}
                     <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginRight: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
                     <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16 }}>{p.number}</span>
                     <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20 }}>{p.position}</span>

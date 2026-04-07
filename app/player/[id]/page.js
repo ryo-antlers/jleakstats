@@ -40,6 +40,17 @@ async function getPlayerMatches(playerId) {
   `.catch(() => [])
 }
 
+async function getPlayerGwPoints(playerId) {
+  return await sql`
+    SELECT fg.gw_number, SUM(fp.points) AS points, fp.breakdown
+    FROM fantasy_points fp
+    JOIN fantasy_gameweeks fg ON fg.id = fp.gameweek_id
+    WHERE fp.player_id = ${playerId}
+    GROUP BY fg.gw_number, fp.breakdown
+    ORDER BY fg.gw_number
+  `.catch(() => [])
+}
+
 async function getTeamPlayersStats(teamId) {
   return await sql`
     SELECT
@@ -143,10 +154,12 @@ export default async function PlayerPage({ params }) {
   const playerId = parseInt(id)
   const player = await getPlayer(playerId)
   if (!player) notFound()
-  const [matches, teamStats] = await Promise.all([
+  const [matches, teamStats, gwPoints] = await Promise.all([
     getPlayerMatches(playerId),
     getTeamPlayersStats(player.team_id),
+    getPlayerGwPoints(playerId),
   ])
+  const gwMap = new Map(gwPoints.map(g => [g.gw_number, Number(g.points)]))
 
   const color = player.team_color ?? '#555'
 
@@ -222,6 +235,39 @@ export default async function PlayerPage({ params }) {
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.08em', marginBottom: 2 }}>RATING</p>
             <p style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{avgRating ?? '-'}</p>
+          </div>
+          {gwPoints.length > 0 && (
+            <>
+              <VDivider />
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.08em', marginBottom: 2 }}>FANTASY PT</p>
+                <p style={{ fontSize: 22, fontWeight: 900, color: 'var(--accent)', lineHeight: 1 }}>
+                  {gwPoints.reduce((s, g) => s + Number(g.points), 0)}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* GWポイント */}
+      {gwPoints.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' }}>Fantasy Points</p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {gwPoints.map(g => {
+              const pts = Number(g.points)
+              const bg = pts >= 10 ? 'var(--accent)' : pts >= 6 ? '#3a5a3a' : pts >= 0 ? 'var(--bg-secondary)' : '#5a2a2a'
+              const col = pts >= 10 ? '#000' : '#fff'
+              return (
+                <div key={g.gw_number} style={{ textAlign: 'center', minWidth: 40 }}>
+                  <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>GW{g.gw_number}</p>
+                  <div style={{ padding: '4px 8px', borderRadius: 4, backgroundColor: bg }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: col }}>{pts}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

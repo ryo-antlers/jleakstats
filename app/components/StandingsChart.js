@@ -78,10 +78,25 @@ function buildHistory(fixtures, teams) {
   }
 
   const maxGames = Math.max(...Object.values(gameCount), 1)
-  return { history, maxGames }
+
+  // 現時点の最終順位（試合数に関わらず勝ち点で計算）
+  const finalRank = {}
+  for (const group of ['EAST', 'WEST']) {
+    const groupTeams = teams.filter(t => t.group_name === group)
+    const sorted = [...groupTeams].sort((a, b) => {
+      const pd = (points[b.id] ?? 0) - (points[a.id] ?? 0)
+      if (pd !== 0) return pd
+      const gdd = (gd[b.id] ?? 0) - (gd[a.id] ?? 0)
+      if (gdd !== 0) return gdd
+      return (gf[b.id] ?? 0) - (gf[a.id] ?? 0)
+    })
+    sorted.forEach((t, i) => { finalRank[t.id] = i + 1 })
+  }
+
+  return { history, maxGames, finalRank }
 }
 
-function LineChart({ teams, history, maxGames, group }) {
+function LineChart({ teams, history, maxGames, finalRank, group }) {
   const groupTeams = teams.filter(t => t.group_name === group)
   const teamCount = groupTeams.length
 
@@ -116,10 +131,19 @@ function LineChart({ teams, history, maxGames, group }) {
       {groupTeams.map(team => {
         const pts = history[team.id] ?? []
         if (pts.length < 1) return null
-        const polyPts = pts.map(p => `${x(p.gameNum)},${y(p.rank)}`).join(' ')
         const last = pts[pts.length - 1]
         const color = team.color_primary ?? '#888'
-        const needsExtension = last.gameNum < maxGames
+        const currentRank = finalRank[team.id] ?? last.rank
+        const hasFewerGames = last.gameNum < maxGames
+        // maxGames到達済みだが順位が変わっている場合は最終点をfinalRankに修正して実線で描く
+        const rankChanged = !hasFewerGames && last.rank !== currentRank
+        const solidPts = rankChanged
+          ? [...pts.slice(0, -1), { gameNum: last.gameNum, rank: currentRank }]
+          : pts
+        const polyPts = solidPts.map(p => `${x(p.gameNum)},${y(p.rank)}`).join(' ')
+        // ラベル位置: 試合数が少ないチームはlastの位置、それ以外はmaxGames位置
+        const labelX = hasFewerGames ? x(last.gameNum) + 5 : x(maxGames) + 5
+        const labelY = hasFewerGames ? y(last.rank) + 4 : y(currentRank) + 4
         return (
           <g key={team.id}>
             <polyline
@@ -130,25 +154,27 @@ function LineChart({ teams, history, maxGames, group }) {
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            {needsExtension && (() => {
-              const labelStart = x(last.gameNum) + 5
-              const labelEnd = labelStart + team.abbr.length * 5.5 + 4
-              const lineEnd = x(maxGames)
-              if (labelEnd >= lineEnd) return null
+            {/* 試合数が少ないチームのみ点線で延長（ラベルの後ろから） */}
+            {hasFewerGames && (() => {
+              const dashStartX = x(last.gameNum) + 5 + team.abbr.length * 5.5 + 4
+              const maxAbbrLen = Math.max(...groupTeams.filter(t => (history[t.id]?.at(-1)?.gameNum ?? 0) >= maxGames).map(t => t.abbr.length), 3)
+              const dashEndX = x(maxGames) + 5 + maxAbbrLen * 5.5
+              if (dashStartX >= dashEndX) return null
               return (
-                <g>
-                  <line
-                    x1={labelEnd} y1={y(last.rank)}
-                    x2={lineEnd} y2={y(last.rank)}
-                    stroke={color}
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </g>
+                <line
+                  x1={dashStartX} y1={y(last.rank)}
+                  x2={dashEndX} y2={y(currentRank)}
+                  stroke={color}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeDasharray="4 3"
+                  opacity="0.4"
+                />
               )
             })()}
             <text
-              x={x(last.gameNum) + 5} y={y(last.rank) + 4}
+              x={labelX}
+              y={labelY}
               style={{ fontSize: 9, fill: color, fontFamily: 'inherit', fontWeight: 700 }}
             >
               {team.abbr}
@@ -164,12 +190,12 @@ export default async function StandingsChart({ group }) {
   const [fixtures, teams] = await Promise.all([getFixtureResults(), getTeams()])
   if (fixtures.length === 0) return null
 
-  const { history, maxGames } = buildHistory(fixtures, teams)
+  const { history, maxGames, finalRank } = buildHistory(fixtures, teams)
 
   return (
     <div>
       <div style={{ padding: '0' }}>
-        <LineChart teams={teams} history={history} maxGames={maxGames} group={group} />
+        <LineChart teams={teams} history={history} maxGames={maxGames} finalRank={finalRank} group={group} />
       </div>
     </div>
   )

@@ -217,12 +217,7 @@ export async function GET(request) {
                   red_cards = EXCLUDED.red_cards
               `
 
-              // players_master に未登録なら追加
-              await sql`
-                INSERT INTO players_master (id, name_en, team_id, position, updated_at)
-                VALUES (${p.id}, ${p.name}, ${teamId}, ${g.games.position ?? null}, NOW())
-                ON CONFLICT (id) DO NOTHING
-              `
+              // players_master への自動追加はしない
             }
           }
         }
