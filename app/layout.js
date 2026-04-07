@@ -17,7 +17,30 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Anta&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-full flex flex-col" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-        <ClerkProvider localization={jaJP} appearance={{
+        <ClerkProvider localization={{
+          ...jaJP,
+          signIn: {
+            ...jaJP.signIn,
+            start: {
+              ...jaJP.signIn?.start,
+              title: 'J.LEAK STATS',
+              subtitle: 'メールアドレスでサインイン',
+              subtitleCombined: 'メールアドレスでサインイン',
+              actionText: 'はじめての方はこちら',
+              actionLink: 'アカウントを作成',
+            },
+          },
+          signUp: {
+            ...jaJP.signUp,
+            start: {
+              ...jaJP.signUp?.start,
+              title: 'J.LEAK STATS',
+              subtitle: 'メールアドレスで登録',
+              actionText: 'すでにアカウントをお持ちの方',
+              actionLink: 'サインイン',
+            },
+          },
+        }} appearance={{
           variables: {
             colorBackground: '#111111',
             colorInputBackground: '#1a1a1a',
@@ -35,6 +58,7 @@ export default function RootLayout({ children }) {
             headerSubtitle: { color: '#666666' },
             formButtonPrimary: { backgroundColor: '#00ff87', color: '#000000', fontWeight: '700', letterSpacing: '0.06em', '&:hover': { backgroundColor: '#00cc6a' } },
             footerActionLink: { color: '#00ff87' },
+            footerActionText: { color: '#888888' },
             identityPreviewText: { color: '#ffffff' },
             formFieldLabel: { color: '#888888', fontSize: '11px', letterSpacing: '0.1em' },
             dividerLine: { backgroundColor: '#2a2a2a' },
