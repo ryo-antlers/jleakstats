@@ -127,9 +127,6 @@ export default function NewSquadPage() {
     setActionLoading('remove_' + player.player_id)
     setMessage(null)
     const refund = player.bought_price * 10
-    // 楽観的更新
-    setSquad(prev => prev.filter(s => s.player_id !== player.player_id))
-    setUser(prev => ({ ...prev, budget: Number(prev.budget) + refund }))
 
     const res = await fetch('/api/fantasy/squad', {
       method: 'DELETE',
@@ -138,10 +135,10 @@ export default function NewSquadPage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      // 失敗時は元に戻す
-      setSquad(prev => [...prev, player])
-      setUser(prev => ({ ...prev, budget: Number(prev.budget) - refund }))
       setMessage({ type: 'error', text: data.error })
+    } else {
+      setSquad(prev => prev.filter(s => s.player_id !== player.player_id))
+      setUser(prev => ({ ...prev, budget: Number(prev.budget) + refund }))
     }
     setActionLoading(null)
   }
