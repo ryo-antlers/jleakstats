@@ -1,17 +1,21 @@
 'use client'
-import { useSignIn, useAuth } from '@clerk/nextjs'
+import { useSignIn, useSignUp, useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
 export default function SignInPage() {
-  const { signIn, isLoaded, setActive } = useSignIn()
+  const { signIn, isLoaded: signInLoaded, setActive: setActiveSignIn } = useSignIn()
+  const { signUp, isLoaded: signUpLoaded, setActive: setActiveSignUp } = useSignUp()
   const { isSignedIn } = useAuth()
   const router = useRouter()
+  const isLoaded = signInLoaded && signUpLoaded
 
   useEffect(() => {
     if (isSignedIn) router.replace('/fantasy')
   }, [isSignedIn])
+
   const [step, setStep] = useState('email') // 'email' | 'code'
+  const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
@@ -19,19 +23,31 @@ export default function SignInPage() {
 
   async function submitEmail(e) {
     e.preventDefault()
+    if (!isLoaded) { setError('Clerkの読み込み中です。少し待ってから再試行してください。'); return }
     setError('')
     setLoading(true)
     try {
+      // まずサインインを試みる
       await signIn.create({ identifier: email })
-      const emailFactor = signIn.supportedFirstFactors?.find(f => f.strategy === 'email_code')
+      const factor = signIn.supportedFirstFactors?.find(f => f.strategy === 'email_code')
       await signIn.prepareFirstFactor({
         strategy: 'email_code',
-        emailAddressId: emailFactor?.emailAddressId,
+        emailAddressId: factor?.emailAddressId,
       })
+      setMode('signin')
       setStep('code')
-    } catch (err) {
-      setError(err.errors?.[0]?.longMessage ?? err.errors?.[0]?.message ?? err.message ?? 'エラーが発生しました')
-      console.error('signIn error:', err)
+    } catch (signInErr) {
+      // ユーザーが存在しない場合はサインアップ
+      try {
+        await signUp.create({ emailAddress: email })
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+        setMode('signup')
+        setStep('code')
+      } catch (signUpErr) {
+        setError(signUpErr.errors?.[0]?.longMessage ?? signUpErr.errors?.[0]?.message ?? signInErr.errors?.[0]?.message ?? 'エラーが発生しました')
+        console.error('signIn error:', signInErr)
+        console.error('signUp error:', signUpErr)
+      }
     } finally {
       setLoading(false)
     }
@@ -39,16 +55,22 @@ export default function SignInPage() {
 
   async function submitCode(e) {
     e.preventDefault()
+    if (!isLoaded) return
     setError('')
     setLoading(true)
     try {
-      const result = await signIn.attemptFirstFactor({
-        strategy: 'email_code',
-        code,
-      })
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId })
-        router.push('/fantasy')
+      if (mode === 'signin') {
+        const result = await signIn.attemptFirstFactor({ strategy: 'email_code', code })
+        if (result.status === 'complete') {
+          await setActiveSignIn({ session: result.createdSessionId })
+          router.push('/fantasy')
+        }
+      } else {
+        const result = await signUp.attemptEmailAddressVerification({ code })
+        if (result.status === 'complete') {
+          await setActiveSignUp({ session: result.createdSessionId })
+          router.push('/fantasy')
+        }
       }
     } catch (err) {
       setError(err.errors?.[0]?.message ?? 'コードが正しくありません')
