@@ -22,9 +22,9 @@ export default function SignInPage() {
     setError('')
     setLoading(true)
     try {
-      const si = await signIn.create({ identifier: email })
-      const emailFactor = si.supportedFirstFactors?.find(f => f.strategy === 'email_code')
-      await si.prepareFirstFactor({
+      await signIn.create({ identifier: email })
+      const emailFactor = signIn.supportedFirstFactors?.find(f => f.strategy === 'email_code')
+      await signIn.prepareFirstFactor({
         strategy: 'email_code',
         emailAddressId: emailFactor?.emailAddressId,
       })
