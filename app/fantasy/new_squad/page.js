@@ -490,14 +490,15 @@ export default function NewSquadPage() {
                                 disabled={actionLoading !== null}
                                 style={{
                                   width: 34, height: 34, borderRadius: '50%', fontSize: 16, fontWeight: 700,
-                                  backgroundColor: p.team_color ?? '#555',
-                                  color: textColor(p.team_color),
-                                  cursor: 'pointer', border: 'none', flexShrink: 0,
+                                  backgroundColor: String(actionLoading) === 'remove_' + String(p.player_id) ? (p.team_color ?? '#555') : actionLoading !== null ? 'var(--bg-tertiary)' : (p.team_color ?? '#555'),
+                                  color: String(actionLoading) === 'remove_' + String(p.player_id) ? textColor(p.team_color) : actionLoading !== null ? 'var(--text-secondary)' : textColor(p.team_color),
+                                  cursor: actionLoading !== null ? 'not-allowed' : 'pointer', border: 'none', flexShrink: 0,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  opacity: actionLoading !== null && String(actionLoading) !== 'remove_' + String(p.player_id) ? 0.4 : 1,
                                 }}
                               >
                                 {String(actionLoading) === 'remove_' + String(p.player_id) ? (
-                                  <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                                  <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${textColor(p.team_color)}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                                 ) : '×'}
                               </button>
                             </div>
