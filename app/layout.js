@@ -64,7 +64,7 @@ export default function RootLayout({ children }) {
             dividerLine: { backgroundColor: '#2a2a2a' },
             dividerText: { color: '#444444' },
             socialButtonsBlockButton: { border: '1px solid #2a2a2a', backgroundColor: '#1a1a1a', color: '#ffffff' },
-            otpCodeFieldInput: { border: '2px solid #00ff87', color: '#00ff87', backgroundColor: '#1a1a1a' },
+            otpCodeFieldInput: { border: '2px solid #00ff87', color: '#00ff87', backgroundColor: '#1a1a1a', boxShadow: 'none' },
           },
           layout: {
             logoPlacement: 'none',
