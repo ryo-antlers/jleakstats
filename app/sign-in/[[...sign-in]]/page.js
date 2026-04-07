@@ -23,7 +23,6 @@ export default function SignInPage() {
 
   async function submitEmail(e) {
     e.preventDefault()
-    if (!isLoaded) { setError('Clerkの読み込み中です。少し待ってから再試行してください。'); return }
     setError('')
     setLoading(true)
     try {
@@ -55,7 +54,6 @@ export default function SignInPage() {
 
   async function submitCode(e) {
     e.preventDefault()
-    if (!isLoaded) return
     setError('')
     setLoading(true)
     try {
