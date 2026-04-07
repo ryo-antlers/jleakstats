@@ -117,19 +117,21 @@ export async function DELETE(request) {
     `
     if (!entry) return Response.json({ error: '選手が見つかりません' }, { status: 404 })
 
-    // 売却後にポジション最低人数を下回らないかチェック
-    const POS_MIN = { GK: 1, DF: 3, MF: 3, FW: 1 }
-    const remainingSquad = await sql`
-      SELECT pm.position FROM fantasy_squads fs
-      JOIN players_master pm ON fs.player_id = pm.id
-      WHERE fs.clerk_user_id = ${userId} AND fs.player_id != ${player_id}
-    `
-    const remainingCounts = { GK: 0, DF: 0, MF: 0, FW: 0 }
-    for (const p of remainingSquad) if (p.position in remainingCounts) remainingCounts[p.position]++
-    const [sellingPlayer] = await sql`SELECT position FROM players_master WHERE id = ${player_id}`
-    const pos = sellingPlayer?.position
-    if (pos && POS_MIN[pos] && remainingCounts[pos] < POS_MIN[pos]) {
-      return Response.json({ error: `${pos}は最低${POS_MIN[pos]}人必要です` }, { status: 400 })
+    // new_squad（no_fee）時はポジション最低人数チェックをスキップ
+    if (!no_fee) {
+      const POS_MIN = { GK: 1, DF: 3, MF: 4, FW: 1 }
+      const remainingSquad = await sql`
+        SELECT pm.position FROM fantasy_squads fs
+        JOIN players_master pm ON fs.player_id = pm.id
+        WHERE fs.clerk_user_id = ${userId} AND fs.player_id != ${player_id}
+      `
+      const remainingCounts = { GK: 0, DF: 0, MF: 0, FW: 0 }
+      for (const p of remainingSquad) if (p.position in remainingCounts) remainingCounts[p.position]++
+      const [sellingPlayer] = await sql`SELECT position FROM players_master WHERE id = ${player_id}`
+      const pos = sellingPlayer?.position
+      if (pos && POS_MIN[pos] && remainingCounts[pos] < POS_MIN[pos]) {
+        return Response.json({ error: `${pos}は最低${POS_MIN[pos]}人必要です` }, { status: 400 })
+      }
     }
 
     const sellPrice = no_fee ? entry.bought_price : Math.floor(entry.bought_price * 0.95)
