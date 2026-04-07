@@ -30,7 +30,8 @@ export default function SignInPage() {
       })
       setStep('code')
     } catch (err) {
-      setError(err.errors?.[0]?.message ?? 'エラーが発生しました')
+      setError(err.errors?.[0]?.longMessage ?? err.errors?.[0]?.message ?? err.message ?? 'エラーが発生しました')
+      console.error('signIn error:', err)
     } finally {
       setLoading(false)
     }
