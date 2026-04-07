@@ -815,24 +815,14 @@ export default function FantasyPage() {
                       position: 'relative',
                       userSelect: 'none',
                     }}
-                    onMouseDown={posEditMode ? (e) => {
+                    onMouseDown={posEditMode && p.position !== 'GK' ? (e) => {
                       e.preventDefault()
                       setPosEditId(p.player_id)
-                      const cardEl = e.currentTarget
-                      const cardRect = cardEl.getBoundingClientRect()
-                      const containerRect = formationRef.current?.getBoundingClientRect() ?? cardRect
-                      // カードが今オフセット off.x/off.y ぶん動いているので、本来の位置を求める
-                      const cardLeft = cardRect.left - off.x
-                      const cardRight = cardRect.right - off.x
-                      const cardTop = cardRect.top - off.y
-                      const cardBottom = cardRect.bottom - off.y
-                      const minX = containerRect.left - cardLeft + off.x
-                      const maxX = containerRect.right - cardRight + off.x
-                      const minY = containerRect.top - cardTop + off.y
-                      const maxY = containerRect.bottom - cardBottom + off.y
-                      dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX, maxX, minY, maxY }
+                      const LIMIT_X = 80
+                      const LIMIT_Y = 60
+                      dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX: -LIMIT_X, maxX: LIMIT_X, minY: -LIMIT_Y, maxY: LIMIT_Y }
                     } : undefined}
-                    onDoubleClick={posEditMode ? () => setPlayerOffsets(prev => ({ ...prev, [p.player_id]: { x: 0, y: 0 } })) : undefined}
+                    onDoubleClick={posEditMode && p.position !== 'GK' ? () => setPlayerOffsets(prev => ({ ...prev, [p.player_id]: { x: 0, y: 0 } })) : undefined}
                   >
                     {playerCard(p)}
                   </div>
