@@ -8,14 +8,14 @@ export async function GET() {
 
   const squad = await sql`
     SELECT
-      fs.player_id, fs.bought_price, fs.is_starter,
+      fs.player_id, fs.bought_price, fs.is_starter, COALESCE(fs.sort_order, 0) AS sort_order,
       pm.name_ja, pm.name_en, pm.position, pm.price, pm.team_id, pm.no,
       tm.abbr AS team_abbr, tm.color_primary AS team_color
     FROM fantasy_squads fs
     JOIN players_master pm ON fs.player_id = pm.id
     LEFT JOIN teams_master tm ON pm.team_id = tm.id
     WHERE fs.clerk_user_id = ${userId}
-    ORDER BY pm.position, pm.name_ja
+    ORDER BY COALESCE(fs.sort_order, 0), pm.position, pm.name_ja
   `
   return Response.json({ squad })
 }

@@ -16,16 +16,19 @@ export async function POST(request) {
       return Response.json({ error: 'スタメンは11人です' }, { status: 400 })
     }
 
+    // sort_orderカラムがなければ追加
+    await sql`ALTER TABLE fantasy_squads ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0`
+
     // 全選手をis_starter=falseにリセット
     await sql`
-      UPDATE fantasy_squads SET is_starter = false
+      UPDATE fantasy_squads SET is_starter = false, sort_order = 0
       WHERE clerk_user_id = ${userId}
     `
-    // 指定選手をis_starter=true
-    for (const pid of starter_ids) {
+    // 指定選手をis_starter=true、順番を保存
+    for (let i = 0; i < starter_ids.length; i++) {
       await sql`
-        UPDATE fantasy_squads SET is_starter = true
-        WHERE clerk_user_id = ${userId} AND player_id = ${pid}
+        UPDATE fantasy_squads SET is_starter = true, sort_order = ${i + 1}
+        WHERE clerk_user_id = ${userId} AND player_id = ${starter_ids[i]}
       `
     }
 
