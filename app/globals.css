@@ -18,12 +18,23 @@ body {
   color: var(--text-primary);
   font-family: "source-han-sans-japanese", sans-serif;
   font-weight: 700;
+  overflow-y: scroll;
 }
 
 .site-title {
   font-size: 52px !important;
   padding-left: 32px !important;
   padding-top: 28px !important;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes namescroll {
+  0%, 20% { transform: translateX(0); }
+  50%, 80% { transform: translateX(var(--overflow-x, 0px)); }
+  100% { transform: translateX(0); }
 }
 
 .title-row {

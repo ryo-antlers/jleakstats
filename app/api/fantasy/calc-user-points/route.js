@@ -1,0 +1,71 @@
+import sql from '@/lib/db'
+
+/**
+ * POST /api/fantasy/calc-user-points
+ * body: { gameweek_id }
+ *
+ * 現在の is_starter=true の選手のGWポイントを合算して
+ * fantasy_users.total_points に付与する。管理者が手動実行。
+ */
+export async function POST(request) {
+  try {
+    const { gameweek_id } = await request.json()
+    if (!gameweek_id) return Response.json({ error: 'gameweek_id required' }, { status: 400 })
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS fantasy_gw_user_points (
+        id SERIAL PRIMARY KEY,
+        gameweek_id INTEGER NOT NULL,
+        clerk_user_id TEXT NOT NULL,
+        gw_points INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (gameweek_id, clerk_user_id)
+      )
+    `
+
+    // is_starter=true の選手のGWポイントをユーザーごとに合算
+    const userPoints = await sql`
+      SELECT
+        fs.clerk_user_id,
+        COALESCE(SUM(fp.points), 0) AS gw_points
+      FROM fantasy_squads fs
+      LEFT JOIN (
+        SELECT player_id, SUM(points) AS points
+        FROM fantasy_points
+        WHERE gameweek_id = ${gameweek_id}
+        GROUP BY player_id
+      ) fp ON fp.player_id = fs.player_id
+      WHERE fs.is_starter = true
+      GROUP BY fs.clerk_user_id
+    `
+
+    if (userPoints.length === 0) {
+      return Response.json({ error: 'スタメン登録ユーザーがいません' }, { status: 400 })
+    }
+
+    let updated = 0
+    for (const row of userPoints) {
+      const newGwPts = Number(row.gw_points)
+      const [existing] = await sql`
+        SELECT id, gw_points FROM fantasy_gw_user_points
+        WHERE gameweek_id = ${gameweek_id} AND clerk_user_id = ${row.clerk_user_id}
+      `
+      if (existing) {
+        const diff = newGwPts - Number(existing.gw_points)
+        if (diff !== 0) {
+          await sql`UPDATE fantasy_users SET total_points = total_points + ${diff} WHERE clerk_user_id = ${row.clerk_user_id}`
+          await sql`UPDATE fantasy_gw_user_points SET gw_points = ${newGwPts} WHERE id = ${existing.id}`
+          updated++
+        }
+      } else {
+        await sql`UPDATE fantasy_users SET total_points = COALESCE(total_points, 0) + ${newGwPts} WHERE clerk_user_id = ${row.clerk_user_id}`
+        await sql`INSERT INTO fantasy_gw_user_points (gameweek_id, clerk_user_id, gw_points) VALUES (${gameweek_id}, ${row.clerk_user_id}, ${newGwPts})`
+        updated++
+      }
+    }
+
+    return Response.json({ ok: true, gameweek_id, users_updated: updated, breakdown: userPoints })
+  } catch (err) {
+    console.error('calc-user-points error:', err)
+    return Response.json({ error: err.message }, { status: 500 })
+  }
+}
