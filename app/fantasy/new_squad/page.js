@@ -90,7 +90,9 @@ export default function NewSquadPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pagedPlayers = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos])
+  const gkCount = posCounts['GK'] ?? 0
+  const minTotal = 10 + gkCount  // GK1人なら11人、GK2人なら12人
+  const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos]) && squad.length >= minTotal
 
   async function addPlayer(player) {
     setActionLoading(true)
@@ -165,7 +167,7 @@ export default function NewSquadPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {[
-                'GK1-2、DF3-6、MF3-6、FW1-4 の範囲で予算内に獲得',
+                'GK1-2、DF3-6、MF3-6、FW1-4、合計11人以上（GK2人の場合は12人以上）',
                 '同じクラブからの獲得は最大3名まで',
               ].map((rule, i) => (
                 <p key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
