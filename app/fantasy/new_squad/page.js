@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
 const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 4 }
-const POS_MIN = { GK: 1, DF: 3, MF: 3, FW: 1 }
+const POS_MIN = { GK: 1, DF: 3, MF: 4, FW: 1 }
 
 // 予算: 1unit = 1000円 → 億/万表記
 function formatBudget(value) {
@@ -167,7 +167,7 @@ export default function NewSquadPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {[
-                'GK1-2、DF3-6、MF3-6、FW1-4、合計11人以上（GK2人の場合は12人以上）',
+                'GK1-2、DF3-6、MF4-6、FW1-4、合計11人以上（GK2人の場合は12人以上）',
                 '同じクラブからの獲得は最大3名まで',
               ].map((rule, i) => (
                 <p key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
