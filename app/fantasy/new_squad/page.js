@@ -469,7 +469,7 @@ export default function NewSquadPage() {
                       {posPlayers.map(p => {
                         const stats = playerMap.get(p.player_id) ?? {}
                         return (
-                          <div key={p.player_id} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div key={p.player_id} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', opacity: actionLoading !== null && String(actionLoading) !== 'remove_' + String(p.player_id) ? 0.4 : 1 }}>
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                               <div style={{ width: 36, height: 36, borderRadius: 0, backgroundColor: p.team_color ?? '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 <span style={{ fontSize: 13, fontWeight: 700, color: textColor(p.team_color) }}>{stats.no ?? ''}</span>
@@ -490,11 +490,10 @@ export default function NewSquadPage() {
                                 disabled={actionLoading !== null}
                                 style={{
                                   width: 34, height: 34, borderRadius: '50%', fontSize: 16, fontWeight: 700,
-                                  backgroundColor: String(actionLoading) === 'remove_' + String(p.player_id) ? (p.team_color ?? '#555') : actionLoading !== null ? 'var(--bg-tertiary)' : (p.team_color ?? '#555'),
-                                  color: String(actionLoading) === 'remove_' + String(p.player_id) ? textColor(p.team_color) : actionLoading !== null ? 'var(--text-secondary)' : textColor(p.team_color),
+                                  backgroundColor: p.team_color ?? '#555',
+                                  color: textColor(p.team_color),
                                   cursor: actionLoading !== null ? 'not-allowed' : 'pointer', border: 'none', flexShrink: 0,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  opacity: actionLoading !== null && String(actionLoading) !== 'remove_' + String(p.player_id) ? 0.4 : 1,
                                 }}
                               >
                                 {String(actionLoading) === 'remove_' + String(p.player_id) ? (
