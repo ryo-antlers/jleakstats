@@ -394,15 +394,14 @@ export default function NewSquadPage() {
                         disabled={!canAdd || actionLoading !== null}
                         style={{
                           width: 34, padding: '4px 0', borderRadius: 40, fontSize: 16, fontWeight: 700,
-                          backgroundColor: canAdd ? (p.team_color ?? '#555') : 'var(--bg-tertiary)',
-                          color: canAdd ? textColor(p.team_color) : 'var(--text-secondary)',
-                          cursor: canAdd ? 'pointer' : 'not-allowed', border: 'none',
+                          backgroundColor: (!canAdd || actionLoading !== null) ? 'var(--bg-tertiary)' : (p.team_color ?? '#555'),
+                          color: (!canAdd || actionLoading !== null) ? 'var(--text-secondary)' : textColor(p.team_color),
+                          cursor: (!canAdd || actionLoading !== null) ? 'not-allowed' : 'pointer', border: 'none',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          opacity: actionLoading !== null && canAdd ? 0.4 : 1,
                         }}
                       >
-                        {String(actionLoading) === String(p.id) ? (
-                          <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                        ) : '＋'}
+                        ＋
                       </button>
                     )}
                   </div>
