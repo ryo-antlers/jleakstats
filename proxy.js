@@ -1,9 +1,12 @@
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-export function proxy(request) {
+const isFantasyRoute = createRouteMatcher(['/fantasy(.*)'])
+
+export default clerkMiddleware(async (auth, request) => {
   const { pathname } = new URL(request.url)
 
-  // /admin のみBasic Auth保護
+  // /admin はBasic Auth保護
   if (pathname.startsWith('/admin')) {
     const authHeader = request.headers.get('authorization')
     if (authHeader) {
@@ -19,14 +22,17 @@ export function proxy(request) {
     }
     return new Response('管理者のみアクセス可能です', {
       status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="jleakstats-admin"',
-      },
+      headers: { 'WWW-Authenticate': 'Basic realm="jleakstats-admin"' },
     })
   }
 
+  // /fantasy はClerk認証
+  if (isFantasyRoute(request)) {
+    await auth.protect()
+  }
+
   return NextResponse.next()
-}
+})
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
