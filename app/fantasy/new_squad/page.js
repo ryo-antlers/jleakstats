@@ -388,13 +388,12 @@ export default function NewSquadPage() {
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', width: 80, textAlign: 'left' }}>{formatPrice(p.price)}</span>
                     {String(actionLoading) === String(p.id) ? (
                       <button disabled style={{
-                        padding: '4px 6px', borderRadius: 40, fontSize: 10, fontWeight: 700,
+                        width: 34, height: 34, borderRadius: '50%',
                         backgroundColor: p.team_color ?? '#555',
-                        color: textColor(p.team_color),
-                        border: 'none', minWidth: 34, whiteSpace: 'nowrap',
+                        border: 'none',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        購入中
+                        <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${textColor(p.team_color)}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                       </button>
                     ) : inSquad ? (
                       <span style={{ fontSize: 12, color: 'var(--accent)', width: 34, textAlign: 'center' }}>✓</span>
