@@ -359,6 +359,7 @@ export default function FantasyPage() {
       if (!u.user) { router.push('/fantasy/setup'); return }
       setUser(u.user)
       const sq = s.squad ?? []
+      if (sq.length === 0) { router.push('/fantasy/new_squad'); return }
       setSquad(sq)
 
       const savedStarters = sq.filter(p => p.is_starter)
