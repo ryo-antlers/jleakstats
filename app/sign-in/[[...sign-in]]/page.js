@@ -1,171 +1,39 @@
 'use client'
-import { useSignIn, useSignUp, useAuth } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { SignIn } from '@clerk/nextjs'
 
 export default function SignInPage() {
-  const { signIn, isLoaded: signInLoaded, setActive: setActiveSignIn } = useSignIn()
-  const { signUp, isLoaded: signUpLoaded, setActive: setActiveSignUp } = useSignUp()
-  const { isSignedIn } = useAuth()
-  const router = useRouter()
-  const isLoaded = signInLoaded && signUpLoaded
-
-  useEffect(() => {
-    if (isSignedIn) router.replace('/fantasy')
-  }, [isSignedIn])
-
-  const [step, setStep] = useState('email') // 'email' | 'code'
-  const [mode, setMode] = useState('signin') // 'signin' | 'signup'
-  const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  async function submitEmail(e) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      // まずサインインを試みる
-      await signIn.create({ identifier: email })
-      const factor = signIn.supportedFirstFactors?.find(f => f.strategy === 'email_code')
-      await signIn.prepareFirstFactor({
-        strategy: 'email_code',
-        emailAddressId: factor?.emailAddressId,
-      })
-      setMode('signin')
-      setStep('code')
-    } catch (signInErr) {
-      // ユーザーが存在しない場合はサインアップ
-      try {
-        await signUp.create({ emailAddress: email })
-        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-        setMode('signup')
-        setStep('code')
-      } catch (signUpErr) {
-        setError(signUpErr.errors?.[0]?.longMessage ?? signUpErr.errors?.[0]?.message ?? signInErr.errors?.[0]?.message ?? 'エラーが発生しました')
-        console.error('signIn error:', signInErr)
-        console.error('signUp error:', signUpErr)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function submitCode(e) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      if (mode === 'signin') {
-        const result = await signIn.attemptFirstFactor({ strategy: 'email_code', code })
-        if (result.status === 'complete') {
-          await setActiveSignIn({ session: result.createdSessionId })
-          router.push('/fantasy')
-        }
-      } else {
-        const result = await signUp.attemptEmailAddressVerification({ code })
-        if (result.status === 'complete') {
-          await setActiveSignUp({ session: result.createdSessionId })
-          router.push('/fantasy')
-        }
-      }
-    } catch (err) {
-      setError(err.errors?.[0]?.message ?? 'コードが正しくありません')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const inputStyle = {
-    width: '100%', padding: '12px 14px', fontSize: 14,
-    backgroundColor: '#1a1a1a', color: '#fff',
-    border: '1px solid #2a2a2a', outline: 'none',
-    boxSizing: 'border-box',
-    letterSpacing: '0.04em',
-  }
-
-  const btnStyle = (disabled) => ({
-    width: '100%', padding: '13px 0', fontSize: 13, fontWeight: 700,
-    backgroundColor: disabled ? '#1a1a1a' : 'var(--accent)',
-    color: disabled ? '#444' : '#000',
-    border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-    letterSpacing: '0.1em', transition: 'background-color 0.15s',
-  })
-
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       minHeight: '80vh',
     }}>
-      <div style={{ width: 360, maxWidth: '100%' }}>
-
-        {/* ロゴ */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '0.12em', color: '#fff' }}>
-            J.<span style={{ color: 'var(--accent)' }}>LEAK</span> STATS
-          </span>
-          <p style={{ fontSize: 11, color: '#555', marginTop: 6, letterSpacing: '0.1em' }}>
-            {step === 'email' ? 'メールアドレスでサインイン' : '確認コードを入力'}
-          </p>
-        </div>
-
-        {step === 'email' ? (
-          <form onSubmit={submitEmail} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 10, color: '#666', letterSpacing: '0.12em', display: 'block', marginBottom: 6 }}>
-                EMAIL ADDRESS
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="example@email.com"
-                required
-                autoFocus
-                style={inputStyle}
-              />
-            </div>
-            {error && <p style={{ fontSize: 11, color: '#ef5350', margin: 0 }}>{error}</p>}
-            <button type="submit" disabled={loading || !email} style={btnStyle(loading || !email)}>
-              {loading ? '送信中…' : 'コードを送信'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={submitCode} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 10, color: '#666', letterSpacing: '0.12em', display: 'block', marginBottom: 6 }}>
-                確認コード
-              </label>
-              <p style={{ fontSize: 11, color: '#555', marginBottom: 10, lineHeight: 1.6 }}>
-                <span style={{ color: '#888' }}>{email}</span> に6桁のコードを送信しました
-              </p>
-              <input
-                type="text"
-                value={code}
-                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                required
-                autoFocus
-                maxLength={6}
-                style={{ ...inputStyle, fontSize: 24, letterSpacing: '0.3em', textAlign: 'center' }}
-              />
-            </div>
-            {error && <p style={{ fontSize: 11, color: '#ef5350', margin: 0 }}>{error}</p>}
-            <button type="submit" disabled={loading || code.length < 6} style={btnStyle(loading || code.length < 6)}>
-              {loading ? '確認中…' : 'サインイン'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setStep('email'); setCode(''); setError('') }}
-              style={{ background: 'none', border: 'none', color: '#555', fontSize: 11, cursor: 'pointer', letterSpacing: '0.06em' }}
-            >
-              ← メールアドレスを変更
-            </button>
-          </form>
-        )}
-
-      </div>
+      <SignIn
+        appearance={{
+          variables: {
+            colorBackground: '#111111',
+            colorInputBackground: '#1a1a1a',
+            colorInputText: '#ffffff',
+            colorText: '#ffffff',
+            colorTextSecondary: '#888888',
+            colorPrimary: '#00ff87',
+            colorDanger: '#ef5350',
+            borderRadius: '0px',
+            fontFamily: 'inherit',
+          },
+          elements: {
+            card: { boxShadow: 'none', border: '1px solid #2a2a2a', backgroundColor: '#111111' },
+            headerTitle: { color: '#ffffff', fontSize: '18px', fontWeight: '700', letterSpacing: '0.06em' },
+            headerSubtitle: { color: '#666666' },
+            formButtonPrimary: { backgroundColor: '#00ff87', color: '#000000', fontWeight: '700', letterSpacing: '0.06em' },
+            footerActionLink: { color: '#00ff87' },
+            formFieldLabel: { color: '#888888', fontSize: '11px', letterSpacing: '0.1em' },
+            dividerLine: { backgroundColor: '#2a2a2a' },
+            dividerText: { color: '#444444' },
+            socialButtonsBlockButton: { border: '1px solid #2a2a2a', backgroundColor: '#1a1a1a', color: '#ffffff' },
+          },
+          layout: { logoPlacement: 'none' },
+        }}
+      />
     </div>
   )
 }
