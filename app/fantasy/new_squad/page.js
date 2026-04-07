@@ -386,23 +386,32 @@ export default function NewSquadPage() {
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 40, textAlign: 'center' }}>{p.next_opponent ?? '-'}</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', width: 80, textAlign: 'left' }}>{formatPrice(p.price)}</span>
-                    {inSquad ? (
+                    {String(actionLoading) === String(p.id) ? (
+                      <button disabled style={{
+                        padding: '4px 6px', borderRadius: 40, fontSize: 10, fontWeight: 700,
+                        backgroundColor: p.team_color ?? '#555',
+                        color: textColor(p.team_color),
+                        border: 'none', minWidth: 34, whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        購入中
+                      </button>
+                    ) : inSquad ? (
                       <span style={{ fontSize: 12, color: 'var(--accent)', width: 34, textAlign: 'center' }}>✓</span>
                     ) : (
                       <button
                         onClick={() => addPlayer(p)}
                         disabled={!canAdd || actionLoading !== null}
                         style={{
-                          padding: '4px 6px', borderRadius: 40, fontSize: String(actionLoading) === String(p.id) ? 10 : 16, fontWeight: 700,
-                          backgroundColor: (!canAdd || actionLoading !== null) ? 'var(--bg-tertiary)' : (p.team_color ?? '#555'),
-                          color: (!canAdd || actionLoading !== null) ? 'var(--text-secondary)' : textColor(p.team_color),
-                          cursor: (!canAdd || actionLoading !== null) ? 'not-allowed' : 'pointer', border: 'none',
+                          width: 34, padding: '4px 0', borderRadius: 40, fontSize: 16, fontWeight: 700,
+                          backgroundColor: canAdd && actionLoading === null ? (p.team_color ?? '#555') : 'var(--bg-tertiary)',
+                          color: canAdd && actionLoading === null ? textColor(p.team_color) : 'var(--text-secondary)',
+                          cursor: canAdd && actionLoading === null ? 'pointer' : 'not-allowed', border: 'none',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          opacity: actionLoading !== null && canAdd && String(actionLoading) !== String(p.id) ? 0.4 : 1,
-                          minWidth: 34, whiteSpace: 'nowrap',
+                          opacity: actionLoading !== null ? 0.4 : 1,
                         }}
                       >
-                        {String(actionLoading) === String(p.id) ? '購入中' : '＋'}
+                        ＋
                       </button>
                     )}
                   </div>
