@@ -945,11 +945,25 @@ export default function FantasyPage() {
                   </div>
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '48px 16px 16px', backgroundColor: 'var(--bg-primary)' }}>
-                    {formationRow(fwPlayers)}
-                    {formationRow(mfPlayers)}
-                    {formationRow(dfPlayers)}
-                    {formationRow(gkPlayers)}
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '48px 16px 16px', backgroundColor: '#4a8c4a', position: 'relative', overflow: 'hidden' }}>
+                    {/* ピッチマーキング SVG */}
+                    <svg
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                    >
+                      {/* センターサークル上半分（攻撃側）*/}
+                      <path d="M 35 0 A 15 15 0 0 1 65 0" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
+                      {/* ゴールエリア（下＝GK側） */}
+                      <rect x="30" y="88" width="40" height="12" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
+                    </svg>
+                    {/* 選手行（SVGの上に重ねる） */}
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                      {formationRow(fwPlayers)}
+                      {formationRow(mfPlayers)}
+                      {formationRow(dfPlayers)}
+                      {formationRow(gkPlayers)}
+                    </div>
                   </div>
                 </div>
               )}
