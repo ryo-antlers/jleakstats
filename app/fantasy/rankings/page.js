@@ -42,7 +42,7 @@ function FormationModal({ user, onClose, nextOpponents }) {
         }}>
           {p.no ?? '?'}
           {p.is_captain && (
-            <div style={{ position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: '50%', backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 7, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
             </div>
           )}

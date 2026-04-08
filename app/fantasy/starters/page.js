@@ -68,7 +68,13 @@ export default function StartersPage() {
       const list = sq ?? []
       setSquad(list)
       const cap = list.find(p => p.is_captain)
-      if (cap) setCaptainId(cap.player_id)
+      if (cap) {
+        setCaptainId(cap.player_id)
+      } else {
+        // キャプテン未設定: 最も移籍金が高い選手を自動選択
+        const highest = [...list].sort((a, b) => (b.price ?? 0) - (a.price ?? 0))[0]
+        if (highest) setCaptainId(highest.player_id)
+      }
       const byPos = { GK:[], DF:[], MF:[], FW:[] }
       for (const p of list) if (byPos[p.position]) byPos[p.position].push(p)
 
@@ -201,6 +207,39 @@ export default function StartersPage() {
 
         {/* 左: 選手一覧 */}
         <div style={{ overflowY:'auto', borderRight:'1px solid #1a1a1a', backgroundColor:'#0f0f0f' }}>
+
+          {/* キャプテンドロップゾーン */}
+          {(() => {
+            const cap = captainId ? playerMap.get(captainId) : null
+            const isOver = dragging && assignedIds.has(dragging.player_id)
+            return (
+              <div
+                onDragOver={e => { if (isOver) e.preventDefault() }}
+                onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
+                style={{
+                  margin: '8px 8px 4px',
+                  padding: '6px 8px',
+                  borderRadius: 4,
+                  border: isOver ? '1px solid #fffc2b' : '1px dashed #2a2a2a',
+                  backgroundColor: isOver ? 'rgba(255,252,43,0.07)' : '#141414',
+                  transition: 'border-color 0.1s, background-color 0.1s',
+                }}
+              >
+                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', color: '#fffc2b', marginBottom: 3 }}>CAPTAIN</div>
+                {cap ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 3, height: 14, backgroundColor: cap.team_color ?? '#555', flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#fffc2b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {cap.name_ja ?? cap.name_en}
+                    </span>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 10, color: '#444' }}>スタメンをドロップ</span>
+                )}
+              </div>
+            )
+          })()}
+
           {['FW','MF','DF','GK'].map(pos => {
             const limit = formation ? { GK:1, DF:formation.df, MF:formation.mf, FW:formation.fw }[pos] : 99
             const filled = slots[pos].filter(Boolean).length
@@ -271,8 +310,7 @@ export default function StartersPage() {
                             draggable
                             onDragStart={() => setDragging({ player_id: p.player_id, position: pos })}
                             onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
-                            onClick={() => setCaptainId(prev => prev === p.player_id ? null : p.player_id)}
-                            style={{ display:'flex', flexDirection:'column', flex:1, cursor:'pointer', position:'relative' }}
+                            style={{ display:'flex', flexDirection:'column', flex:1, cursor:'grab', position:'relative' }}
                           >
                             {captainId === p.player_id && (
                               <div style={{ position:'absolute', top:2, right:2, width:14, height:14, borderRadius:'50%', backgroundColor:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:3 }}>

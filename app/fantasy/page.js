@@ -820,12 +820,12 @@ export default function FantasyPage() {
                   boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
-                  {captainId === p.player_id && (
-                    <div style={{ position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: '50%', backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontSize: 7, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
-                    </div>
-                  )}
                 </div>
+                {captainId === p.player_id && (
+                  <div style={{ position: 'absolute', top: 16, right: -24, width: 15, height: 15, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
+                    <span style={{ fontSize: 8, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
+                  </div>
+                )}
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>
                   <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} />
