@@ -12,7 +12,7 @@ function textColor(hex) {
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' }
 
-function FormationModal({ user, onClose }) {
+function FormationModal({ user, onClose, nextOpponents }) {
   const [squad, setSquad] = useState(null)
 
   useEffect(() => {
@@ -29,6 +29,7 @@ function FormationModal({ user, onClose }) {
     const tc = textColor(color)
     const offX = p.pos_offset_x ?? 0
     const offY = p.pos_offset_y ?? 0
+    const opp = nextOpponents?.[p.team_id]
     return (
       <div style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
         <div style={{
@@ -44,8 +45,14 @@ function FormationModal({ user, onClose }) {
           <div style={{ backgroundColor: color, padding: '3px 7px' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
           </div>
-          <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 13 }}>
+          <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+            {opp && (
+              <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', lineHeight: 1 }}>
+                <span style={{ color: 'rgba(255,255,255,0.3)' }}>vs </span>
+                <span style={{ color: opp.color ?? '#e7e7e7' }}>{opp.abbr}</span>
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -108,6 +115,7 @@ export default function RankingsPage() {
   const [myId, setMyId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modalUser, setModalUser] = useState(null)
+  const [nextOpponents, setNextOpponents] = useState({})
 
   useEffect(() => {
     Promise.all([
@@ -117,13 +125,14 @@ export default function RankingsPage() {
       setRankings(r.rankings ?? [])
       setMyId(m.user?.id ?? null)
     }).finally(() => setLoading(false))
+    fetch('/api/fantasy/next-opponents').then(r => r.json()).then(d => setNextOpponents(d.opponents ?? {})).catch(() => {})
   }, [])
 
   if (loading) return <FantasyLoading />
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto' }}>
-      {modalUser && <FormationModal user={modalUser} onClose={() => setModalUser(null)} />}
+      {modalUser && <FormationModal user={modalUser} onClose={() => setModalUser(null)} nextOpponents={nextOpponents} />}
 
       <p style={{ fontSize: 11, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>Fantasy J.League</p>
       <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 32px' }}>Ranking</h1>

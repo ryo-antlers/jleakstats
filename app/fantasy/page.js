@@ -336,6 +336,7 @@ export default function FantasyPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [rankingModalUser, setRankingModalUser] = useState(null)
   const [rankingModalSquad, setRankingModalSquad] = useState(null)
+  const [nextOpponents, setNextOpponents] = useState({})
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -352,6 +353,7 @@ export default function FantasyPage() {
       setLastGwPlayers(d.players ?? [])
     }).catch(() => {})
     fetch('/api/fantasy/rankings').then(r => r.json()).then(d => setRankings(d.rankings ?? [])).catch(() => {})
+    fetch('/api/fantasy/next-opponents').then(r => r.json()).then(d => setNextOpponents(d.opponents ?? {})).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -800,8 +802,14 @@ export default function FantasyPage() {
                   <div style={{ backgroundColor: clubColor, padding: '3px 7px' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                   </div>
-                  <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 13 }}>
+                  <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+                    {nextOpponents[p.team_id] && (
+                      <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', lineHeight: 1 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.3)' }}>vs </span>
+                        <span style={{ color: nextOpponents[p.team_id].color ?? '#e7e7e7' }}>{nextOpponents[p.team_id].abbr}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1082,8 +1090,14 @@ export default function FantasyPage() {
                                 <div style={{ backgroundColor: color, padding: '3px 7px' }}>
                                   <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                                 </div>
-                                <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 13 }}>
+                                <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                                   <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+                                  {nextOpponents[p.team_id] && (
+                                    <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', lineHeight: 1 }}>
+                                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>vs </span>
+                                      <span style={{ color: nextOpponents[p.team_id].color ?? '#e7e7e7' }}>{nextOpponents[p.team_id].abbr}</span>
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
