@@ -46,6 +46,9 @@ export default function NewSquadPage() {
   const [user, setUser] = useState(null)
   const [posTab, setPosTab] = useState('GK')
   const [teamFilter, setTeamFilter] = useState('ALL')
+  const [nameFilter, setNameFilter] = useState('')
+  const [priceMin, setPriceMin] = useState('')
+  const [priceMax, setPriceMax] = useState('')
   const [mainTab, setMainTab] = useState('candidates')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -83,10 +86,17 @@ export default function NewSquadPage() {
       .sort((a, b) => (a.team_sort ?? 99) - (b.team_sort ?? 99))
       .map(p => [p.team_abbr, { abbr: p.team_abbr, color: p.team_color }])
   ).values()]
-  const filtered = players.filter(p =>
-    p.position === posTab &&
-    (teamFilter === 'ALL' || p.team_abbr === teamFilter)
-  )
+  const filtered = players.filter(p => {
+    if (p.position !== posTab) return false
+    if (teamFilter !== 'ALL' && p.team_abbr !== teamFilter) return false
+    if (nameFilter) {
+      const q = nameFilter.toLowerCase()
+      if (!(p.name_ja ?? '').includes(nameFilter) && !(p.name_en ?? '').toLowerCase().includes(q)) return false
+    }
+    if (priceMin !== '' && (p.price ?? 0) < Number(priceMin)) return false
+    if (priceMax !== '' && (p.price ?? 0) > Number(priceMax)) return false
+    return true
+  })
   const PAGE_SIZE = 20
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pagedPlayers = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -336,6 +346,46 @@ export default function NewSquadPage() {
                   </button>
                 )
               })}
+            </div>
+          </div>
+
+          {/* 名前検索・移籍金フィルター */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <input
+              type="text"
+              placeholder="名前検索"
+              value={nameFilter}
+              onChange={e => { setNameFilter(e.target.value); setPage(0) }}
+              style={{
+                flex: 6, minWidth: 0, padding: '6px 10px', fontSize: 12,
+                backgroundColor: '#1a1a1a', color: '#fff',
+                border: '1px solid #2a2a2a', outline: 'none',
+              }}
+            />
+            <div style={{ flex: 4, display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+              <input
+                type="number"
+                placeholder="最小"
+                value={priceMin}
+                onChange={e => { setPriceMin(e.target.value); setPage(0) }}
+                style={{
+                  flex: 1, minWidth: 0, padding: '6px 8px', fontSize: 12,
+                  backgroundColor: '#1a1a1a', color: '#fff',
+                  border: '1px solid #2a2a2a', outline: 'none',
+                }}
+              />
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12, flexShrink: 0 }}>〜</span>
+              <input
+                type="number"
+                placeholder="最大"
+                value={priceMax}
+                onChange={e => { setPriceMax(e.target.value); setPage(0) }}
+                style={{
+                  flex: 1, minWidth: 0, padding: '6px 8px', fontSize: 12,
+                  backgroundColor: '#1a1a1a', color: '#fff',
+                  border: '1px solid #2a2a2a', outline: 'none',
+                }}
+              />
             </div>
           </div>
 

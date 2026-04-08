@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import FantasyLoading from './FantasyLoading'
 import Link from 'next/link'
 
@@ -306,6 +307,7 @@ function ptColor(pts) {
 
 export default function FantasyPage() {
   const router = useRouter()
+  const { isLoaded, isSignedIn } = useAuth()
   const [user, setUser] = useState(null)
   const [squad, setSquad] = useState([])
   const [formation, setFormation] = useState(null)
@@ -358,8 +360,11 @@ export default function FantasyPage() {
   }, [])
 
   useEffect(() => {
+    if (!isLoaded) return
+    if (!isSignedIn) { router.push('/sign-in'); return }
+
     Promise.all([
-      fetch('/api/fantasy/me').then(r => { if (!r.ok && r.status === 401) throw new Error('401'); return r.json() }),
+      fetch('/api/fantasy/me').then(r => r.json()),
       fetch('/api/fantasy/squad').then(r => r.json()),
     ]).then(([u, s]) => {
       if (!u.user) { router.push('/fantasy/setup'); return }
@@ -395,7 +400,7 @@ export default function FantasyPage() {
     }).catch(() => {
       router.push('/fantasy/setup')
     }).finally(() => setLoading(false))
-  }, [])
+  }, [isLoaded, isSignedIn])
 
   const starterList = squad.filter(p => starterIds.has(p.player_id))
   useEffect(() => {
