@@ -780,12 +780,12 @@ export default function FantasyPage() {
                   width: 30, height: 30, borderRadius: '50%',
                   backgroundColor: clubColor,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
+                  boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
-                <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: '0 4px 10px rgba(0,0,0,0.55)' }}>
+                <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>
                   <div style={{ backgroundColor: clubColor, padding: '3px 7px' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                   </div>
