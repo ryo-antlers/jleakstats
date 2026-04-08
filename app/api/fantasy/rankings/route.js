@@ -13,5 +13,7 @@ export async function GET() {
     ORDER BY total_points DESC, fu.team_name
     LIMIT 20
   `
-  return Response.json({ rankings: users })
+  return Response.json({ rankings: users }, {
+    headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=30' },
+  })
 }

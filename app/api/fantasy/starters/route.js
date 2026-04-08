@@ -16,9 +16,6 @@ export async function POST(request) {
       return Response.json({ error: 'スタメンは11人です' }, { status: 400 })
     }
 
-    // sort_orderカラムがなければ追加
-    await sql`ALTER TABLE fantasy_squads ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0`
-
     // 全選手をis_starter=falseにリセット
     await sql`
       UPDATE fantasy_squads SET is_starter = false, sort_order = 0

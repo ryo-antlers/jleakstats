@@ -5,12 +5,38 @@ export async function GET() {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  await sql`ALTER TABLE fantasy_users ADD COLUMN IF NOT EXISTS team_color TEXT DEFAULT '#e00000'`
-
   const [user] = await sql`
     SELECT * FROM fantasy_users WHERE clerk_user_id = ${userId}
   `
   return Response.json({ user: user ?? null })
+}
+
+export async function PATCH(request) {
+  const { userId } = await auth()
+  if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { username, team_name, team_color } = await request.json()
+  if (!username?.trim() || !team_name?.trim()) {
+    return Response.json({ error: '名前とチーム名を入力してください' }, { status: 400 })
+  }
+
+  const [existing] = await sql`
+    SELECT id FROM fantasy_users WHERE username = ${username.trim()} AND clerk_user_id != ${userId}
+  `
+  if (existing) {
+    return Response.json({ error: 'そのユーザー名は既に使われています' }, { status: 400 })
+  }
+
+  const [user] = await sql`
+    UPDATE fantasy_users SET
+      username = ${username.trim()},
+      team_name = ${team_name.trim()},
+      team_color = ${team_color ?? '#e00000'}
+    WHERE clerk_user_id = ${userId}
+    RETURNING *
+  `
+  if (!user) return Response.json({ error: 'ユーザーが見つかりません' }, { status: 404 })
+  return Response.json({ user })
 }
 
 export async function POST(request) {
@@ -21,8 +47,6 @@ export async function POST(request) {
   if (!username?.trim() || !team_name?.trim()) {
     return Response.json({ error: '名前とチーム名を入力してください' }, { status: 400 })
   }
-
-  await sql`ALTER TABLE fantasy_users ADD COLUMN IF NOT EXISTS team_color TEXT DEFAULT '#e00000'`
 
   // username重複チェック
   const [existing] = await sql`

@@ -565,11 +565,11 @@ export default function FantasyPage() {
 
       {/* ヘッダー */}
       <div style={{ marginBottom: 28 }}>
-        <p style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase' }}>Fantasy J.League</p>
-        <h1 style={{ fontSize: 30, fontWeight: 900, color: 'var(--text-primary)', margin: 0, lineHeight: 1.1 }}>
+        <p style={{ fontSize: 12, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>Fantasy J.League</p>
+        <h1 style={{ fontSize: 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.1 }}>
           {user?.team_name}
         </h1>
-        <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: '8px 0 0' }}>{user?.username}</p>
+        <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
       </div>
 
       {/* GWスケジュール */}
@@ -981,10 +981,18 @@ export default function FantasyPage() {
           </div>
         )}
 
-        {/* 移籍資金 */}
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 24 }}>
-          移籍資金 <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 14 }}>{formatBudget(user?.budget ?? 0)}</span>
-        </p>
+        {/* 移籍資金 + 保有資産 */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 24 }}>
+          <div>
+            <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase' }}>補強予算</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{formatBudget(user?.budget ?? 0)}</p>
+          </div>
+          <div style={{ width: 1, backgroundColor: 'var(--border-color)' }} />
+          <div>
+            <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase' }}>保有選手資産</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{formatBudget((squad.reduce((sum, p) => sum + (p.price ?? 0), 0)) * 10)}</p>
+          </div>
+        </div>
 
         {/* 取引ボタン */}
         <Link href="/fantasy/transfer" style={{ textDecoration: 'none', pointerEvents: isMarketOpen ? 'auto' : 'none' }}>

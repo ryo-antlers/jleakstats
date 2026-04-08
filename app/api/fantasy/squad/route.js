@@ -6,8 +6,6 @@ export async function GET() {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  await sql`ALTER TABLE fantasy_squads ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0`
-
   const squad = await sql`
     SELECT
       fs.player_id, fs.bought_price, fs.is_starter, COALESCE(fs.sort_order, 0) AS sort_order,
