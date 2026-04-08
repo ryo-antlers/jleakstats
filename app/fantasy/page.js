@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import FantasyLoading from './FantasyLoading'
+import ScrollingName from './ScrollingName'
 import Link from 'next/link'
 
 const FORMATIONS = [
@@ -821,9 +822,7 @@ export default function FantasyPage() {
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>
-                  <div style={{ backgroundColor: clubColor, padding: '3px 7px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
-                  </div>
+                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} />
                   <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
                     {nextOpponents[p.team_id] && (
@@ -1110,9 +1109,7 @@ export default function FantasyPage() {
                                 {p.no ?? '?'}
                               </div>
                               <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
-                                <div style={{ backgroundColor: color, padding: '3px 7px' }}>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
-                                </div>
+                                <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
                                 <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                                   <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
                                   {nextOpponents[p.team_id] && (

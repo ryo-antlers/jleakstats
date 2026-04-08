@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import FantasyLoading from '../FantasyLoading'
+import ScrollingName from '../ScrollingName'
 
 function textColor(hex) {
   if (!hex) return '#fff'
@@ -42,9 +43,7 @@ function FormationModal({ user, onClose, nextOpponents }) {
           {p.no ?? '?'}
         </div>
         <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
-          <div style={{ backgroundColor: color, padding: '3px 7px' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
-          </div>
+          <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
           <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
             {opp && (
