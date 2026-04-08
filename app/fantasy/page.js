@@ -957,7 +957,7 @@ export default function FantasyPage() {
                       {/* センターサークル下半分（横長ピッチ補正で楕円）*/}
                       <path d="M 80 5 A 20 14 0 0 1 120 5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
                       {/* ペナルティエリア（GK側）- 下線は見切れさせる */}
-                      <rect x="60" y="88" width="80" height="20" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
+                      <rect x="72" y="88" width="56" height="20" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
                     </svg>
                     {/* 選手行（SVGの上に重ねる） */}
                     <div style={{ position: 'relative', zIndex: 1 }}>
