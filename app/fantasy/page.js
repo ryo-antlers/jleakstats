@@ -1152,7 +1152,11 @@ export default function FantasyPage() {
               <span style={{ textAlign: 'right' }}>PT</span>
             </div>
             {rankingDisplayRows.map((row, i) => row === null ? (
-              <div key="sep" style={{ padding: '6px 14px', borderTop: '1px solid var(--border-color)', backgroundColor: '#111', textAlign: 'center', fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.1em' }}>· · ·</div>
+              <div key="sep" style={{ padding: '10px 14px', borderTop: '2px solid #00ff87', borderBottom: '2px solid #00ff87', backgroundColor: '#111', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, height: 1, backgroundColor: '#2a2a2a' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#00ff87', letterSpacing: '0.15em' }}>YOUR RANKING</span>
+                <div style={{ flex: 1, height: 1, backgroundColor: '#2a2a2a' }} />
+              </div>
             ) : (
               <div
                 key={row.id}
