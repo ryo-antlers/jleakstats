@@ -948,16 +948,16 @@ export default function FantasyPage() {
                   <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '36px 16px 16px', backgroundColor: '#518951', position: 'relative', overflow: 'hidden' }}>
                     {/* ピッチマーキング SVG */}
                     <svg
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
-                      viewBox="0 0 100 100"
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}
+                      viewBox="0 0 200 100"
                       preserveAspectRatio="none"
                     >
                       {/* ハーフライン */}
-                      <line x1="0" y1="4" x2="100" y2="4" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
-                      {/* センターサークル下半分 */}
-                      <path d="M 35 4 A 15 15 0 0 1 65 4" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
-                      {/* ゴールエリア（GK側） */}
-                      <rect x="28" y="87" width="44" height="13" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
+                      <line x1="0" y1="5" x2="200" y2="5" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
+                      {/* センターサークル下半分（横長ピッチ補正で楕円）*/}
+                      <path d="M 80 5 A 20 14 0 0 1 120 5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
+                      {/* ペナルティエリア（GK側） */}
+                      <rect x="60" y="83" width="80" height="17" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
                     </svg>
                     {/* 選手行（SVGの上に重ねる） */}
                     <div style={{ position: 'relative', zIndex: 1 }}>
