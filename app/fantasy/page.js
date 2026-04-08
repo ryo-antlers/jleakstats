@@ -785,8 +785,8 @@ export default function FantasyPage() {
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2 }}>
-                  <div style={{ backgroundColor: clubColor, padding: '5px 8px' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
+                  <div style={{ backgroundColor: '#1e5c1e', padding: '5px 8px' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                   </div>
                   <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 16 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
@@ -933,7 +933,7 @@ export default function FantasyPage() {
                           }}
                         >
                           <div style={{ width: 32, flexShrink: 0, backgroundColor: clubColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: 11, fontWeight: 900, color: '#fff' }}>{p.no ?? '?'}</span>
+                            <span style={{ fontSize: 11, fontWeight: 900, color: textColor(clubColor) }}>{p.no ?? '?'}</span>
                           </div>
                           <div style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6, padding: '6px 8px', minWidth: 0, backgroundColor: 'rgb(26,26,26)' }}>
                             <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', flexShrink: 0 }}>{p.position}</span>
