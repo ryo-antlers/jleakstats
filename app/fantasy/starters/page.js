@@ -254,13 +254,13 @@ export default function StartersPage() {
             const cap = captainId ? playerMap.get(captainId) : null
             const isOver = dragging && assignedIds.has(dragging.player_id)
             return (
-              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, width: 80 }}>
+              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, width: 120 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', color: '#fffc2b', textAlign: 'center', marginBottom: 4 }}>CAPTAIN</div>
                 <div
                   onDragOver={e => { if (isOver) e.preventDefault() }}
                   onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
                   style={{
-                    border: isOver ? '1px solid #fffc2b' : '1px dashed #333',
+                    border: isOver ? '1px solid #fffc2b' : 'none',
                     backgroundColor: isOver ? 'rgba(255,252,43,0.05)' : 'transparent',
                     display: 'flex', flexDirection: 'column', overflow: 'hidden',
                     transition: 'border-color 0.1s, background-color 0.1s',
