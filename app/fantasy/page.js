@@ -820,8 +820,8 @@ export default function FantasyPage() {
                     onMouseDown={posEditMode && p.position !== 'GK' ? (e) => {
                       e.preventDefault()
                       setPosEditId(p.player_id)
-                      const LIMIT_X = 200
-                      const LIMIT_Y = 120
+                      const LIMIT_X = 140
+                      const LIMIT_Y = 90
                       dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX: -LIMIT_X, maxX: LIMIT_X, minY: -LIMIT_Y, maxY: LIMIT_Y }
                     } : undefined}
                     onDoubleClick={posEditMode && p.position !== 'GK' ? () => setPlayerOffsets(prev => ({ ...prev, [p.player_id]: { x: 0, y: 0 } })) : undefined}
