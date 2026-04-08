@@ -12,7 +12,7 @@ export async function GET() {
       RANK() OVER (ORDER BY COALESCE(fu.total_points, 0) DESC) AS rank
     FROM fantasy_users fu
     ORDER BY total_points DESC, fu.team_name
-    LIMIT 20
+    LIMIT 500
   `
   return Response.json({ rankings: users }, {
     headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=30' },

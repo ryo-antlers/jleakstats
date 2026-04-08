@@ -1100,7 +1100,21 @@ export default function FantasyPage() {
       )}
 
       {/* 常時表示: ファンタジーランキング */}
-      {rankings.length > 0 && (
+      {rankings.length > 0 && (() => {
+        const TOP_N = 10
+        const AROUND = 5
+        const myRank = rankings.find(r => r.id === myId)?.rank ?? null
+        const top10 = rankings.filter(r => r.rank <= TOP_N)
+        let displayRows
+        if (!myRank || myRank <= TOP_N) {
+          displayRows = top10
+        } else {
+          const minRank = myRank - AROUND
+          const neighborhood = rankings.filter(r => r.rank >= minRank && r.rank <= myRank + AROUND)
+          const needsSeparator = minRank > TOP_N + 1
+          displayRows = needsSeparator ? [...top10, null, ...neighborhood] : [...top10, ...neighborhood.filter(r => r.rank > TOP_N)]
+        }
+        return (
         <div style={{ marginBottom: 40 }}>
           <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase' }}>Ranking</p>
           <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
@@ -1113,7 +1127,9 @@ export default function FantasyPage() {
               <span>クラブ / 監督</span>
               <span style={{ textAlign: 'right' }}>PT</span>
             </div>
-            {rankings.map((row) => (
+            {displayRows.map((row, i) => row === null ? (
+              <div key="sep" style={{ padding: '6px 14px', borderTop: '1px solid var(--border-color)', backgroundColor: '#111', textAlign: 'center', fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.1em' }}>· · ·</div>
+            ) : (
               <div
                 key={row.id}
                 onClick={() => {
@@ -1147,7 +1163,8 @@ export default function FantasyPage() {
             ))}
           </div>
         </div>
-      )}
+        )
+      })()}
 
     </div>
   )
