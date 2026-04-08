@@ -254,31 +254,30 @@ export default function StartersPage() {
             const cap = captainId ? playerMap.get(captainId) : null
             const isOver = dragging && assignedIds.has(dragging.player_id)
             return (
-              <div
-                onDragOver={e => { if (isOver) e.preventDefault() }}
-                onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
-                style={{
-                  position: 'absolute', top: 8, left: 8,
-                  padding: '4px 7px',
-                  borderRadius: 4,
-                  border: isOver ? '1px solid #fffc2b' : '1px dashed #2a2a2a',
-                  backgroundColor: isOver ? 'rgba(255,252,43,0.07)' : '#141414',
-                  zIndex: 10,
-                  transition: 'border-color 0.1s, background-color 0.1s',
-                  maxWidth: 110,
-                }}
-              >
-                <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: '0.14em', color: '#fffc2b', marginBottom: 2 }}>CAPTAIN</div>
-                {cap ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: 2, height: 12, backgroundColor: cap.team_color ?? '#555', flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#fffc2b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {cap.name_ja ?? cap.name_en}
-                    </span>
+              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, width: 80 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', color: '#fffc2b', textAlign: 'center', marginBottom: 4 }}>CAPTAIN</div>
+                <div
+                  onDragOver={e => { if (isOver) e.preventDefault() }}
+                  onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
+                  style={{
+                    border: isOver ? '1px solid #fffc2b' : '1px dashed #2a2a2a',
+                    backgroundColor: isOver ? 'rgba(255,252,43,0.07)' : '#141414',
+                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                    transition: 'border-color 0.1s, background-color 0.1s',
+                    height: 52,
+                  }}
+                >
+                  <div style={{ height: 3, backgroundColor: '#fffc2b', flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '3px 5px' }}>
+                    {cap ? (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#fffc2b', textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {cap.name_ja ?? cap.name_en}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 9, color: '#2a2a2a' }}>DROP</span>
+                    )}
                   </div>
-                ) : (
-                  <span style={{ fontSize: 9, color: '#444' }}>ドロップ</span>
-                )}
+                </div>
               </div>
             )
           })()}
