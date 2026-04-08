@@ -796,8 +796,8 @@ export default function FantasyPage() {
             )
           }
 
-          const formationRow = (players) => (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 40, marginBottom: 36 }}>
+          const formationRow = (players, scale = 1, gap = 40) => (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: gap, marginBottom: 36, transform: `scale(${scale})`, transformOrigin: 'center top' }}>
               {players.map(p => {
                 const off = playerOffsets[p.player_id] ?? { x: 0, y: 0 }
                 const isMoving = posEditId === p.player_id
@@ -949,10 +949,10 @@ export default function FantasyPage() {
                     {/* pitch.png を背景に使用 */}
                     {/* 選手行（SVGの上に重ねる） */}
                     <div style={{ position: 'relative', zIndex: 1 }}>
-                      {formationRow(fwPlayers)}
-                      {formationRow(mfPlayers)}
-                      {formationRow(dfPlayers)}
-                      {formationRow(gkPlayers)}
+                      {formationRow(fwPlayers,  0.72, 28)}
+                      {formationRow(mfPlayers,  0.84, 34)}
+                      {formationRow(dfPlayers,  0.94, 38)}
+                      {formationRow(gkPlayers,  1.00, 40)}
                     </div>
                   </div>
                 </div>
