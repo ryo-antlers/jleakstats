@@ -31,7 +31,7 @@ export default function ScrollingName({ name, color, tc, width = 80 }) {
           fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em',
           display: 'inline-block', whiteSpace: 'nowrap',
           ...(overflowPx > 0 ? {
-            animation: 'namescroll 7s ease-in-out infinite',
+            animation: 'namescroll 15s linear infinite alternate',
             '--overflow-x': `-${overflowPx}px`,
           } : {}),
         }}

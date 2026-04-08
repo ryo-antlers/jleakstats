@@ -32,9 +32,8 @@ body {
 }
 
 @keyframes namescroll {
-  0%, 20% { transform: translateX(0); }
-  50%, 80% { transform: translateX(var(--overflow-x, 0px)); }
-  100% { transform: translateX(0); }
+  0% { transform: translateX(0); }
+  100% { transform: translateX(var(--overflow-x, 0px)); }
 }
 
 .title-row {
