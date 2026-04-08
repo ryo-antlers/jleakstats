@@ -404,6 +404,7 @@ export default function FantasyPage() {
   }, [isLoaded, isSignedIn])
 
   const starterList = squad.filter(p => starterIds.has(p.player_id))
+  const captainId = squad.find(p => p.is_captain)?.player_id ?? null
   useEffect(() => {
     localStorage.setItem('fantasy_offsets', JSON.stringify(playerOffsets))
   }, [playerOffsets])
@@ -819,6 +820,11 @@ export default function FantasyPage() {
                   boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
+                  {captainId === p.player_id && (
+                    <div style={{ position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: '50%', backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 7, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
+                    </div>
+                  )}
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>

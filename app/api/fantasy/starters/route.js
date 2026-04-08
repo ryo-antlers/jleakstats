@@ -11,7 +11,7 @@ export async function POST(request) {
     const marketError = await checkMarketOpen()
     if (marketError) return Response.json({ error: marketError }, { status: 403 })
 
-    const { starter_ids, formation } = await request.json()
+    const { starter_ids, formation, captain_player_id } = await request.json()
     if (!Array.isArray(starter_ids) || starter_ids.length !== 11) {
       return Response.json({ error: 'スタメンは11人です' }, { status: 400 })
     }
@@ -27,6 +27,11 @@ export async function POST(request) {
         UPDATE fantasy_squads SET is_starter = true, sort_order = ${i + 1}
         WHERE clerk_user_id = ${userId} AND player_id = ${starter_ids[i]}
       `
+    }
+
+    // キャプテン保存
+    if (captain_player_id) {
+      await sql`UPDATE fantasy_users SET captain_player_id = ${captain_player_id} WHERE clerk_user_id = ${userId}`
     }
 
     return Response.json({ ok: true })

@@ -22,12 +22,18 @@ export async function POST(request) {
       )
     `
 
-    // is_starter=true の選手のGWポイントをユーザーごとに合算
+    // is_starter=true の選手のGWポイントをユーザーごとに合算（キャプテンは2倍）
     const userPoints = await sql`
       SELECT
         fs.clerk_user_id,
-        COALESCE(SUM(fp.points), 0) AS gw_points
+        COALESCE(SUM(
+          CASE WHEN fs.player_id = fu.captain_player_id
+            THEN COALESCE(fp.points, 0) * 2
+            ELSE COALESCE(fp.points, 0)
+          END
+        ), 0) AS gw_points
       FROM fantasy_squads fs
+      LEFT JOIN fantasy_users fu ON fu.clerk_user_id = fs.clerk_user_id
       LEFT JOIN (
         SELECT player_id, SUM(points) AS points
         FROM fantasy_points

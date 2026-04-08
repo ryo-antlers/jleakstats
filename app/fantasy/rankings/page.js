@@ -41,6 +41,11 @@ function FormationModal({ user, onClose, nextOpponents }) {
           boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1,
         }}>
           {p.no ?? '?'}
+          {p.is_captain && (
+            <div style={{ position: 'absolute', top: -4, right: -4, width: 13, height: 13, borderRadius: '50%', backgroundColor: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 7, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
+            </div>
+          )}
         </div>
         <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
           <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />

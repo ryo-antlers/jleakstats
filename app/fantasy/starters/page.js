@@ -55,6 +55,7 @@ export default function StartersPage() {
   const [saving, setSaving] = useState(false)
   const [formation, setFormation] = useState(null)
   const [slots, setSlots] = useState({ GK:[null], DF:[null,null,null,null], MF:[null,null,null,null], FW:[null,null] })
+  const [captainId, setCaptainId] = useState(null)
   const [dragging, setDragging] = useState(null) // { player_id, position }
   const [dragOverSlot, setDragOverSlot] = useState(null) // { pos, idx }
 
@@ -66,6 +67,8 @@ export default function StartersPage() {
     fetch('/api/fantasy/squad').then(r=>r.json()).then(({ squad: sq }) => {
       const list = sq ?? []
       setSquad(list)
+      const cap = list.find(p => p.is_captain)
+      if (cap) setCaptainId(cap.player_id)
       const byPos = { GK:[], DF:[], MF:[], FW:[] }
       for (const p of list) if (byPos[p.position]) byPos[p.position].push(p)
 
@@ -145,7 +148,7 @@ export default function StartersPage() {
     const starterIds = [...slots.GK,...slots.DF,...slots.MF,...slots.FW].filter(Boolean)
     await fetch('/api/fantasy/starters', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ starter_ids: starterIds }),
+      body:JSON.stringify({ starter_ids: starterIds, captain_player_id: captainId }),
     })
     setSaving(false)
     localStorage.removeItem('fantasy_offsets')
@@ -268,11 +271,17 @@ export default function StartersPage() {
                             draggable
                             onDragStart={() => setDragging({ player_id: p.player_id, position: pos })}
                             onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
-                            style={{ display:'flex', flexDirection:'column', flex:1, cursor:'grab' }}
+                            onClick={() => setCaptainId(prev => prev === p.player_id ? null : p.player_id)}
+                            style={{ display:'flex', flexDirection:'column', flex:1, cursor:'pointer', position:'relative' }}
                           >
+                            {captainId === p.player_id && (
+                              <div style={{ position:'absolute', top:2, right:2, width:14, height:14, borderRadius:'50%', backgroundColor:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:3 }}>
+                                <span style={{ fontSize:8, fontWeight:900, color:'#000', lineHeight:1 }}>C</span>
+                              </div>
+                            )}
                             <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
                             <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'4px 6px' }}>
-                              <span style={{ fontSize:11, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                              <span style={{ fontSize:11, fontWeight:700, color: captainId === p.player_id ? 'var(--accent)' : '#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
                                 {p.name_ja ?? p.name_en}
                               </span>
                               <span style={{ fontSize:9, color:'#555', marginTop:2 }}>{p.team_abbr}</span>

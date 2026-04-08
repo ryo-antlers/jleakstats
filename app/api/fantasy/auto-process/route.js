@@ -28,6 +28,14 @@ function calcPoints(p, conceded, isWin, missedPk) {
   if (pos === 'GK') { const sv = Number(p.saves) || 0; const v = sv >= 6 ? 3 : sv >= 4 ? 2 : sv >= 2 ? 1 : 0; if (v > 0) { pts += v; bd.saves = v } }
   const def = (Number(p.tackles) || 0) + (Number(p.interceptions) || 0) + (Number(p.blocks) || 0)
   if (def >= 4) { pts += 3; bd.defensive = 3 }
+  const duels = Number(p.duels_won) || 0
+  if (duels >= 8) { pts += 2; bd.duels_won = 2 }
+  else if (duels >= 5) { pts += 1; bd.duels_won = 1 }
+  const fouls = Number(p.fouls_drawn) || 0
+  if (fouls >= 4) { pts += 1; bd.fouls_drawn = 1 }
+  const passAcc = Number(p.passes_accuracy) || 0
+  const passTotal = Number(p.passes_total) || 0
+  if (passTotal >= 30 && passAcc >= 90) { pts += 1; bd.pass_accuracy = 1 }
   if (Number(p.yellow_cards) > 0) { pts -= 1; bd.yellow = -1 }
   if (Number(p.red_cards) > 0) { pts -= 4; bd.red = -4 }
   if (missedPk) { pts -= 3; bd.missed_pk = -3 }
@@ -89,8 +97,8 @@ export async function GET(request) {
         const isAet = f.status === 'AET' || f.status === 'PEN'
         const players = await sql`
           SELECT player_id, position, minutes, rating, goals, assists,
-                 passes_key, saves, tackles, interceptions, blocks,
-                 yellow_cards, red_cards, team_id, conceded
+                 passes_key, passes_total, passes_accuracy, saves, tackles, interceptions, blocks,
+                 duels_won, fouls_drawn, yellow_cards, red_cards, team_id, conceded
           FROM fixture_player_stats
           WHERE fixture_id = ${f.id} AND position IN ('G', 'D', 'M', 'F')
         `
