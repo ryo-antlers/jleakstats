@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import FantasyLoading from '../FantasyLoading'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
 const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 5 }
@@ -85,7 +86,7 @@ export default function SquadPage() {
     setActionLoading(false)
   }
 
-  if (loading) return null
+  if (loading) return <FantasyLoading />
 
   const budgetDisplay = (user?.budget ?? 0).toLocaleString()
 

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import FantasyLoading from '../FantasyLoading'
 
 function textColor(hex) {
   if (!hex || hex.length < 7) return '#fff'
@@ -91,7 +92,7 @@ export default function ClubPage() {
     }
   }
 
-  if (initialLoading) return null
+  if (initialLoading) return <FantasyLoading />
 
   const inputStyle = {
     width: '100%', padding: '10px 14px', borderRadius: 8, fontSize: 15,

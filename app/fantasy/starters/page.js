@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import FantasyLoading from '../FantasyLoading'
 
 async function fetchIsMarketOpen() {
   try {
@@ -151,7 +152,7 @@ export default function StartersPage() {
     window.location.href = '/fantasy'
   }
 
-  if (loading) return null
+  if (loading) return <FantasyLoading />
 
   const HEADER_H = 100
 

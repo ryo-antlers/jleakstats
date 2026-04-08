@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import FantasyLoading from '../FantasyLoading'
 
 function textColor(hex) {
   if (!hex) return '#fff'
@@ -26,7 +27,7 @@ export default function RankingsPage() {
     }).finally(() => setLoading(false))
   }, [])
 
-  if (loading) return null
+  if (loading) return <FantasyLoading />
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto' }}>

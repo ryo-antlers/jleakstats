@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import FantasyLoading from '../FantasyLoading'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
 const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 4 }
@@ -143,7 +144,7 @@ export default function NewSquadPage() {
     setActionLoading(null)
   }
 
-  if (loading) return null
+  if (loading) return <FantasyLoading />
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', minHeight: '100vh' }}>

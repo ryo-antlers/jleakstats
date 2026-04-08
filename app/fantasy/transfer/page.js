@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import FantasyLoading from '../FantasyLoading'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
 const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 4 }
@@ -151,7 +152,7 @@ export default function TransferPage() {
     setActionLoading(false)
   }
 
-  if (loading) return null
+  if (loading) return <FantasyLoading />
 
   const confirmSellPrice = confirmPlayer ? Math.floor((confirmPlayer.bought_price ?? 0) * (1 - SELL_FEE)) : 0
   const confirmFee = confirmPlayer ? (confirmPlayer.bought_price ?? 0) - confirmSellPrice : 0

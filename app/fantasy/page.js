@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import FantasyLoading from './FantasyLoading'
 import Link from 'next/link'
 
 const FORMATIONS = [
@@ -557,7 +558,7 @@ export default function FantasyPage() {
     }
   }
 
-  if (loading) return null
+  if (loading) return <FantasyLoading />
   if (!user) { router.push('/fantasy/setup'); return null }
 
   return (
