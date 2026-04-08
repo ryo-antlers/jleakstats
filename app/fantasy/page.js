@@ -1054,7 +1054,7 @@ export default function FantasyPage() {
                       const tc = textColor(color)
                       return (
                         <div key={p.player_id} style={{ display: 'inline-block', position: 'relative', paddingTop: 12, flexShrink: 0 }}>
-                          <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px', zIndex: 1 }}>
+                          <div style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px', zIndex: 1 }}>
                             {p.no ?? '?'}
                           </div>
                           <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.4) 0px 2px 2px', position: 'relative', zIndex: 2 }}>

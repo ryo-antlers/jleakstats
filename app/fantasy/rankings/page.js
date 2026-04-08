@@ -36,7 +36,7 @@ function FormationModal({ user, onClose }) {
     return (
       <div style={{ display: 'inline-block', position: 'relative', paddingTop: 12, flexShrink: 0 }}>
         <div style={{
-          position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
           width: 24, height: 24, borderRadius: '50%', backgroundColor: color,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10, fontWeight: 900, color: tc,
