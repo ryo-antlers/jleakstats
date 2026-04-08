@@ -827,7 +827,7 @@ export default function FantasyPage() {
                       const BADGE_OVERHANG = 14 // 背番号バッジが上に14px飛び出す
                       const minX = off.x + (pitch.left + MARGIN - card.left)
                       const maxX = off.x + (pitch.right - MARGIN - card.right)
-                      const minY = off.y + (pitch.top + MARGIN - card.top) - BADGE_OVERHANG
+                      const minY = off.y + (pitch.top + MARGIN - card.top) + BADGE_OVERHANG
                       const maxY = off.y + (pitch.bottom - MARGIN - card.bottom)
                       dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX, maxX, minY, maxY }
                     } : undefined}
