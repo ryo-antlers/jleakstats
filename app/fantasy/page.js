@@ -785,10 +785,10 @@ export default function FantasyPage() {
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2 }}>
-                  <div style={{ backgroundColor: clubColor, padding: '5px 8px' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
+                  <div style={{ backgroundColor: clubColor, padding: '3px 7px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                   </div>
-                  <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 16 }}>
+                  <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 13 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
                   </div>
                 </div>
@@ -797,7 +797,7 @@ export default function FantasyPage() {
           }
 
           const formationRow = (players) => (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 40, marginBottom: 60 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 40, marginBottom: 36 }}>
               {players.map(p => {
                 const off = playerOffsets[p.player_id] ?? { x: 0, y: 0 }
                 const isMoving = posEditId === p.player_id
@@ -945,17 +945,19 @@ export default function FantasyPage() {
                   </div>
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '48px 16px 16px', backgroundColor: '#4a8c4a', position: 'relative', overflow: 'hidden' }}>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '36px 16px 16px', backgroundColor: '#518951', position: 'relative', overflow: 'hidden' }}>
                     {/* ピッチマーキング SVG */}
                     <svg
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
                       viewBox="0 0 100 100"
                       preserveAspectRatio="none"
                     >
-                      {/* センターサークル上半分（攻撃側）*/}
-                      <path d="M 35 0 A 15 15 0 0 1 65 0" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
-                      {/* ゴールエリア（下＝GK側） */}
-                      <rect x="30" y="88" width="40" height="12" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.5" />
+                      {/* ハーフライン */}
+                      <line x1="0" y1="4" x2="100" y2="4" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
+                      {/* センターサークル下半分 */}
+                      <path d="M 35 4 A 15 15 0 0 1 65 4" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
+                      {/* ゴールエリア（GK側） */}
+                      <rect x="28" y="87" width="44" height="13" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
                     </svg>
                     {/* 選手行（SVGの上に重ねる） */}
                     <div style={{ position: 'relative', zIndex: 1 }}>
