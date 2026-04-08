@@ -4,6 +4,7 @@ export async function GET() {
   const users = await sql`
     SELECT
       fu.id,
+      fu.clerk_user_id,
       fu.username,
       fu.team_name,
       fu.team_color,
