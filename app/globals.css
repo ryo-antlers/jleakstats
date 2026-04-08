@@ -36,6 +36,11 @@ body {
   100% { transform: translateX(var(--overflow-x, 0px)); }
 }
 
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(var(--marquee-amount, 0px)); }
+}
+
 .title-row {
   margin-bottom: 32px;
 }
