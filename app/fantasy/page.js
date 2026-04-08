@@ -780,11 +780,12 @@ export default function FantasyPage() {
                   width: 30, height: 30, borderRadius: '50%',
                   backgroundColor: clubColor,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
                 }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
-                <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2 }}>
+                <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: '0 4px 10px rgba(0,0,0,0.55)' }}>
                   <div style={{ backgroundColor: clubColor, padding: '3px 7px' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                   </div>
@@ -945,7 +946,7 @@ export default function FantasyPage() {
                   </div>
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 380 }}>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 420 }}>
                     {/* 選手行: 縦方向に均等配置、上下にパディング */}
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 16px 20px' }}>
                       {formationRow(fwPlayers)}
