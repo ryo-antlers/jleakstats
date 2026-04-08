@@ -797,7 +797,7 @@ export default function FantasyPage() {
           }
 
           const formationRow = (players) => (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 40, marginBottom: 36 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 40 }}>
               {players.map(p => {
                 const off = playerOffsets[p.player_id] ?? { x: 0, y: 0 }
                 const isMoving = posEditId === p.player_id
@@ -945,10 +945,9 @@ export default function FantasyPage() {
                   </div>
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '36px 16px 16px', position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center' }}>
-                    {/* pitch.png を背景に使用 */}
-                    {/* 選手行（SVGの上に重ねる） */}
-                    <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 480 }}>
+                    {/* 選手行: 縦方向に均等配置、上下にパディング */}
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 16px 20px' }}>
                       {formationRow(fwPlayers)}
                       {formationRow(mfPlayers)}
                       {formationRow(dfPlayers)}
