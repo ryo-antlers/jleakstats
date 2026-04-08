@@ -820,8 +820,8 @@ export default function FantasyPage() {
                     onMouseDown={posEditMode && p.position !== 'GK' ? (e) => {
                       e.preventDefault()
                       setPosEditId(p.player_id)
-                      const LIMIT_X = 100
-                      const LIMIT_Y = 80
+                      const LIMIT_X = 200
+                      const LIMIT_Y = 120
                       dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX: -LIMIT_X, maxX: LIMIT_X, minY: -LIMIT_Y, maxY: LIMIT_Y }
                     } : undefined}
                     onDoubleClick={posEditMode && p.position !== 'GK' ? () => setPlayerOffsets(prev => ({ ...prev, [p.player_id]: { x: 0, y: 0 } })) : undefined}
@@ -948,7 +948,7 @@ export default function FantasyPage() {
                   {/* 右カラム: フォーメーション */}
                   <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 420 }}>
                     {/* 選手行: 縦方向に均等配置、上下にパディング */}
-                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 16px 20px' }}>
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
                       {formationRow(fwPlayers)}
                       {formationRow(mfPlayers)}
                       {formationRow(dfPlayers)}
