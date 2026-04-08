@@ -6,7 +6,7 @@ import FantasyLoading from '../FantasyLoading'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
 const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 4 }
-const POS_MIN = { GK: 1, DF: 3, MF: 3, FW: 1 }
+const POS_MIN = { GK: 1, DF: 3, MF: 4, FW: 1 }
 const SELL_FEE = 0.05
 
 function formatBudget(value) {
@@ -304,7 +304,7 @@ export default function TransferPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {[
-                'GK1-2、DF3-6、MF3-6、FW1-4 の範囲で予算内に獲得',
+                'GK1-2、DF3-6、MF4-6、FW1-4 の範囲で予算内に獲得',
                 '同じクラブからの獲得は最大3名まで',
                 '売却時は移籍金の5%が手数料として差し引かれます',
               ].map((rule, i) => (
