@@ -945,7 +945,7 @@ export default function FantasyPage() {
                   </div>
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 480 }}>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 380 }}>
                     {/* 選手行: 縦方向に均等配置、上下にパディング */}
                     <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 16px 20px' }}>
                       {formationRow(fwPlayers)}
