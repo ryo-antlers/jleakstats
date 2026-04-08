@@ -334,6 +334,8 @@ export default function FantasyPage() {
   const [activeTab, setActiveTab] = useState(1)
   const [countdown, setCountdown] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [rankingModalUser, setRankingModalUser] = useState(null)
+  const [rankingModalSquad, setRankingModalSquad] = useState(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -1022,6 +1024,58 @@ export default function FantasyPage() {
         </Link>
       </div>
 
+      {/* ランキングモーダル */}
+      {rankingModalUser && (
+        <div onClick={() => setRankingModalUser(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+            <div style={{ backgroundColor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: rankingModalUser.team_color ?? 'var(--text-primary)' }}>{rankingModalUser.team_name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{rankingModalUser.username}</div>
+              </div>
+              <button onClick={() => setRankingModalUser(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '28px 12px 8px', position: 'relative' }}>
+              {rankingModalSquad === null ? (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 28, height: 28, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                </div>
+              ) : rankingModalSquad.length === 0 ? (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>スタメン未登録</p>
+                </div>
+              ) : (['FW','MF','DF','GK'].map(pos => {
+                const players = rankingModalSquad.filter(p => p.position === pos)
+                if (players.length === 0) return null
+                return (
+                  <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
+                    {players.map(p => {
+                      const color = p.team_color ?? '#555'
+                      const tc = textColor(color)
+                      return (
+                        <div key={p.player_id} style={{ display: 'inline-block', position: 'relative', paddingTop: 12, flexShrink: 0 }}>
+                          <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px' }}>
+                            {p.no ?? '?'}
+                          </div>
+                          <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.4) 0px 2px 2px' }}>
+                            <div style={{ backgroundColor: color, padding: '2px 6px' }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: tc }}>{p.name_ja ?? p.name_en}</span>
+                            </div>
+                            <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 11 }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              }))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 常時表示: ファンタジーランキング */}
       {rankings.length > 0 && (
         <div style={{ marginBottom: 40 }}>
@@ -1036,14 +1090,25 @@ export default function FantasyPage() {
               <span>クラブ / 監督</span>
               <span style={{ textAlign: 'right' }}>PT</span>
             </div>
-            {rankings.map((row, i) => (
-              <div key={row.id} style={{
-                display: 'grid', gridTemplateColumns: '28px 1fr 52px',
-                padding: '9px 14px',
-                backgroundColor: i % 2 === 0 ? 'var(--bg-secondary)' : 'var(--bg-primary)',
-                borderTop: '1px solid var(--border-color)',
-                alignItems: 'center',
-              }}>
+            {rankings.map((row) => (
+              <div
+                key={row.id}
+                onClick={() => {
+                  setRankingModalUser(row)
+                  setRankingModalSquad(null)
+                  fetch(`/api/fantasy/squad/public?user_id=${row.clerk_user_id}`)
+                    .then(r => r.json())
+                    .then(d => setRankingModalSquad(d.squad ?? []))
+                    .catch(() => setRankingModalSquad([]))
+                }}
+                style={{
+                  display: 'grid', gridTemplateColumns: '28px 1fr 52px',
+                  padding: '9px 14px',
+                  backgroundColor: '#1a1a1a',
+                  borderTop: '1px solid var(--border-color)',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.rank}</span>
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
