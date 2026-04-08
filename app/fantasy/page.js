@@ -337,6 +337,7 @@ export default function FantasyPage() {
   const [rankingModalUser, setRankingModalUser] = useState(null)
   const [rankingModalSquad, setRankingModalSquad] = useState(null)
   const [nextOpponents, setNextOpponents] = useState({})
+  const [myId, setMyId] = useState(null)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -363,6 +364,7 @@ export default function FantasyPage() {
     ]).then(([u, s]) => {
       if (!u.user) { router.push('/fantasy/setup'); return }
       setUser(u.user)
+      setMyId(u.user.id ?? null)
       const sq = s.squad ?? []
       if (sq.length === 0) { router.push('/fantasy/new_squad'); return }
       setSquad(sq)
