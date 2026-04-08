@@ -199,85 +199,98 @@ export default function RulesPage() {
           選手ポイントはJ1リーグの実際のスタッツをもとに自動計算されます。試合終了から最大2時間でポイントが反映されます。
         </p>
 
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>出場時間</h3>
-        <Table
-          headers={['条件', 'pt']}
-          rows={[
-            ['90分出場（フル出場）', pt(3)],
-            ['60〜89分出場', pt(2)],
-            ['1〜59分出場', pt(1)],
-            ['出場なし', pt(0)],
-          ]}
-        />
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>チーム成績</h3>
-        <Table
-          headers={['条件', 'pt']}
-          rows={[
-            ['チームが勝利', pt(2)],
-            ['引き分け・敗戦', pt(0)],
-          ]}
-        />
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>攻撃スタッツ</h3>
-        <Table
-          headers={['条件', 'GK', 'DF', 'MF', 'FW']}
-          rows={[
-            ['ゴール（1点）', pt(6), pt(4), pt(4), pt(6)],
-            ['アシスト（1本）', pt(5), pt(4), pt(4), pt(4)],
-            ['キーパス 2本以上', '—', '—', pt(1), pt(1)],
-            ['キーパス 4本以上', '—', '—', pt(2), pt(2)],
-            ['キーパス 6本以上', '—', '—', pt(3), pt(3)],
-          ]}
-        />
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>守備スタッツ</h3>
-        <Table
-          headers={['条件', 'GK', 'DF', 'MF', 'FW']}
-          rows={[
-            ['クリーンシート（90分出場時）', pt(3), pt(3), pt(1), '—'],
-            ['2失点', pt(-1), pt(-1), '—', '—'],
-            ['3失点', pt(-2), pt(-2), '—', '—'],
-            ['4失点以上', pt(-3), pt(-3), '—', '—'],
-            ['セーブ 2本以上', pt(1), '—', '—', '—'],
-            ['セーブ 4本以上', pt(2), '—', '—', '—'],
-            ['セーブ 6本以上', pt(3), '—', '—', '—'],
-            ['守備アクション合計 4以上 *', pt(3), pt(3), pt(3), pt(3)],
-          ]}
-        />
-        <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '4px 0 16px' }}>* タックル＋インターセプト＋ブロックの合計</p>
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '4px 0 8px', textTransform: 'uppercase' }}>個人スタッツ</h3>
-        <Table
-          headers={['条件', 'pt']}
-          rows={[
-            ['デュエル勝利 5回以上', pt(1)],
-            ['デュエル勝利 8回以上', pt(2)],
-            ['ファウルを受ける 4回以上', pt(1)],
-            ['パス成功率 90%以上（30本以上）', pt(1)],
-          ]}
-        />
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>レーティング（SofaScore）</h3>
-        <Table
-          headers={['レーティング', 'pt']}
-          rows={[
-            ['8.0以上', pt(3)],
-            ['7.5以上', pt(2)],
-            ['7.0以上', pt(1)],
-            ['7.0未満', pt(0)],
-          ]}
-        />
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>ペナルティ</h3>
-        <Table
-          headers={['条件', 'pt']}
-          rows={[
-            ['イエローカード', pt(-1)],
-            ['レッドカード', pt(-4)],
-            ['PKミス', pt(-3)],
-          ]}
-        />
+        <div style={{ overflowX: 'auto', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ backgroundColor: '#111' }}>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap', width: '40%' }}>条件</th>
+                {['GK','DF','MF','FW'].map(pos => (
+                  <th key={pos} style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{pos}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { cat: '出場時間', rows: [
+                  ['90分出場', [3,3,3,3]],
+                  ['60〜89分出場', [2,2,2,2]],
+                  ['1〜59分出場', [1,1,1,1]],
+                ]},
+                { cat: 'チーム成績', rows: [
+                  ['勝利', [2,2,2,2]],
+                ]},
+                { cat: '攻撃', rows: [
+                  ['ゴール（1点）', [6,4,4,6]],
+                  ['アシスト（1本）', [5,4,4,4]],
+                  ['キーパス 2本以上', [null,null,1,1]],
+                  ['キーパス 4本以上', [null,null,2,2]],
+                  ['キーパス 6本以上', [null,null,3,3]],
+                ]},
+                { cat: '守備', rows: [
+                  ['クリーンシート（90分）', [3,3,1,null]],
+                  ['2失点', [-1,-1,null,null]],
+                  ['3失点', [-2,-2,null,null]],
+                  ['4失点以上', [-3,-3,null,null]],
+                  ['セーブ 2本以上', [1,null,null,null]],
+                  ['セーブ 4本以上', [2,null,null,null]],
+                  ['セーブ 6本以上', [3,null,null,null]],
+                  ['守備アクション 4以上 ※', [3,3,3,3]],
+                ]},
+                { cat: '個人スタッツ', rows: [
+                  ['デュエル勝利 5回以上', [1,1,1,1]],
+                  ['デュエル勝利 8回以上', [2,2,2,2]],
+                  ['ファウルを受ける 4回以上', [1,1,1,1]],
+                  ['パス成功率 90%以上（30本〜）', [1,1,1,1]],
+                ]},
+                { cat: 'レーティング', rows: [
+                  ['8.0以上', [3,3,3,3]],
+                  ['7.5以上', [2,2,2,2]],
+                  ['7.0以上', [1,1,1,1]],
+                ]},
+                { cat: 'ペナルティ', rows: [
+                  ['イエローカード', [-1,-1,-1,-1]],
+                  ['レッドカード', [-4,-4,-4,-4]],
+                  ['PKミス', [-3,-3,-3,-3]],
+                ]},
+              ].flatMap(({ cat, rows }, gi) =>
+                rows.map(([ label, vals ], ri) => {
+                  const isFirst = ri === 0
+                  const totalRows = rows.length
+                  const bg = gi % 2 === 0 ? '#161616' : '#131313'
+                  return (
+                    <tr key={`${gi}-${ri}`} style={{ backgroundColor: bg }}>
+                      {isFirst && (
+                        <td rowSpan={totalRows} style={{
+                          padding: '0 14px',
+                          fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase',
+                          color: 'var(--accent)', backgroundColor: '#0e0e0e',
+                          borderRight: '1px solid var(--border-color)',
+                          borderBottom: '1px solid var(--border-color)',
+                          verticalAlign: 'middle', whiteSpace: 'nowrap',
+                          writingMode: 'vertical-rl', textOrientation: 'mixed',
+                          width: 28,
+                        }}>{cat}</td>
+                      )}
+                      <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 }}>{label}</td>
+                      {vals.map((v, vi) => (
+                        <td key={vi} style={{
+                          padding: '9px 14px', textAlign: 'center',
+                          fontWeight: v !== null ? 700 : 400,
+                          color: v === null ? '#2a2a2a' : v > 0 ? '#4caf50' : v < 0 ? '#ef5350' : 'var(--text-secondary)',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          fontSize: 13,
+                        }}>
+                          {v === null ? '—' : v > 0 ? `+${v}` : v}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '6px 0 0' }}>※ タックル＋インターセプト＋ブロックの合計</p>
       </Section>
 
       {/* MOP */}
@@ -300,52 +313,63 @@ export default function RulesPage() {
           GW終了後、すべての選手の移籍金がそのGWのポイントに応じて変動します。好パフォーマンスの選手は値上がり、不調・不出場の選手は値下がりします。低価格帯の選手ほど上昇幅が大きいため、安くて活躍する選手の発掘が攻略の鍵です。
         </p>
 
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>GWポイント → 基本変動額</h3>
-        <Table
-          headers={['GWポイント', '変動額', '目安']}
-          rows={[
-            ['12pt以上', yen(2000), '上位3%のハイパフォーマンス'],
-            ['10〜11pt', yen(1200), '上位8%'],
-            ['8〜9pt', yen(600), '上位15%'],
-            ['6〜7pt', yen(300), '上位30%'],
-            ['4〜5pt', yen(0), '平均帯（変動なし）'],
-            ['2〜3pt', yen(-300), '平均以下'],
-            ['0〜1pt', yen(-700), '低パフォーマンス'],
-            ['-1pt以下', yen(-1200), 'カード・失点等でマイナス'],
-            ['不出場（GW対象チーム）', yen(-800), 'ベンチ外・怪我など'],
-          ]}
-        />
-
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '24px 0 8px', textTransform: 'uppercase' }}>価格帯による上昇補正（下落には補正なし）</h3>
-        <Table
-          headers={['現在の移籍金', '上昇倍率', '特徴']}
-          rows={[
-            ['〜2,000万', mul('1.8', '#4caf50'), '低価格帯は急上昇しやすい'],
-            ['2,001〜4,000万', mul('1.4', '#81c784'), ''],
-            ['4,001〜7,000万', mul('1.0', 'var(--text-primary)'), '基準'],
-            ['7,001〜10,000万', mul('0.7', '#ffb74d'), '高額になるほど上がりにくい'],
-            ['10,001万〜', mul('0.5', '#ef5350'), ''],
-          ]}
-        />
-
-        <div style={{ backgroundColor: '#161616', border: '1px solid var(--border-color)', borderRadius: 6, padding: 16, marginTop: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.1em', marginBottom: 10, textTransform: 'uppercase' }}>計算例</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { player: '1,000万円の選手が12pt以上獲得', calc: '2,000万 × 1.8 =', result: '+3,600万円' },
-              { player: '5,000万円の選手が10pt獲得', calc: '1,200万 × 1.0 =', result: '+1,200万円' },
-              { player: '8,000万円の選手が不出場', calc: '固定', result: '−800万円' },
-            ].map(({ player, calc, result }) => (
-              <div key={player} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{player}</span>
-                <span style={{ fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{calc} </span>
-                  <span style={{ fontWeight: 800, color: result.startsWith('+') ? '#4caf50' : '#ef5350' }}>{result}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '10px 0 0' }}>最低移籍金：1,000万円（どれだけ不振でもこれ以下にはならない）</p>
+        {/* マトリクス表 */}
+        <div style={{ overflowX: 'auto', borderRadius: 6, border: '1px solid var(--border-color)', marginBottom: 8 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ backgroundColor: '#0e0e0e' }}>
+                <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap', letterSpacing: '0.1em' }}>GWポイント</th>
+                <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap', letterSpacing: '0.1em', borderRight: '1px solid var(--border-color)' }}>基本変動</th>
+                {[['〜2,000万','×1.8'],['〜4,000万','×1.4'],['〜7,000万','×1.0'],['〜1億','×0.7'],['1億〜','×0.5']].map(([price, rate]) => (
+                  <th key={price} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                    <div style={{ color: 'var(--text-secondary)', marginBottom: 2 }}>{price}</div>
+                    <div style={{ color: 'var(--accent)', fontSize: 11 }}>{rate}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: '12pt以上', base: 2000, note: '上位3%', rates: [1.8,1.4,1.0,0.7,0.5] },
+                { label: '10〜11pt', base: 1200, note: '上位8%', rates: [1.8,1.4,1.0,0.7,0.5] },
+                { label: '8〜9pt', base: 600, note: '上位15%', rates: [1.8,1.4,1.0,0.7,0.5] },
+                { label: '6〜7pt', base: 300, note: '上位30%', rates: [1.8,1.4,1.0,0.7,0.5] },
+                { label: '4〜5pt', base: 0, note: '平均帯', rates: [1.8,1.4,1.0,0.7,0.5] },
+                { label: '2〜3pt', base: -300, rates: null },
+                { label: '0〜1pt', base: -700, rates: null },
+                { label: '-1pt以下', base: -1200, rates: null },
+                { label: '不出場', base: -800, rates: null },
+              ].map(({ label, base, note, rates }, i) => {
+                const isRise = base > 0
+                const isZero = base === 0
+                const bg = i % 2 === 0 ? '#161616' : '#131313'
+                const baseColor = isZero ? 'var(--text-secondary)' : isRise ? '#4caf50' : '#ef5350'
+                return (
+                  <tr key={label} style={{ backgroundColor: bg }}>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 600, whiteSpace: 'nowrap', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      {label}
+                      {note && <span style={{ fontSize: 10, color: 'var(--text-secondary)', marginLeft: 6 }}>{note}</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 800, color: baseColor, borderBottom: '1px solid rgba(255,255,255,0.04)', borderRight: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                      {base === 0 ? '±0' : base > 0 ? `+${base.toLocaleString()}万` : `${base.toLocaleString()}万`}
+                    </td>
+                    {rates ? rates.map((r, ri) => {
+                      const val = base === 0 ? 0 : Math.round(base * r)
+                      return (
+                        <td key={ri} style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 700, color: val > 0 ? '#4caf50' : val < 0 ? '#ef5350' : 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.04)', whiteSpace: 'nowrap', fontSize: 12 }}>
+                          {val === 0 ? '±0' : val > 0 ? `+${val.toLocaleString()}万` : `${val.toLocaleString()}万`}
+                        </td>
+                      )
+                    }) : (
+                      <td colSpan={5} style={{ padding: '10px 12px', textAlign: 'center', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        下落額は価格帯に関係なく一定
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
 
         <Tip title="移籍金変動の読み方">
