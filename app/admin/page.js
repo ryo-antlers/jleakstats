@@ -180,8 +180,7 @@ function FantasyGwActions() {
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {[
-          { label: 'スタメン確定', endpoint: '/api/fantasy/gw-starters', desc: '締め切り時のスタメンを記録' },
-          { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points', desc: 'スナップショット→total_points加算' },
+          { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points', desc: 'is_starter=trueの選手ポイントをtotal_pointsに加算' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices', desc: 'GWポイントに基づき価格更新' },
         ].map(({ label, endpoint, desc }) => (
           <button
