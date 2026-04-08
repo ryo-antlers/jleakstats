@@ -945,22 +945,8 @@ export default function FantasyPage() {
                   </div>
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '36px 16px 16px', backgroundColor: '#518951', position: 'relative', overflow: 'hidden' }}>
-                    {/* ピッチマーキング SVG */}
-                    <svg
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}
-                      viewBox="0 0 200 100"
-                      preserveAspectRatio="none"
-                    >
-                      {/* ハーフライン */}
-                      <line x1="0" y1="3" x2="200" y2="3" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
-                      {/* センターサークル（大きな楕円弧）*/}
-                      <path d="M 58 3 A 42 32 0 0 1 142 3" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
-                      {/* ペナルティエリア（大）- 下線は見切れ */}
-                      <rect x="52" y="73" width="96" height="35" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
-                      {/* ゴールエリア（小）- 下線は見切れ */}
-                      <rect x="72" y="84" width="56" height="25" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
-                    </svg>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, padding: '36px 16px 16px', position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center' }}>
+                    {/* pitch.png を背景に使用 */}
                     {/* 選手行（SVGの上に重ねる） */}
                     <div style={{ position: 'relative', zIndex: 1 }}>
                       {formationRow(fwPlayers)}
