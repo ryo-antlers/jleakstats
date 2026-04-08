@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-const GAP = 16 // 2コピー間のスペース(px)
-const SPEED = 12 // px/秒
+const GAP = 8 // 2コピー間のスペース(px)
+const SPEED = 7.3 // px/秒
 
 export default function ScrollingName({ name, color, tc, width = 80 }) {
   const outerRef = useRef(null)
