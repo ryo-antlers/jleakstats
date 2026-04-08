@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 const GAP = 8 // 2コピー間のスペース(px)
 const SPEED = 7.3 // px/秒
 
-export default function ScrollingName({ name, color, tc, width = 100 }) {
+export default function ScrollingName({ name, color, tc, width = 94 }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
   const [scrollAmount, setScrollAmount] = useState(0)
