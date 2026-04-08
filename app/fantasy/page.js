@@ -857,7 +857,15 @@ export default function FantasyPage() {
                         リセット
                       </button>
                       <button
-                        onClick={() => { setPosEditMode(false); setPosEditId(null) }}
+                        onClick={async () => {
+                          setPosEditMode(false)
+                          setPosEditId(null)
+                          await fetch('/api/fantasy/offsets', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ offsets: playerOffsets }),
+                          })
+                        }}
                         style={{ padding: '0 14px', fontSize: 12, fontWeight: 600, backgroundColor: 'rgb(0,255,135)', color: 'rgb(20,20,20)', border: 'none', cursor: 'pointer', minWidth: 60 }}
                       >
                         保存
@@ -1027,15 +1035,15 @@ export default function FantasyPage() {
       {/* ランキングモーダル */}
       {rankingModalUser && (
         <div onClick={() => setRankingModalUser(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ backgroundColor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: rankingModalUser.team_color ?? 'var(--text-primary)' }}>{rankingModalUser.team_name}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{rankingModalUser.username}</div>
               </div>
-              <button onClick={() => setRankingModalUser(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer' }}>×</button>
+              <button onClick={() => setRankingModalUser(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
-            <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 320, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '28px 12px 8px', position: 'relative' }}>
+            <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 420, position: 'relative', overflow: 'hidden' }}>
               {rankingModalSquad === null ? (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ width: 28, height: 28, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -1044,33 +1052,39 @@ export default function FantasyPage() {
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>スタメン未登録</p>
                 </div>
-              ) : (['FW','MF','DF','GK'].map(pos => {
-                const players = rankingModalSquad.filter(p => p.position === pos)
-                if (players.length === 0) return null
-                return (
-                  <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
-                    {players.map(p => {
-                      const color = p.team_color ?? '#555'
-                      const tc = textColor(color)
-                      return (
-                        <div key={p.player_id} style={{ display: 'inline-block', position: 'relative', paddingTop: 12, flexShrink: 0 }}>
-                          <div style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', width: 24, height: 24, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px', zIndex: 1 }}>
-                            {p.no ?? '?'}
-                          </div>
-                          <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.4) 0px 2px 2px', position: 'relative', zIndex: 2 }}>
-                            <div style={{ backgroundColor: color, padding: '2px 6px' }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: tc }}>{p.name_ja ?? p.name_en}</span>
+              ) : (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
+                  {['FW','MF','DF','GK'].map(pos => {
+                    const players = rankingModalSquad.filter(p => p.position === pos)
+                    if (players.length === 0) return null
+                    return (
+                      <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: 40, alignItems: 'flex-start' }}>
+                        {players.map(p => {
+                          const color = p.team_color ?? '#555'
+                          const tc = textColor(color)
+                          const offX = p.pos_offset_x ?? 0
+                          const offY = p.pos_offset_y ?? 0
+                          return (
+                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
+                              <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', width: 30, height: 30, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
+                                {p.no ?? '?'}
+                              </div>
+                              <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
+                                <div style={{ backgroundColor: color, padding: '3px 7px' }}>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
+                                </div>
+                                <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 13 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 11 }}>
-                              <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              }))}
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

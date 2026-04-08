@@ -23,33 +23,29 @@ function FormationModal({ user, onClose }) {
   }, [user.clerk_user_id])
 
   const starters = squad ?? []
-  const byPos = {
-    FW: starters.filter(p => p.position === 'FW'),
-    MF: starters.filter(p => p.position === 'MF'),
-    DF: starters.filter(p => p.position === 'DF'),
-    GK: starters.filter(p => p.position === 'GK'),
-  }
 
   const PlayerCard = ({ p }) => {
     const color = p.team_color ?? '#555'
     const tc = textColor(color)
+    const offX = p.pos_offset_x ?? 0
+    const offY = p.pos_offset_y ?? 0
     return (
-      <div style={{ display: 'inline-block', position: 'relative', paddingTop: 12, flexShrink: 0 }}>
+      <div style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
         <div style={{
-          position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
-          width: 24, height: 24, borderRadius: '50%', backgroundColor: color,
+          position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
+          width: 30, height: 30, borderRadius: '50%', backgroundColor: color,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 10, fontWeight: 900, color: tc,
-          boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px', zIndex: 1,
+          fontSize: 13, fontWeight: 900, color: tc,
+          boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1,
         }}>
           {p.no ?? '?'}
         </div>
-        <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.4) 0px 2px 2px', position: 'relative', zIndex: 2 }}>
-          <div style={{ backgroundColor: color, padding: '2px 6px' }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: tc }}>{p.name_ja ?? p.name_en}</span>
+        <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
+          <div style={{ backgroundColor: color, padding: '3px 7px' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
           </div>
-          <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 11 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+          <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 13 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
           </div>
         </div>
       </div>
@@ -57,7 +53,7 @@ function FormationModal({ user, onClose }) {
   }
 
   const Row = ({ players }) => (
-    <div style={{ display: 'flex', justifyContent: 'center', gap: 20 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', gap: 40, alignItems: 'flex-start' }}>
       {players.map(p => <PlayerCard key={p.player_id} p={p} />)}
     </div>
   )
@@ -72,7 +68,7 @@ function FormationModal({ user, onClose }) {
         padding: 16,
       }}
     >
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 600, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
         {/* ヘッダー */}
         <div style={{ backgroundColor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
           <div>
@@ -83,12 +79,7 @@ function FormationModal({ user, onClose }) {
         </div>
 
         {/* フォーメーション */}
-        <div style={{
-          backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%',
-          minHeight: 340, display: 'flex', flexDirection: 'column',
-          justifyContent: 'space-between', padding: '28px 12px 8px',
-          position: 'relative',
-        }}>
+        <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 420, position: 'relative', overflow: 'hidden' }}>
           {squad === null ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: 28, height: 28, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -98,12 +89,13 @@ function FormationModal({ user, onClose }) {
               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>スタメン未登録</p>
             </div>
           ) : (
-            <>
-              <Row players={byPos.FW} />
-              <Row players={byPos.MF} />
-              <Row players={byPos.DF} />
-              <Row players={byPos.GK} />
-            </>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
+              {['FW','MF','DF','GK'].map(pos => {
+                const players = starters.filter(p => p.position === pos)
+                if (players.length === 0) return null
+                return <Row key={pos} players={players} />
+              })}
+            </div>
           )}
         </div>
       </div>

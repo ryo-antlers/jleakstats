@@ -9,6 +9,8 @@ export async function GET(request) {
   const squad = await sql`
     SELECT
       fs.player_id, fs.is_starter, COALESCE(fs.sort_order, 0) AS sort_order,
+      COALESCE(fs.pos_offset_x, 0) AS pos_offset_x,
+      COALESCE(fs.pos_offset_y, 0) AS pos_offset_y,
       pm.name_ja, pm.name_en, pm.position, pm.no, pm.team_id,
       tm.abbr AS team_abbr, tm.color_primary AS team_color
     FROM fantasy_squads fs
