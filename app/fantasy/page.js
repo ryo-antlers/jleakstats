@@ -785,8 +785,8 @@ export default function FantasyPage() {
                 </div>
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2 }}>
-                  <div style={{ backgroundColor: '#1e5c1e', padding: '5px 8px' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
+                  <div style={{ backgroundColor: clubColor, padding: '5px 8px' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: txtColor, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
                   </div>
                   <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 16 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
