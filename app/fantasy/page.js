@@ -820,9 +820,15 @@ export default function FantasyPage() {
                     onMouseDown={posEditMode && p.position !== 'GK' ? (e) => {
                       e.preventDefault()
                       setPosEditId(p.player_id)
-                      const LIMIT_X = 140
-                      const LIMIT_Y = 90
-                      dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX: -LIMIT_X, maxX: LIMIT_X, minY: -LIMIT_Y, maxY: LIMIT_Y }
+                      // ピッチコンテナとカード自身のRectからはみ出ない範囲を計算
+                      const pitch = formationRef.current?.getBoundingClientRect()
+                      const card = e.currentTarget.getBoundingClientRect()
+                      const MARGIN = 4
+                      const minX = off.x + (pitch.left + MARGIN - card.left)
+                      const maxX = off.x + (pitch.right - MARGIN - card.right)
+                      const minY = off.y + (pitch.top + MARGIN - card.top)
+                      const maxY = off.y + (pitch.bottom - MARGIN - card.bottom)
+                      dragPosRef.current = { startX: e.clientX, startY: e.clientY, origX: off.x, origY: off.y, minX, maxX, minY, maxY }
                     } : undefined}
                     onDoubleClick={posEditMode && p.position !== 'GK' ? () => setPlayerOffsets(prev => ({ ...prev, [p.player_id]: { x: 0, y: 0 } })) : undefined}
                   >
