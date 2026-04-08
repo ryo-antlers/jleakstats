@@ -365,6 +365,15 @@ export default function FantasyPage() {
       if (sq.length === 0) { router.push('/fantasy/new_squad'); return }
       setSquad(sq)
 
+      // DBのオフセット値でplayerOffsetsを初期化（localStorageより優先）
+      const dbOffsets = {}
+      for (const p of sq) {
+        if ((p.pos_offset_x ?? 0) !== 0 || (p.pos_offset_y ?? 0) !== 0) {
+          dbOffsets[p.player_id] = { x: p.pos_offset_x ?? 0, y: p.pos_offset_y ?? 0 }
+        }
+      }
+      if (Object.keys(dbOffsets).length > 0) setPlayerOffsets(dbOffsets)
+
       const savedStarters = sq.filter(p => p.is_starter)
       if (savedStarters.length === 11) {
         setStarterIds(new Set(savedStarters.map(p => p.player_id)))
