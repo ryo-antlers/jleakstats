@@ -953,11 +953,13 @@ export default function FantasyPage() {
                       preserveAspectRatio="none"
                     >
                       {/* ハーフライン */}
-                      <line x1="0" y1="5" x2="200" y2="5" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
-                      {/* センターサークル下半分（横長ピッチ補正で楕円）*/}
-                      <path d="M 80 5 A 20 14 0 0 1 120 5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
-                      {/* ペナルティエリア（GK側）- 下線は見切れさせる */}
-                      <rect x="72" y="88" width="56" height="20" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.7" />
+                      <line x1="0" y1="3" x2="200" y2="3" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
+                      {/* センターサークル（大きな楕円弧）*/}
+                      <path d="M 58 3 A 42 32 0 0 1 142 3" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
+                      {/* ペナルティエリア（大）- 下線は見切れ */}
+                      <rect x="52" y="73" width="96" height="35" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
+                      {/* ゴールエリア（小）- 下線は見切れ */}
+                      <rect x="72" y="84" width="56" height="25" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" />
                     </svg>
                     {/* 選手行（SVGの上に重ねる） */}
                     <div style={{ position: 'relative', zIndex: 1 }}>
