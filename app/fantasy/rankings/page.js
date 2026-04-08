@@ -40,11 +40,11 @@ function FormationModal({ user, onClose }) {
           width: 24, height: 24, borderRadius: '50%', backgroundColor: color,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10, fontWeight: 900, color: tc,
-          boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px',
+          boxShadow: 'rgba(0,0,0,0.5) 0px 2px 3px', zIndex: 1,
         }}>
           {p.no ?? '?'}
         </div>
-        <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.4) 0px 2px 2px' }}>
+        <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.4) 0px 2px 2px', position: 'relative', zIndex: 2 }}>
           <div style={{ backgroundColor: color, padding: '2px 6px' }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: tc }}>{p.name_ja ?? p.name_en}</span>
           </div>
