@@ -827,10 +827,10 @@ export default function FantasyPage() {
                   <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
                     {nextOpponents[p.team_id] && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, lineHeight: 1 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
                         <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                         <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                       </span>
                     )}
                   </div>
@@ -1116,10 +1116,10 @@ export default function FantasyPage() {
                                 <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                                   <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
                                   {nextOpponents[p.team_id] && (
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, lineHeight: 1 }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
                                       <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
-                                      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                                       <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
+                                      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                                     </span>
                                   )}
                                 </div>
