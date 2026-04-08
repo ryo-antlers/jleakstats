@@ -11,7 +11,7 @@ export default function ScrollingName({ name, color, tc, width = 80 }) {
     const available = outerRef.current.clientWidth - 14 // 7px padding × 2
     const textWidth = innerRef.current.scrollWidth
     const overflow = textWidth - available
-    setOverflowPx(overflow > 2 ? overflow + 7 : 0) // +7 for right breathing room
+    setOverflowPx(overflow > 2 ? overflow : 0)
   }, [name])
 
   return (
@@ -31,7 +31,7 @@ export default function ScrollingName({ name, color, tc, width = 80 }) {
           fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em',
           display: 'inline-block', whiteSpace: 'nowrap',
           ...(overflowPx > 0 ? {
-            animation: 'namescroll 15s linear infinite alternate',
+            animation: 'namescroll 8s linear infinite alternate',
             '--overflow-x': `-${overflowPx}px`,
           } : {}),
         }}
