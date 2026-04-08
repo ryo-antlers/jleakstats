@@ -45,7 +45,7 @@ function FormationModal({ user, onClose, nextOpponents }) {
           <div style={{ backgroundColor: color, padding: '3px 7px' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>{p.name_ja ?? p.name_en}</span>
           </div>
-          <div style={{ backgroundColor: '#0f0f0f', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
+          <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
             {opp && (
               <span style={{ fontSize: 8, fontWeight: 700, whiteSpace: 'nowrap', lineHeight: 1 }}>

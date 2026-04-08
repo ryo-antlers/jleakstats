@@ -3,9 +3,12 @@ import sql from '@/lib/db'
 // 次節の対戦相手を team_id -> { abbr, color, home } で返す
 export async function GET() {
   const [nextGw] = await sql`
-    SELECT id FROM fantasy_gameweeks
-    WHERE status IN ('upcoming', 'active')
-    ORDER BY gw_number ASC
+    SELECT fg.id FROM fantasy_gameweeks fg
+    JOIN fantasy_gameweek_fixtures fgf ON fgf.gameweek_id = fg.id
+    JOIN fixtures f ON f.id = fgf.fixture_id
+    GROUP BY fg.id, fg.gw_number
+    HAVING MAX(f.date) > NOW()
+    ORDER BY fg.gw_number ASC
     LIMIT 1
   `
 
