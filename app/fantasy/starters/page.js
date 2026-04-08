@@ -260,21 +260,21 @@ export default function StartersPage() {
                   onDragOver={e => { if (isOver) e.preventDefault() }}
                   onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
                   style={{
-                    border: isOver ? '1px solid #fffc2b' : '1px dashed #2a2a2a',
-                    backgroundColor: isOver ? 'rgba(255,252,43,0.07)' : '#141414',
+                    border: isOver ? '1px solid #fffc2b' : '1px dashed #333',
+                    backgroundColor: isOver ? 'rgba(255,252,43,0.05)' : 'transparent',
                     display: 'flex', flexDirection: 'column', overflow: 'hidden',
                     transition: 'border-color 0.1s, background-color 0.1s',
-                    height: 52,
+                    height: 64,
                   }}
                 >
                   <div style={{ height: 3, backgroundColor: '#fffc2b', flexShrink: 0 }} />
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '3px 5px' }}>
                     {cap ? (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#fffc2b', textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                         {cap.name_ja ?? cap.name_en}
                       </span>
                     ) : (
-                      <span style={{ fontSize: 9, color: '#2a2a2a' }}>DROP</span>
+                      <span style={{ fontSize: 9, color: '#333' }}>DROP</span>
                     )}
                   </div>
                 </div>
@@ -320,7 +320,7 @@ export default function StartersPage() {
                             )}
                             <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
                             <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'4px 6px' }}>
-                              <span style={{ fontSize:11, fontWeight:700, color: captainId === p.player_id ? 'var(--accent)' : '#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
                                 {p.name_ja ?? p.name_en}
                               </span>
                               <span style={{ fontSize:9, color:'#555', marginTop:2 }}>{p.team_abbr}</span>
