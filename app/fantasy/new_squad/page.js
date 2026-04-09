@@ -423,7 +423,7 @@ export default function NewSquadPage() {
                   </div>
                   {/* 右：カテゴリー・順位・スタッツ＋価格＋ボタン */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0 }}>
-                    <div style={{ width: 112, display: 'flex', gap: 2, justifyContent: 'center' }}>
+                    <div style={{ width: 112, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                       {p.recent_points?.length > 0
                         ? [...p.recent_points].reverse().map((pt, i) => (
                             <div key={i} style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700,
