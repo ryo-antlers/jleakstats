@@ -50,11 +50,20 @@ export async function GET() {
     LEFT JOIN (
       SELECT player_id, array_agg(points ORDER BY gw_number DESC) AS recent_points
       FROM (
-        SELECT fp.player_id, SUM(fp.points) AS points, fg.gw_number,
-               ROW_NUMBER() OVER (PARTITION BY fp.player_id ORDER BY fg.gw_number DESC) AS rn
-        FROM fantasy_points fp
-        JOIN fantasy_gameweeks fg ON fp.gameweek_id = fg.id
-        GROUP BY fp.player_id, fg.gw_number
+        SELECT
+          pm2.id AS player_id,
+          fg.gw_number,
+          COALESCE(SUM(fp.points), 0) AS points,
+          ROW_NUMBER() OVER (PARTITION BY pm2.id ORDER BY fg.gw_number DESC) AS rn
+        FROM players_master pm2
+        JOIN fantasy_gameweeks fg ON true
+        JOIN fantasy_gw_processed fgp ON fgp.gameweek_id = fg.id
+        JOIN fantasy_gameweek_fixtures fgf ON fgf.gameweek_id = fg.id
+        JOIN fixtures f ON f.id = fgf.fixture_id
+          AND (f.home_team_id = pm2.team_id OR f.away_team_id = pm2.team_id)
+        LEFT JOIN fantasy_points fp ON fp.player_id = pm2.id AND fp.gameweek_id = fg.id
+        WHERE pm2.position IN ('GK', 'DF', 'MF', 'FW')
+        GROUP BY pm2.id, fg.id, fg.gw_number
       ) sub
       WHERE rn <= 5
       GROUP BY player_id
