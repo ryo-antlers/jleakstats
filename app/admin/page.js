@@ -427,6 +427,7 @@ export default function AdminPage() {
       </h1>
 
       <div className="flex flex-col gap-3">
+        <UnregisteredPlayersCheck />
         <SyncButton
           label="試合日程・結果を同期"
           endpoint="/api/sync/fixtures"
@@ -453,7 +454,6 @@ export default function AdminPage() {
           description="全20チームの選手リストをAPI-FOOTBALLから取得してplayers_masterに登録します"
         />
         <HistorySyncButton />
-        <UnregisteredPlayersCheck />
         <GameweekManager />
         <FantasyGwActions />
       </div>
