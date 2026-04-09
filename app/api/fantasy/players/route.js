@@ -56,8 +56,15 @@ export async function GET() {
           COALESCE(SUM(fp.points), 0) AS points,
           ROW_NUMBER() OVER (PARTITION BY pm2.id ORDER BY fg.gw_number DESC) AS rn
         FROM players_master pm2
-        JOIN fantasy_gameweeks fg ON true
-        JOIN fantasy_gw_processed fgp ON fgp.gameweek_id = fg.id
+        JOIN (
+          SELECT fg2.id, fg2.gw_number
+          FROM fantasy_gameweeks fg2
+          JOIN fantasy_gameweek_fixtures fgf2 ON fgf2.gameweek_id = fg2.id
+          JOIN fixtures f2 ON f2.id = fgf2.fixture_id
+          GROUP BY fg2.id, fg2.gw_number
+          HAVING COUNT(*) = COUNT(CASE WHEN f2.status IN ('FT','AET','PEN') THEN 1 END)
+            AND COUNT(*) > 0
+        ) fg ON true
         JOIN fantasy_gameweek_fixtures fgf ON fgf.gameweek_id = fg.id
         JOIN fixtures f ON f.id = fgf.fixture_id
           AND (f.home_team_id = pm2.team_id OR f.away_team_id = pm2.team_id)
