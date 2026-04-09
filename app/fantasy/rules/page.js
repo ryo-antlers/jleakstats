@@ -12,7 +12,8 @@ function Section({ title, label, children }) {
   )
 }
 
-function Table({ headers, rows }) {
+function Table({ headers, rows, colAlignments }) {
+  const getAlign = (i) => colAlignments?.[i] ?? (i === 0 ? 'left' : 'center')
   return (
     <div style={{ overflowX: 'auto', borderRadius: 6, border: '1px solid var(--border-color)', marginBottom: 4 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -20,7 +21,7 @@ function Table({ headers, rows }) {
           <tr>
             {headers.map((h, i) => (
               <th key={i} style={{
-                padding: '9px 14px', textAlign: i === 0 ? 'left' : 'center',
+                padding: '9px 14px', textAlign: getAlign(i),
                 fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
                 color: 'var(--text-secondary)', backgroundColor: '#111',
                 borderBottom: '1px solid var(--border-color)',
@@ -34,7 +35,7 @@ function Table({ headers, rows }) {
             <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#161616' : '#111' }}>
               {row.map((cell, j) => (
                 <td key={j} style={{
-                  padding: '10px 14px', textAlign: j === 0 ? 'left' : 'center',
+                  padding: '10px 14px', textAlign: getAlign(j),
                   color: typeof cell === 'object' ? cell.color : 'var(--text-primary)',
                   fontWeight: typeof cell === 'object' ? (cell.weight ?? 400) : 400,
                   borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
@@ -134,6 +135,7 @@ export default function RulesPage() {
         ]} />
         <Table
           headers={['ポジション', 'スカッド上限', 'スタメン最小', '選手の特徴']}
+          colAlignments={['left', 'center', 'center', 'left']}
           rows={[
             ['GK ゴールキーパー', '2人', '1人', 'セーブ・クリーンシートで高得点'],
             ['DF ディフェンダー', '6人', '3人', 'クリーンシート・守備アクションが鍵'],
@@ -141,9 +143,6 @@ export default function RulesPage() {
             ['FW フォワード', '4人', '1人', 'ゴールで一気に高得点。ハイリスク・ハイリターン'],
           ]}
         />
-        <Tip title="編成のコツ">
-          安い選手（〜2,000万円台）は好パフォーマンス時の移籍金上昇率が1.8倍と高いため、若手・伸び盛りの選手を早期に獲得できると有利です。予算を温存しておくと移籍市場での機動力が上がります。
-        </Tip>
       </Section>
 
       {/* 締め切り */}
@@ -168,15 +167,12 @@ export default function RulesPage() {
             ['同クラブの選手', '同じクラブから最大3人まで保有可能'],
           ]}
         />
-        <Tip title="移籍市場の戦略">
-          移籍市場のオープン直後は他の監督も動きます。狙っている選手がいれば早めに確保しましょう。また売却後に予算を確保した状態で市場を眺めると、想定外のお買い得選手を見つけることがあります。
-        </Tip>
       </Section>
 
       {/* キャプテン */}
       <Section label="Captain" title="キャプテン制度">
         <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 200, backgroundColor: '#161616', border: '1px solid #fffc2b33', borderRadius: 6, padding: 16 }}>
+          <div style={{ flex: 1, minWidth: 200, backgroundColor: '#161616', border: '1px solid var(--border-color)', borderRadius: 6, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 900, color: '#000' }}>C</span>
@@ -188,9 +184,6 @@ export default function RulesPage() {
             </p>
           </div>
         </div>
-        <Tip title="キャプテン選びの考え方">
-          ホームゲームの得点源FW・好調MFなど、高得点が期待できる試合に出場する選手を選びましょう。アウェー連戦中のチームの選手はリスクが高めです。迷ったときは主力FWが無難です。
-        </Tip>
       </Section>
 
       {/* ポイント */}
@@ -280,20 +273,6 @@ export default function RulesPage() {
         />
       </Section>
 
-      {/* MOP */}
-      <Section label="Weekly Award" title="Most Outstanding Player">
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.8 }}>
-          毎GW、最もポイントを獲得した選手に「MOP（最優秀選手）ボーナス」として移籍金が上乗せされます。同点の場合は全員が対象。この賞を受賞した選手の移籍金は急騰するため、早めの獲得が重要です。
-        </p>
-        <Table
-          headers={['順位', '移籍金ボーナス']}
-          rows={[
-            ['1位', yen(1000)],
-            ['2〜5位', yen(500)],
-          ]}
-        />
-      </Section>
-
       {/* 移籍金変動 */}
       <Section label="Transfer Value" title="移籍金変動システム">
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.8 }}>
@@ -303,6 +282,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>GWポイント → 基本変動額</h3>
         <Table
           headers={['GWポイント', '変動額', '目安']}
+          colAlignments={['left', 'center', 'left']}
           rows={[
             ['12pt以上', yen(2000), '上位3%のハイパフォーマンス'],
             ['10〜11pt', yen(1200), '上位8%'],
@@ -319,6 +299,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '24px 0 8px', textTransform: 'uppercase' }}>価格帯による上昇補正（下落には補正なし）</h3>
         <Table
           headers={['現在の移籍金', '上昇倍率', '特徴']}
+          colAlignments={['left', 'center', 'left']}
           rows={[
             ['〜2,000万', mul('1.8', '#4caf50'), '低価格帯は急上昇しやすい'],
             ['2,001〜4,000万', mul('1.4', '#81c784'), ''],
@@ -348,9 +329,20 @@ export default function RulesPage() {
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '10px 0 0' }}>最低移籍金：1,000万円（どれだけ不振でもこれ以下にはならない）</p>
         </div>
 
-        <Tip title="移籍金変動の読み方">
-          好パフォーマンスが続く選手の移籍金はどんどん上昇します。移籍金が上がりすぎた選手を売却して安い新星に切り替えるサイクルが、長期的な戦略のポイントです。
-        </Tip>
+      </Section>
+
+      {/* MOP */}
+      <Section label="Weekly Award" title="Most Outstanding Player">
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.8 }}>
+          毎GW、最もポイントを獲得した選手に「MOP（最優秀選手）ボーナス」として移籍金が上乗せされます。同点の場合は全員が対象。この賞を受賞した選手の移籍金は急騰するため、早めの獲得が重要です。
+        </p>
+        <Table
+          headers={['順位', '移籍金ボーナス']}
+          rows={[
+            ['1位', yen(1000)],
+            ['2〜5位', yen(500)],
+          ]}
+        />
       </Section>
 
     </div>
