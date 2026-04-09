@@ -158,6 +158,31 @@ function FantasyGwActions() {
     }
   }
 
+  async function checkPoints() {
+    if (!selectedGw) return
+    setLoading(true)
+    setStatus(null)
+    try {
+      const res = await fetch('/api/admin/check-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameweek_id: Number(selectedGw) }),
+      })
+      const data = await res.json()
+      if (!data.ok) { setStatus(`❌ ${data.error}`); return }
+      if (data.missing === 0) {
+        setStatus(`✅ 全選手のポイントが登録済みです（${data.fixtures}試合）`)
+      } else {
+        const names = data.players.map(p => p.name_ja ?? p.name_en ?? p.player_id).join(', ')
+        setStatus(`⚠️ ${data.missing}人が未登録: ${names}`)
+      }
+    } catch (e) {
+      setStatus(`❌ ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const gwLabel = (gw) => `GW${gw.gw_number}`
 
   return (
@@ -179,6 +204,20 @@ function FantasyGwActions() {
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button
+          onClick={checkPoints}
+          disabled={loading || !selectedGw}
+          title="出場選手全員のポイントが登録済みか確認"
+          style={{
+            padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+            backgroundColor: loading ? 'var(--bg-tertiary)' : '#1a4a2a',
+            color: '#00ff87', border: '1px solid #00ff87',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          ポイント確認
+        </button>
         {[
           { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points', desc: 'is_starter=trueの選手ポイントをtotal_pointsに加算' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices', desc: 'GWポイントに基づき価格更新' },
