@@ -5,8 +5,8 @@ import Link from 'next/link'
 import FantasyLoading from '../FantasyLoading'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
-const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 4 }
-const POS_MIN = { GK: 1, DF: 3, MF: 4, FW: 1 }
+const POS_LIMITS = { GK: 2, DF: 6, MF: 7, FW: 5 }
+const POS_MIN = { GK: 1, DF: 4, MF: 4, FW: 1 }
 const SELL_FEE = 0.05
 
 function formatBudget(value) {
@@ -101,7 +101,7 @@ export default function TransferPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pagedPlayers = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos])
+  const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos]) && squad.length >= 15
 
   async function addPlayer(player) {
     setActionLoading(true)
@@ -304,7 +304,7 @@ export default function TransferPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {[
-                'GK1-2、DF3-6、MF4-6、FW1-4 の範囲で予算内に獲得',
+                'GK1-2、DF4-6、MF4-7、FW1-5、合計15人以上（最大20人）',
                 '同じクラブからの獲得は最大3名まで',
                 '売却時は移籍金の5%が手数料として差し引かれます',
               ].map((rule, i) => (
@@ -495,13 +495,13 @@ export default function TransferPage() {
               const inSquad = squadIds.has(p.id)
               const posOver = (posCounts[p.position] ?? 0) >= POS_LIMITS[p.position]
               const budgetOver = (user?.budget ?? 0) < p.price * 10
-              const squadFull = squad.length >= 18
+              const squadFull = squad.length >= 20
               const clubOver = (clubCounts[p.team_abbr] ?? 0) >= 3
               const canAdd = !inSquad && !posOver && !budgetOver && !squadFull && !clubOver
               const disabledReason = inSquad ? null
                 : clubOver ? 'このクラブの選手を既に3人保有しています'
                 : posOver ? `${p.position}は最大${POS_LIMITS[p.position]}人まで獲得できます`
-                : squadFull ? 'スカッドが満員です（最大18人）'
+                : squadFull ? 'スカッドが満員です（最大20人）'
                 : budgetOver ? '残高が不足しています'
                 : null
               return (

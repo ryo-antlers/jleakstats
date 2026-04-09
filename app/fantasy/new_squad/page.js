@@ -5,8 +5,8 @@ import Link from 'next/link'
 import FantasyLoading from '../FantasyLoading'
 
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
-const POS_LIMITS = { GK: 2, DF: 6, MF: 6, FW: 4 }
-const POS_MIN = { GK: 1, DF: 3, MF: 4, FW: 1 }
+const POS_LIMITS = { GK: 2, DF: 6, MF: 7, FW: 5 }
+const POS_MIN = { GK: 1, DF: 4, MF: 4, FW: 1 }
 
 // 予算: 1unit = 1000円 → 億/万表記
 function formatBudget(value) {
@@ -101,9 +101,7 @@ export default function NewSquadPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pagedPlayers = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
-  const gkCount = posCounts['GK'] ?? 0
-  const minTotal = 10 + gkCount  // GK1人なら11人、GK2人なら12人
-  const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos]) && squad.length >= minTotal
+  const minMet = POSITIONS.every(pos => (posCounts[pos] ?? 0) >= POS_MIN[pos]) && squad.length >= 15
 
   async function addPlayer(player) {
     setActionLoading(player.id)
@@ -175,7 +173,7 @@ export default function NewSquadPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {[
-                'GK1-2、DF3-6、MF4-6、FW1-4、合計11人以上（GK2人の場合は12人以上）',
+                'GK1-2、DF4-6、MF4-7、FW1-5、合計15人以上（最大20人）',
                 '同じクラブからの獲得は最大3名まで',
               ].map((rule, i) => (
                 <p key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>

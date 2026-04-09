@@ -56,9 +56,9 @@ export async function POST(request) {
       return Response.json({ error: 'すでにスカッドに入っています' }, { status: 400 })
     }
 
-    // 上限チェック（最大18人）
-    if (squad.length >= 18) {
-      return Response.json({ error: 'スカッドは最大18人です' }, { status: 400 })
+    // 上限チェック（最大20人）
+    if (squad.length >= 20) {
+      return Response.json({ error: 'スカッドは最大20人です' }, { status: 400 })
     }
 
     // ポジション別上限チェック
@@ -66,7 +66,7 @@ export async function POST(request) {
     for (const s of squad) {
       if (s.position in posCounts) posCounts[s.position]++
     }
-    const posLimits = { GK: 2, DF: 6, MF: 6, FW: 4 }
+    const posLimits = { GK: 2, DF: 6, MF: 7, FW: 5 }
     if ((posCounts[player.position] ?? 0) >= (posLimits[player.position] ?? 99)) {
       return Response.json({ error: `${player.position}はこれ以上追加できません` }, { status: 400 })
     }
