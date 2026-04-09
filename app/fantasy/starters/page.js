@@ -15,7 +15,7 @@ async function fetchIsMarketOpen() {
       if (now < deadline) return true
       if (marketOpen && now >= marketOpen) return true
     }
-    return gameweeks.length === 0 // データなしなら開いているとみなす
+    return gameweeks.length === 0
   } catch { return true }
 }
 
@@ -56,8 +56,9 @@ export default function StartersPage() {
   const [formation, setFormation] = useState(null)
   const [slots, setSlots] = useState({ GK:[null], DF:[null,null,null,null], MF:[null,null,null,null], FW:[null,null] })
   const [captainId, setCaptainId] = useState(null)
-  const [dragging, setDragging] = useState(null) // { player_id, position }
-  const [dragOverSlot, setDragOverSlot] = useState(null) // { pos, idx }
+  const [dragging, setDragging] = useState(null)
+  const [dragOverSlot, setDragOverSlot] = useState(null)
+  const [dragOverCaptain, setDragOverCaptain] = useState(false)
 
   useEffect(() => {
     fetchIsMarketOpen().then(open => { if (!open) router.replace('/fantasy') })
@@ -71,7 +72,6 @@ export default function StartersPage() {
       if (cap) {
         setCaptainId(cap.player_id)
       } else {
-        // キャプテン未設定: 最も移籍金が高い選手を自動選択
         const highest = [...list].sort((a, b) => (b.price ?? 0) - (a.price ?? 0))[0]
         if (highest) setCaptainId(highest.player_id)
       }
@@ -106,31 +106,37 @@ export default function StartersPage() {
   const playerMap = new Map(squad.map(p=>[p.player_id,p]))
   const assignedIds = new Set(Object.values(slots).flat().filter(Boolean))
 
+  // ベンチ選手（スタメン外）
+  const bench = ['FW','MF','DF','GK'].flatMap(pos =>
+    byPos[pos].filter(p => !assignedIds.has(p.player_id))
+  )
+
   function changeFormation(f) {
     setFormation(f)
     setSlots(autoFillSlots(f, byPos))
   }
 
-  function clickPlayer(p) {
+  function clickBenchPlayer(p) {
     const pos = p.position
-    if (assignedIds.has(p.player_id)) return // スタメンはクリックで外さない
     const emptyIdx = slots[pos].indexOf(null)
     if (emptyIdx === -1) return
     setSlots(prev => { const next=[...prev[pos]]; next[emptyIdx]=p.player_id; return { ...prev, [pos]:next } })
+  }
+
+  function clickSlot(pos, idx) {
+    // スロットをタップで外す
+    setSlots(prev => { const next=[...prev[pos]]; next[idx]=null; return { ...prev, [pos]:next } })
   }
 
   function dropOnSlot(pos, idx) {
     if (!dragging || dragging.position !== pos) return
     setSlots(prev => {
       const next = { ...prev }
-      const displaced = prev[pos][idx] // ターゲットにいた選手
-      // dragging選手の元のスロット位置を探す
+      const displaced = prev[pos][idx]
       const fromIdx = prev[pos].indexOf(dragging.player_id)
-      // dragging選手を全スロットから除去
       for (const p of ['GK','DF','MF','FW']) next[p] = prev[p].map(id => id===dragging.player_id ? null : id)
       next[pos] = [...next[pos]]
       next[pos][idx] = dragging.player_id
-      // ターゲットに別の選手がいた場合、元のスロットにスワップ
       if (displaced && displaced !== dragging.player_id && fromIdx !== -1) {
         next[pos][fromIdx] = displaced
       }
@@ -138,10 +144,6 @@ export default function StartersPage() {
     })
     setDragging(null)
     setDragOverSlot(null)
-  }
-
-  function removeFromSlot(pos, idx) {
-    setSlots(prev => { const next=[...prev[pos]]; next[idx]=null; return { ...prev, [pos]:next } })
   }
 
   const isComplete = formation &&
@@ -163,14 +165,17 @@ export default function StartersPage() {
 
   if (loading) return <FantasyLoading />
 
-  const HEADER_H = 100
+  const cap = captainId ? playerMap.get(captainId) : null
+  const capIsOver = dragging && assignedIds.has(dragging.player_id)
+
+  const BENCH_H = 90
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* ヘッダー */}
-      <div style={{ flexShrink: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid #1e1e1e', padding: '14px 0 10px' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 10 }}>
+      {/* ヘッダー: 戻る + 保存 */}
+      <div style={{ flexShrink: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid #1e1e1e', padding: '10px 12px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <button onClick={()=>router.push('/fantasy')} style={{ background:'none', border:'none', color:'#666', cursor:'pointer', fontSize:20, padding:0, lineHeight:1 }}>←</button>
             <span style={{ fontSize:14, fontWeight:700, letterSpacing:'0.08em', color:'#fff' }}>スタメン編集</span>
@@ -184,162 +189,149 @@ export default function StartersPage() {
             {saving ? '保存中…' : '保存'}
           </button>
         </div>
-        {/* フォーメーション */}
-        <div style={{ display:'flex', gap:4 }}>
-          {FORMATIONS.map(f => {
-            const ok = byPos.GK.length>=1&&byPos.DF.length>=f.df&&byPos.MF.length>=f.mf&&byPos.FW.length>=f.fw
-            const active = formation?.label === f.label
-            return (
-              <button key={f.label} onClick={()=>ok&&changeFormation(f)} disabled={!ok} style={{
-                flex:1, padding:'12px 0', fontSize:14, fontWeight: active?700:500,
-                backgroundColor: active ? 'var(--accent)' : '#161616',
-                color: active ? '#000' : ok ? '#bbb' : '#333',
-                border: `1px solid ${active ? 'var(--accent)' : '#252525'}`,
-                cursor: ok ? 'pointer' : 'not-allowed',
-              }}>{f.label}</button>
-            )
-          })}
-        </div>
       </div>
 
-      {/* 2カラム */}
-      <div style={{ flex:1, display:'grid', gridTemplateColumns:'180px 1fr', overflow:'hidden' }}>
+      {/* フォーメーション選択 */}
+      <div style={{ flexShrink: 0, display:'flex', gap:4, padding:'8px 12px', backgroundColor:'#0a0a0a', borderBottom:'1px solid #1a1a1a' }}>
+        {FORMATIONS.map(f => {
+          const ok = byPos.GK.length>=1&&byPos.DF.length>=f.df&&byPos.MF.length>=f.mf&&byPos.FW.length>=f.fw
+          const active = formation?.label === f.label
+          return (
+            <button key={f.label} onClick={()=>ok&&changeFormation(f)} disabled={!ok} style={{
+              flex:1, padding:'9px 0', fontSize:13, fontWeight: active?700:500,
+              backgroundColor: active ? 'var(--accent)' : '#161616',
+              color: active ? '#000' : ok ? '#bbb' : '#333',
+              border: `1px solid ${active ? 'var(--accent)' : '#252525'}`,
+              cursor: ok ? 'pointer' : 'not-allowed',
+            }}>{f.label}</button>
+          )
+        })}
+      </div>
 
-        {/* 左: 選手一覧 */}
-        <div style={{ overflowY:'auto', borderRight:'1px solid #1a1a1a', backgroundColor:'#0f0f0f' }}>
+      {/* フォーメーション表示 */}
+      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 12px', gap:6, overflow:'hidden', justifyContent:'space-between', paddingBottom: BENCH_H + 8 }}>
 
-          {['FW','MF','DF','GK'].map(pos => {
-            const limit = formation ? { GK:1, DF:formation.df, MF:formation.mf, FW:formation.fw }[pos] : 99
-            const filled = slots[pos].filter(Boolean).length
-            return (
-              <div key={pos}>
-                <div style={{ padding:'8px 10px 4px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.16em', color: '#fff' }}>{pos}</span>
-                </div>
-                {byPos[pos].map(p => {
-                  const assigned = assignedIds.has(p.player_id)
+        {/* キャプテン行 */}
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <div
+            onDragOver={e => { if (capIsOver) { e.preventDefault(); setDragOverCaptain(true) } }}
+            onDragLeave={() => setDragOverCaptain(false)}
+            onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) { setCaptainId(dragging.player_id); setDragOverCaptain(false) } }}
+            style={{
+              border: `1px solid ${dragOverCaptain ? '#fff' : '#fffc2b'}`,
+              backgroundColor: dragOverCaptain ? 'rgba(255,252,43,0.1)' : 'transparent',
+              borderRadius: 4, padding: '4px 16px', display:'flex', alignItems:'center', gap:8,
+              transition:'background-color 0.1s',
+            }}
+          >
+            <div style={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#fffc2b', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <span style={{ fontSize:9, fontWeight:900, color:'#000' }}>C</span>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color: cap ? '#fff' : '#555', letterSpacing:'0.04em' }}>
+              {cap ? (cap.name_ja ?? cap.name_en) : 'キャプテン未設定'}
+            </span>
+          </div>
+        </div>
+
+        {/* ポジション行 */}
+        {['FW','MF','DF','GK'].map(pos => {
+          const posSlots = slots[pos]
+          const canDrop = dragging?.position === pos
+          return (
+            <div key={pos} style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+              <div style={{ flex:1, display:'flex', gap:6, justifyContent:'center', alignItems:'stretch' }}>
+                {posSlots.map((playerId, idx) => {
+                  const p = playerId ? playerMap.get(playerId) : null
+                  const isOver = dragOverSlot?.pos===pos && dragOverSlot?.idx===idx
+                  const isCap = p && p.player_id === captainId
                   return (
                     <div
-                      key={p.player_id}
-                      draggable
-                      onDragStart={() => setDragging({ player_id: p.player_id, position: pos })}
+                      key={idx}
+                      draggable={!!p}
+                      onDragStart={() => p && setDragging({ player_id: p.player_id, position: pos })}
                       onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
-                      onClick={() => clickPlayer(p)}
+                      onDragOver={e => { if (canDrop) { e.preventDefault(); setDragOverSlot({pos,idx}) } }}
+                      onDragLeave={() => setDragOverSlot(null)}
+                      onDrop={() => dropOnSlot(pos, idx)}
+                      onClick={() => p && clickSlot(pos, idx)}
                       style={{
-                        display:'flex', alignItems:'center', gap:6, padding:'6px 10px',
-                        cursor: assigned ? 'pointer' : slots[pos].includes(null) ? 'grab' : 'default',
-                        opacity: assigned ? 0.3 : 1,
-                        borderLeft: '2px solid transparent',
-                        backgroundColor: 'transparent',
-                        userSelect:'none',
+                        flex:1, maxWidth:100,
+                        border: isOver ? '1px solid var(--accent)' : p ? '1px solid #2a2a2a' : '1px dashed #222',
+                        backgroundColor: isOver ? 'rgba(0,255,135,0.08)' : p ? '#1a1a1a' : '#0f0f0f',
+                        display:'flex', flexDirection:'column', overflow:'hidden',
+                        borderRadius:3, cursor: p ? 'pointer' : 'default',
+                        position:'relative',
+                        transition:'border-color 0.1s, background-color 0.1s',
                       }}
                     >
-                      <div style={{ width:3, height:16, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
-                      <span style={{ fontSize:12, color: assigned ? '#888' : '#ccc', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1, letterSpacing:'0.02em' }}>
-                        {p.name_ja ?? p.name_en}
-                      </span>
+                      {p ? (
+                        <>
+                          <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
+                          {isCap && (
+                            <div style={{ position:'absolute', top:4, right:4, width:14, height:14, borderRadius:'50%', backgroundColor:'#fffc2b', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1 }}>
+                              <span style={{ fontSize:7, fontWeight:900, color:'#000' }}>C</span>
+                            </div>
+                          )}
+                          <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'3px 4px' }}>
+                            <span style={{ fontSize:10, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                              {p.name_ja ?? p.name_en}
+                            </span>
+                            <span style={{ fontSize:8, color:'#555', marginTop:1 }}>{p.team_abbr}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <span style={{ fontSize:9, color: canDrop ? 'var(--accent)' : '#2a2a2a' }}>
+                            {canDrop ? 'DROP' : pos}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )
+        })}
+      </div>
 
-        {/* 右: フォーメーション */}
-        <div style={{ display:'flex', flexDirection:'column', padding:'12px 16px', gap:8, overflow:'hidden', justifyContent:'space-between', position:'relative' }}>
-
-          {['FW','MF','DF','GK'].map((pos, posIdx) => {
-            const posSlots = slots[pos]
-            const canDrop = dragging?.position === pos
-            const isFW = pos === 'FW'
-            const cap = captainId ? playerMap.get(captainId) : null
-            const capIsOver = dragging && assignedIds.has(dragging.player_id)
-
-            const captainZone = isFW ? (
-              <div style={{ width: 120, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', color: '#fffc2b', textAlign: 'center', marginBottom: 4 }}>CAPTAIN</div>
-                <div
-                  onDragOver={e => { if (capIsOver) e.preventDefault() }}
-                  onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
-                  style={{
-                    flex: 1,
-                    border: '1px solid #fffc2b',
-                    backgroundColor: capIsOver ? 'rgba(255,252,43,0.05)' : 'transparent',
-                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                    transition: 'background-color 0.1s',
-                  }}
-                >
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px' }}>
-                    {cap ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                        {cap.name_ja ?? cap.name_en}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 9, color: '#333' }}>DROP</span>
-                    )}
-                  </div>
-                </div>
+      {/* ベンチ（固定下部） */}
+      <div style={{
+        position:'fixed', bottom:0, left:0, right:0, height: BENCH_H,
+        backgroundColor:'#0d0d0d', borderTop:'1px solid #1e1e1e',
+        display:'flex', flexDirection:'column', overflow:'hidden',
+        zIndex:50,
+      }}>
+        <div style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', color:'#555', padding:'6px 12px 2px', textTransform:'uppercase' }}>Bench</div>
+        <div style={{ flex:1, overflowX:'auto', overflowY:'hidden', display:'flex', alignItems:'center', gap:6, padding:'0 12px 6px', scrollbarWidth:'none' }}>
+          {bench.length === 0 ? (
+            <span style={{ fontSize:11, color:'#333' }}>全員スタメン</span>
+          ) : bench.map(p => (
+            <div
+              key={p.player_id}
+              draggable
+              onDragStart={() => setDragging({ player_id: p.player_id, position: p.position })}
+              onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
+              onClick={() => clickBenchPlayer(p)}
+              style={{
+                flexShrink:0, width:64, height:58,
+                backgroundColor:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:3,
+                display:'flex', flexDirection:'column', overflow:'hidden', cursor:'pointer',
+                userSelect:'none',
+              }}
+            >
+              <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
+              <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'3px 4px' }}>
+                <span style={{ fontSize:8, fontWeight:700, color:'var(--accent)', letterSpacing:'0.08em', marginBottom:2 }}>{p.position}</span>
+                <span style={{ fontSize:9, fontWeight:700, color:'#ccc', textAlign:'center', lineHeight:1.3, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                  {p.name_ja ?? p.name_en}
+                </span>
               </div>
-            ) : null
-
-            return (
-              <div key={pos} style={{ flex:1, display:'flex', gap: isFW ? 8 : 0, flexDirection: isFW ? 'row' : 'column', minHeight:0 }}>
-                {captainZone}
-                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
-                  <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.16em', color:'#fff', textAlign:'center', marginBottom:4 }}>{pos}</div>
-                  <div style={{ flex:1, display:'flex', gap:6, justifyContent:'center', alignItems:'center' }}>
-                    {posSlots.map((playerId, idx) => {
-                      const p = playerId ? playerMap.get(playerId) : null
-                      const isOver = dragOverSlot?.pos===pos && dragOverSlot?.idx===idx
-                      return (
-                        <div
-                          key={idx}
-                          onDragOver={e => { if (canDrop) { e.preventDefault(); setDragOverSlot({pos,idx}) } }}
-                          onDragLeave={() => setDragOverSlot(null)}
-                          onDrop={() => dropOnSlot(pos, idx)}
-                          style={{
-                            flex:1, maxWidth:120, height:'100%',
-                            border: isOver ? '1px solid var(--accent)' : p ? 'none' : '1px dashed #2a2a2a',
-                            backgroundColor: isOver ? 'rgba(0,255,135,0.08)' : p ? 'transparent' : '#141414',
-                            display:'flex', flexDirection:'column', overflow:'hidden',
-                            transition:'border-color 0.1s, background-color 0.1s',
-                            position:'relative',
-                          }}
-                        >
-                          {p ? (
-                            <div
-                              draggable
-                              onDragStart={() => setDragging({ player_id: p.player_id, position: pos })}
-                              onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
-                              style={{ display:'flex', flexDirection:'column', flex:1, cursor:'grab', position:'relative' }}
-                            >
-                              <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
-                            <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'4px 6px' }}>
-                              <span style={{ fontSize:11, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
-                                {p.name_ja ?? p.name_en}
-                              </span>
-                              <span style={{ fontSize:9, color:'#555', marginTop:2 }}>{p.team_abbr}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                            {canDrop
-                              ? <span style={{ fontSize:9, color:'var(--accent)', letterSpacing:'0.08em' }}>DROP</span>
-                              : <span style={{ fontSize:9, color:'#2a2a2a' }}>—</span>
-                            }
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       </div>
+
     </div>
   )
 }
