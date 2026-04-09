@@ -256,9 +256,9 @@ function UnregisteredPlayersCheck() {
             <div style={{ marginTop: 8 }}>
               <p style={{ fontSize: 12, color: '#ff6b6b', marginBottom: 6 }}>{players.length}人の未登録選手が見つかりました</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {players.map(p => (
-                  <span key={p.player_id} style={{ fontSize: 12, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 4, backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
-                    {p.player_id}
+                {players.map((p, i) => (
+                  <span key={i} style={{ fontSize: 12, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 4, backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
+                    [{p.source}] {p.player_id ?? 'ID無し'} {p.player_name_en ?? ''}
                   </span>
                 ))}
               </div>
