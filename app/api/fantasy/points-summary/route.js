@@ -27,6 +27,7 @@ export async function GET(request) {
     LEFT JOIN fantasy_gameweeks fg ON fg.id = fp.gameweek_id AND fg.gw_number <= ${untilGw}
     WHERE tm.category = 'J1'
       AND pm.position IN ('GK', 'DF', 'MF', 'FW')
+      AND pm.canonical_id IS NULL
     GROUP BY pm.id, pm.name_ja, pm.name_en, pm.position, pm.price, tm.abbr, tm.name_ja
     ORDER BY total_points DESC
   `

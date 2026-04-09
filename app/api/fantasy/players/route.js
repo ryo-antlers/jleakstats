@@ -77,6 +77,7 @@ export async function GET() {
     ) rp ON rp.player_id = pm.id
     WHERE pm.position IN ('GK', 'DF', 'MF', 'FW')
       AND tm.category = 'J1'
+      AND pm.canonical_id IS NULL
     ORDER BY pm.position, pm.price DESC, pm.name_ja
   `
   return Response.json({ players }, {
