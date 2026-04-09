@@ -39,6 +39,7 @@ export default function FantasyHeader() {
     { label: '移籍', href: '/fantasy/transfer', disabled: !isMarketOpen },
     { label: 'スタメン', href: '/fantasy/starters' },
     { label: '順位表', href: '/fantasy/rankings' },
+    { label: 'ガイド', href: '/fantasy/rules' },
     { label: 'クラブ情報', href: '/fantasy/club' },
   ]
 

@@ -220,6 +220,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>攻撃スタッツ</h3>
         <Table
           headers={['条件', 'GK', 'DF', 'MF', 'FW']}
+          colAlignments={['left', 'right', 'right', 'right', 'right']}
           rows={[
             ['ゴール / 1点', pt(6), pt(4), pt(4), pt(6)],
             ['アシスト / 1本', pt(5), pt(4), pt(4), pt(4)],
@@ -232,6 +233,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>守備スタッツ</h3>
         <Table
           headers={['条件', 'GK', 'DF', 'MF', 'FW']}
+          colAlignments={['left', 'right', 'right', 'right', 'right']}
           rows={[
             ['クリーンシート（90分出場時）', pt(3), pt(3), pt(1), '—'],
             ['2失点', pt(-1), pt(-1), '—', '—'],
@@ -290,7 +292,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>GWポイント → 基本変動額</h3>
         <Table
           headers={['GWポイント', '変動額', '目安']}
-          colAlignments={['left', 'center', 'left']}
+          colAlignments={['left', 'right', 'left']}
           rows={[
             ['12pt以上', yen(2000), '上位3%のハイパフォーマンス'],
             ['10-11pt', yen(1200), '上位8%'],
@@ -307,7 +309,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '24px 0 8px', textTransform: 'uppercase' }}>価格帯による上昇補正（下落には補正なし）</h3>
         <Table
           headers={['現在の移籍金', '上昇倍率', '特徴']}
-          colAlignments={['left', 'center', 'left']}
+          colAlignments={['left', 'right', 'left']}
           rows={[
             ['-2,000万', mul('1.8', '#4caf50'), '低価格帯は急上昇しやすい'],
             ['2,001-4,000万', mul('1.4', '#81c784'), ''],
