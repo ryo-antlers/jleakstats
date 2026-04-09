@@ -59,7 +59,6 @@ export default function StartersPage() {
   const [dragging, setDragging] = useState(null)
   const [dragOverSlot, setDragOverSlot] = useState(null)
   const [dragOverCaptain, setDragOverCaptain] = useState(false)
-  const [selectedBench, setSelectedBench] = useState(null)
 
   useEffect(() => {
     fetchIsMarketOpen().then(open => { if (!open) router.replace('/fantasy') })
@@ -118,25 +117,15 @@ export default function StartersPage() {
   }
 
   function clickBenchPlayer(p) {
-    if (selectedBench?.player_id === p.player_id) { setSelectedBench(null); return }
     const pos = p.position
     const emptyIdx = slots[pos].indexOf(null)
-    if (emptyIdx !== -1) {
-      setSlots(prev => { const next=[...prev[pos]]; next[emptyIdx]=p.player_id; return { ...prev, [pos]:next } })
-      setSelectedBench(null)
-    } else {
-      setSelectedBench(p)
-    }
+    if (emptyIdx === -1) return
+    setSlots(prev => { const next=[...prev[pos]]; next[emptyIdx]=p.player_id; return { ...prev, [pos]:next } })
   }
 
   function clickSlot(pos, idx) {
-    if (selectedBench) {
-      if (selectedBench.position !== pos) return
-      setSlots(prev => { const next=[...prev[pos]]; next[idx]=selectedBench.player_id; return { ...prev, [pos]:next } })
-      setSelectedBench(null)
-    } else {
-      setSlots(prev => { const next=[...prev[pos]]; next[idx]=null; return { ...prev, [pos]:next } })
-    }
+    // スロットをタップで外す
+    setSlots(prev => { const next=[...prev[pos]]; next[idx]=null; return { ...prev, [pos]:next } })
   }
 
   function dropOnSlot(pos, idx) {
@@ -220,32 +209,40 @@ export default function StartersPage() {
       </div>
 
       {/* フォーメーション表示 */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 12px', gap:6, overflow:'hidden', justifyContent:'space-around', paddingBottom: BENCH_H + 8, position:'relative' }}>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'8px 12px', gap:6, overflow:'hidden', justifyContent:'space-between', paddingBottom: BENCH_H + 8 }}>
 
-        {/* キャプテン（左上） */}
-        {cap && (
-          <div style={{ position:'absolute', top:8, left:12, display:'flex', alignItems:'center', gap:5, zIndex:2, pointerEvents:'none' }}>
-            <div style={{ width:16, height:16, borderRadius:'50%', backgroundColor:'#fffc2b', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <span style={{ fontSize:7, fontWeight:900, color:'#000' }}>C</span>
+        {/* キャプテン行 */}
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <div
+            onDragOver={e => { if (capIsOver) { e.preventDefault(); setDragOverCaptain(true) } }}
+            onDragLeave={() => setDragOverCaptain(false)}
+            onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) { setCaptainId(dragging.player_id); setDragOverCaptain(false) } }}
+            style={{
+              border: `1px solid ${dragOverCaptain ? '#fff' : '#fffc2b'}`,
+              backgroundColor: dragOverCaptain ? 'rgba(255,252,43,0.1)' : 'transparent',
+              borderRadius: 4, padding: '4px 16px', display:'flex', alignItems:'center', gap:8,
+              transition:'background-color 0.1s',
+            }}
+          >
+            <div style={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#fffc2b', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <span style={{ fontSize:9, fontWeight:900, color:'#000' }}>C</span>
             </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#fff', letterSpacing:'0.04em' }}>
-              {cap.name_ja ?? cap.name_en}
+            <span style={{ fontSize:11, fontWeight:700, color: cap ? '#fff' : '#555', letterSpacing:'0.04em' }}>
+              {cap ? (cap.name_ja ?? cap.name_en) : 'キャプテン未設定'}
             </span>
           </div>
-        )}
+        </div>
 
         {/* ポジション行 */}
         {['FW','MF','DF','GK'].map(pos => {
           const posSlots = slots[pos]
           const canDrop = dragging?.position === pos
-          const canSwap = selectedBench?.position === pos
           return (
-            <div key={pos} style={{ display:'flex', flexDirection:'column', minHeight:0 }}>
-              <div style={{ display:'flex', gap:6, justifyContent:'center', alignItems:'stretch' }}>
+            <div key={pos} style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+              <div style={{ flex:1, display:'flex', gap:6, justifyContent:'center', alignItems:'stretch' }}>
                 {posSlots.map((playerId, idx) => {
                   const p = playerId ? playerMap.get(playerId) : null
                   const isOver = dragOverSlot?.pos===pos && dragOverSlot?.idx===idx
-                  const isSwapTarget = canSwap
                   const isCap = p && p.player_id === captainId
                   return (
                     <div
@@ -256,16 +253,15 @@ export default function StartersPage() {
                       onDragOver={e => { if (canDrop) { e.preventDefault(); setDragOverSlot({pos,idx}) } }}
                       onDragLeave={() => setDragOverSlot(null)}
                       onDrop={() => dropOnSlot(pos, idx)}
-                      onClick={() => clickSlot(pos, idx)}
+                      onClick={() => p && clickSlot(pos, idx)}
                       style={{
-                        width:68, flexShrink:0,
-                        border: isOver || isSwapTarget ? '1px solid var(--accent)' : p ? '1px solid #2a2a2a' : '1px dashed #222',
-                        backgroundColor: isOver || isSwapTarget ? 'rgba(0,255,135,0.08)' : p ? '#1a1a1a' : '#0f0f0f',
+                        flex:1, maxWidth:100,
+                        border: isOver ? '1px solid var(--accent)' : p ? '1px solid #2a2a2a' : '1px dashed #222',
+                        backgroundColor: isOver ? 'rgba(0,255,135,0.08)' : p ? '#1a1a1a' : '#0f0f0f',
                         display:'flex', flexDirection:'column', overflow:'hidden',
-                        borderRadius:3, cursor: (p || canSwap) ? 'pointer' : 'default',
+                        borderRadius:3, cursor: p ? 'pointer' : 'default',
                         position:'relative',
                         transition:'border-color 0.1s, background-color 0.1s',
-                        minHeight:60,
                       }}
                     >
                       {p ? (
@@ -310,20 +306,16 @@ export default function StartersPage() {
         <div style={{ flex:1, overflowX:'auto', overflowY:'hidden', display:'flex', alignItems:'center', gap:6, padding:'0 12px 6px', scrollbarWidth:'none' }}>
           {bench.length === 0 ? (
             <span style={{ fontSize:11, color:'#333' }}>全員スタメン</span>
-          ) : bench.map(p => {
-            const isSelected = selectedBench?.player_id === p.player_id
-            return (
+          ) : bench.map(p => (
             <div
               key={p.player_id}
               draggable
-              onDragStart={() => { setSelectedBench(null); setDragging({ player_id: p.player_id, position: p.position }) }}
+              onDragStart={() => setDragging({ player_id: p.player_id, position: p.position })}
               onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
               onClick={() => clickBenchPlayer(p)}
               style={{
                 flexShrink:0, width:64, height:58,
-                backgroundColor: isSelected ? '#1e2e1e' : '#1a1a1a',
-                border: isSelected ? '1px solid var(--accent)' : '1px solid #2a2a2a',
-                borderRadius:3,
+                backgroundColor:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:3,
                 display:'flex', flexDirection:'column', overflow:'hidden', cursor:'pointer',
                 userSelect:'none',
               }}
@@ -336,8 +328,7 @@ export default function StartersPage() {
                 </span>
               </div>
             </div>
-          )
-          })}
+          ))}
         </div>
       </div>
 
