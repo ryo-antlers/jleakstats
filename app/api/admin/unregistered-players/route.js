@@ -10,14 +10,14 @@ export async function GET() {
     )
   `
 
-  // fixture_lineups: player_idがplayers_masterにない、またはplayer_idがnull
+  // fixture_lineups: player_idがplayers_masterにない（IDなしは除外）
   const fromLineups = await sql`
     SELECT DISTINCT fl.player_id, fl.player_name_en, 'lineup' AS source
     FROM fixture_lineups fl
-    WHERE fl.player_id IS NULL
-       OR NOT EXISTS (
-         SELECT 1 FROM players_master pm WHERE pm.id = fl.player_id
-       )
+    WHERE fl.player_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM players_master pm WHERE pm.id = fl.player_id
+      )
   `
 
   return Response.json({ players: [...fromStats, ...fromLineups] })
