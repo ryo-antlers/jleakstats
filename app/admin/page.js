@@ -210,6 +210,65 @@ function FantasyGwActions() {
   )
 }
 
+function UnregisteredPlayersCheck() {
+  const [players, setPlayers] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  async function run() {
+    setLoading(true)
+    setPlayers(null)
+    try {
+      const res = await fetch('/api/admin/unregistered-players')
+      const data = await res.json()
+      setPlayers(data.players ?? [])
+    } catch (e) {
+      setPlayers([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>未登録選手チェック</p>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>試合データにいるがplayers_masterに未登録のID</p>
+        </div>
+        <button
+          onClick={run}
+          disabled={loading}
+          style={{
+            padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+            backgroundColor: loading ? 'var(--bg-tertiary)' : 'var(--accent)',
+            color: '#000', border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? '確認中…' : '確認'}
+        </button>
+      </div>
+      {players !== null && (
+        players.length === 0
+          ? <p style={{ fontSize: 12, color: '#00ff87' }}>未登録選手はいません ✅</p>
+          : (
+            <div style={{ marginTop: 8 }}>
+              <p style={{ fontSize: 12, color: '#ff6b6b', marginBottom: 6 }}>{players.length}人の未登録選手が見つかりました</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {players.map(p => (
+                  <span key={p.player_id} style={{ fontSize: 12, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 4, backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
+                    {p.player_id}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )
+      )}
+    </div>
+  )
+}
+
 function GameweekManager() {
   const [gameweeks, setGameweeks] = useState([])
   const [generating, setGenerating] = useState(false)
@@ -394,6 +453,7 @@ export default function AdminPage() {
           description="全20チームの選手リストをAPI-FOOTBALLから取得してplayers_masterに登録します"
         />
         <HistorySyncButton />
+        <UnregisteredPlayersCheck />
         <GameweekManager />
         <FantasyGwActions />
       </div>
