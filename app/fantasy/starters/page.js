@@ -249,28 +249,30 @@ export default function StartersPage() {
         {/* 右: フォーメーション */}
         <div style={{ display:'flex', flexDirection:'column', padding:'12px 16px', gap:8, overflow:'hidden', justifyContent:'space-between', position:'relative' }}>
 
-          {/* キャプテンドロップゾーン（左上） */}
-          {(() => {
+          {['FW','MF','DF','GK'].map((pos, posIdx) => {
+            const posSlots = slots[pos]
+            const canDrop = dragging?.position === pos
+            const isFW = pos === 'FW'
             const cap = captainId ? playerMap.get(captainId) : null
-            const isOver = dragging && assignedIds.has(dragging.player_id)
-            return (
-              <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 10, width: 120 }}>
+            const capIsOver = dragging && assignedIds.has(dragging.player_id)
+
+            const captainZone = isFW ? (
+              <div style={{ width: 120, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', color: '#fffc2b', textAlign: 'center', marginBottom: 4 }}>CAPTAIN</div>
                 <div
-                  onDragOver={e => { if (isOver) e.preventDefault() }}
+                  onDragOver={e => { if (capIsOver) e.preventDefault() }}
                   onDrop={() => { if (dragging && assignedIds.has(dragging.player_id)) setCaptainId(dragging.player_id) }}
                   style={{
-                    border: isOver ? '1px solid #fffc2b' : 'none',
-                    backgroundColor: isOver ? 'rgba(255,252,43,0.05)' : 'transparent',
+                    flex: 1,
+                    border: '1px solid #fffc2b',
+                    backgroundColor: capIsOver ? 'rgba(255,252,43,0.05)' : 'transparent',
                     display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                    transition: 'border-color 0.1s, background-color 0.1s',
-                    height: 64,
+                    transition: 'background-color 0.1s',
                   }}
                 >
-                  <div style={{ height: 3, backgroundColor: '#fffc2b', flexShrink: 0 }} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '3px 5px' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px' }}>
                     {cap ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
                         {cap.name_ja ?? cap.name_en}
                       </span>
                     ) : (
@@ -279,46 +281,40 @@ export default function StartersPage() {
                   </div>
                 </div>
               </div>
-            )
-          })()}
-          {['FW','MF','DF','GK'].map(pos => {
-            const posSlots = slots[pos]
-            const canDrop = dragging?.position === pos
+            ) : null
+
             return (
-              <div key={pos} style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
-                <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.16em', color:'#fff', textAlign:'center', marginBottom:4 }}>{pos}</div>
-                <div style={{ flex:1, display:'flex', gap:6, justifyContent:'center', alignItems:'center' }}>
-                  {posSlots.map((playerId, idx) => {
-                    const p = playerId ? playerMap.get(playerId) : null
-                    const isOver = dragOverSlot?.pos===pos && dragOverSlot?.idx===idx
-                    return (
-                      <div
-                        key={idx}
-                        onDragOver={e => { if (canDrop) { e.preventDefault(); setDragOverSlot({pos,idx}) } }}
-                        onDragLeave={() => setDragOverSlot(null)}
-                        onDrop={() => dropOnSlot(pos, idx)}
-                        style={{
-                          flex:1, maxWidth:120, height:'100%',
-                          border: isOver ? '1px solid var(--accent)' : p ? 'none' : '1px dashed #2a2a2a',
-                          backgroundColor: isOver ? 'rgba(0,255,135,0.08)' : p ? 'transparent' : '#141414',
-                          display:'flex', flexDirection:'column', overflow:'hidden',
-                          transition:'border-color 0.1s, background-color 0.1s',
-                          position:'relative',
-                        }}
-                      >
-                        {p ? (
-                          <div
-                            draggable
-                            onDragStart={() => setDragging({ player_id: p.player_id, position: pos })}
-                            onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
-                            style={{ display:'flex', flexDirection:'column', flex:1, cursor:'grab', position:'relative' }}
-                          >
-                            {captainId === p.player_id && (
-                              <div style={{ position:'absolute', top:2, right:2, width:14, height:14, borderRadius:'50%', backgroundColor:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:3 }}>
-                                <span style={{ fontSize:8, fontWeight:900, color:'#000', lineHeight:1 }}>C</span>
-                              </div>
-                            )}
-                            <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
+              <div key={pos} style={{ flex:1, display:'flex', gap: isFW ? 8 : 0, flexDirection: isFW ? 'row' : 'column', minHeight:0 }}>
+                {captainZone}
+                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+                  <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.16em', color:'#fff', textAlign:'center', marginBottom:4 }}>{pos}</div>
+                  <div style={{ flex:1, display:'flex', gap:6, justifyContent:'center', alignItems:'center' }}>
+                    {posSlots.map((playerId, idx) => {
+                      const p = playerId ? playerMap.get(playerId) : null
+                      const isOver = dragOverSlot?.pos===pos && dragOverSlot?.idx===idx
+                      return (
+                        <div
+                          key={idx}
+                          onDragOver={e => { if (canDrop) { e.preventDefault(); setDragOverSlot({pos,idx}) } }}
+                          onDragLeave={() => setDragOverSlot(null)}
+                          onDrop={() => dropOnSlot(pos, idx)}
+                          style={{
+                            flex:1, maxWidth:120, height:'100%',
+                            border: isOver ? '1px solid var(--accent)' : p ? 'none' : '1px dashed #2a2a2a',
+                            backgroundColor: isOver ? 'rgba(0,255,135,0.08)' : p ? 'transparent' : '#141414',
+                            display:'flex', flexDirection:'column', overflow:'hidden',
+                            transition:'border-color 0.1s, background-color 0.1s',
+                            position:'relative',
+                          }}
+                        >
+                          {p ? (
+                            <div
+                              draggable
+                              onDragStart={() => setDragging({ player_id: p.player_id, position: pos })}
+                              onDragEnd={() => { setDragging(null); setDragOverSlot(null) }}
+                              style={{ display:'flex', flexDirection:'column', flex:1, cursor:'grab', position:'relative' }}
+                            >
+                              <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
                             <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'4px 6px' }}>
                               <span style={{ fontSize:11, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
                                 {p.name_ja ?? p.name_en}
