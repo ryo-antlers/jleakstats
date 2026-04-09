@@ -333,6 +333,7 @@ export default function StartersPage() {
                       </div>
                     )
                   })}
+                  </div>
                 </div>
               </div>
             )
