@@ -140,14 +140,17 @@ export async function POST(request) {
     for (const f of fixtures) {
       const isAet = f.status === 'AET' || f.status === 'PEN'
 
-      // 選手スタッツ取得
+      // 選手スタッツ取得（canonical_idがあれば正規IDに解決）
       const players = await sql`
-        SELECT player_id, position, minutes, rating, goals, assists,
-               passes_key, saves, tackles, interceptions, blocks,
-               yellow_cards, red_cards, team_id, conceded
-        FROM fixture_player_stats
-        WHERE fixture_id = ${f.id}
-          AND position IN ('G', 'D', 'M', 'F')
+        SELECT
+          COALESCE(pm.canonical_id, fps.player_id) AS player_id,
+          fps.position, fps.minutes, fps.rating, fps.goals, fps.assists,
+          fps.passes_key, fps.saves, fps.tackles, fps.interceptions, fps.blocks,
+          fps.yellow_cards, fps.red_cards, fps.team_id, fps.conceded
+        FROM fixture_player_stats fps
+        LEFT JOIN players_master pm ON pm.id = fps.player_id
+        WHERE fps.fixture_id = ${f.id}
+          AND fps.position IN ('G', 'D', 'M', 'F')
       `
 
       for (const p of players) {
