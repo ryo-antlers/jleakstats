@@ -286,7 +286,7 @@ export default function StartersPage() {
             return (
               <div key={pos} style={{ flex:1, display:'flex', gap: isFW ? 8 : 0, flexDirection: isFW ? 'row' : 'column', minHeight:0 }}>
                 {captainZone}
-                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, overflow:'hidden' }}>
                   <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.16em', color:'#fff', textAlign:'center', marginBottom:4 }}>{pos}</div>
                   <div style={{ flex:1, display:'flex', gap:6, justifyContent:'center', alignItems:'center' }}>
                     {posSlots.map((playerId, idx) => {
@@ -315,26 +315,27 @@ export default function StartersPage() {
                               style={{ display:'flex', flexDirection:'column', flex:1, cursor:'grab', position:'relative' }}
                             >
                               <div style={{ height:3, backgroundColor: p.team_color??'#555', flexShrink:0 }} />
-                            <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'4px 6px' }}>
-                              <span style={{ fontSize:11, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
-                                {p.name_ja ?? p.name_en}
-                              </span>
-                              <span style={{ fontSize:9, color:'#555', marginTop:2 }}>{p.team_abbr}</span>
+                              <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'4px 6px' }}>
+                                <span style={{ fontSize:11, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.3, letterSpacing:'0.02em', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>
+                                  {p.name_ja ?? p.name_en}
+                                </span>
+                                <span style={{ fontSize:9, color:'#555', marginTop:2 }}>{p.team_abbr}</span>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                            {canDrop
-                              ? <span style={{ fontSize:9, color:'var(--accent)', letterSpacing:'0.08em' }}>DROP</span>
-                              : <span style={{ fontSize:9, color:'#2a2a2a' }}>—</span>
-                            }
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                          ) : (
+                            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              {canDrop
+                                ? <span style={{ fontSize:9, color:'var(--accent)', letterSpacing:'0.08em' }}>DROP</span>
+                                : <span style={{ fontSize:9, color:'#2a2a2a' }}>—</span>
+                              }
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
+                {isFW && <div style={{ width:120, flexShrink:0 }} />}
               </div>
             )
           })}
