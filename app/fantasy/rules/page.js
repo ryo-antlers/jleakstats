@@ -104,7 +104,9 @@ export default function RulesPage() {
           <p style={{ fontSize: 11, letterSpacing: '0.2em', color: 'var(--accent)', textTransform: 'uppercase', margin: '0 0 8px', fontWeight: 700 }}>Manager's Handbook</p>
           <h1 style={{ fontSize: 40, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 16px', lineHeight: 1.1 }}>Fantasy J.League<br />完全ガイド</h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.8, maxWidth: 560 }}>
-            あなたはJ1リーグに参戦するファンタジークラブの監督です。限られた予算でスカッドを編成し、毎節のスタメンが稼ぐポイントで他の監督たちと競います。安い選手を発掘し、移籍金の上昇を読み、最高のクラブを作り上げてください。
+            あなたはJ1リーグに参戦するファンタジークラブの監督です。<br />
+            限られた予算でスカッドを編成し、毎節のスタメンが稼ぐポイントで他の監督たちと競います。<br />
+            若い才能を発掘し、移籍金の上昇を読み、最高のクラブを作り上げてください。
           </p>
         </div>
       </div>
@@ -114,8 +116,8 @@ export default function RulesPage() {
         <Step n="1" title="クラブを設立する">
           監督名・クラブ名・クラブカラーを決めて登録します。あなただけのクラブが誕生します。
         </Step>
-        <Step n="2" title="初期スカッドを15〜18人で編成する">
-          初期予算10億円でJ1リーグの選手を15〜18人獲得します。ポジション構成と予算配分が最初の重要な決断です。
+        <Step n="2" title="初期スカッドを15-18人で編成する">
+          初期予算10億円でJ1リーグの選手を15-18人獲得します。ポジション構成と予算配分が最初の重要な決断です。
         </Step>
         <Step n="3" title="スタメン11人とキャプテンを選ぶ">
           毎節の試合前までに、スタメン11人とキャプテン1人を決定します。この11人の実際の試合成績がポイントに変換されます。
@@ -129,7 +131,7 @@ export default function RulesPage() {
       <Section label="Squad Building" title="スカッド編成">
         <InfoGrid items={[
           { label: '初期予算', value: '10億円' },
-          { label: 'スカッド人数', value: '15〜20人' },
+          { label: 'スカッド人数', value: '15-20人' },
           { label: 'スタメン', value: '11人' },
           { label: '同クラブ上限', value: '3人' },
         ]} />
@@ -137,10 +139,10 @@ export default function RulesPage() {
           headers={['ポジション', 'スカッド上限', 'スタメン最小', '選手の特徴']}
           colAlignments={['left', 'center', 'center', 'left']}
           rows={[
-            ['GK ゴールキーパー', '1〜2人', '1人', 'セーブ・クリーンシートで高得点'],
-            ['DF ディフェンダー', '4〜6人', '3人', 'クリーンシート・守備アクションが鍵'],
-            ['MF ミッドフィールダー', '4〜7人', '2人', 'キーパスやゴール関与で安定した得点'],
-            ['FW フォワード', '1〜5人', '1人', 'ゴールで一気に高得点。ハイリスク・ハイリターン'],
+            ['GK ゴールキーパー', '1-2人', '1人', 'セーブ・クリーンシートで高得点'],
+            ['DF ディフェンダー', '4-6人', '3人', 'クリーンシート・守備アクションが鍵'],
+            ['MF ミッドフィールダー', '4-7人', '2人', 'キーパスやゴール関与で安定した得点'],
+            ['FW フォワード', '1-5人', '1人', 'ゴールで一気に高得点。ハイリスク・ハイリターン'],
           ]}
         />
       </Section>
@@ -161,6 +163,7 @@ export default function RulesPage() {
         </div>
         <Table
           headers={['操作', 'ルール']}
+          colAlignments={['left', 'left']}
           rows={[
             ['選手の売却', '売却額 = 購入額の95%（移籍金変動後の現在額ではなく購入時の額が基準）'],
             ['選手の獲得', '現在の移籍金を全額支払い。予算に余裕がないと好選手を逃す'],
@@ -189,7 +192,7 @@ export default function RulesPage() {
       {/* ポイント */}
       <Section label="Points System" title="ポイント計算">
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.8 }}>
-          選手ポイントはJ1リーグの実際のスタッツをもとに自動計算されます。試合終了から最大2時間でポイントが反映されます。
+          選手ポイントはJスタッツをもとに自動計算されます。試合終了から最大2時間でポイントが反映されるはずです。
         </p>
 
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>出場時間</h3>
@@ -197,8 +200,8 @@ export default function RulesPage() {
           headers={['条件', 'pt']}
           rows={[
             ['90分出場（フル出場）', pt(3)],
-            ['60〜89分出場', pt(2)],
-            ['1〜59分出場', pt(1)],
+            ['60-89分出場', pt(2)],
+            ['1-59分出場', pt(1)],
             ['出場なし', pt(0)],
           ]}
         />
@@ -207,7 +210,7 @@ export default function RulesPage() {
         <Table
           headers={['条件', 'pt']}
           rows={[
-            ['チームが勝利', pt(2)],
+            ['チーム勝利', pt(2)],
             ['引き分け・敗戦', pt(0)],
           ]}
         />
@@ -216,11 +219,11 @@ export default function RulesPage() {
         <Table
           headers={['条件', 'GK', 'DF', 'MF', 'FW']}
           rows={[
-            ['ゴール（1点）', pt(6), pt(4), pt(4), pt(6)],
-            ['アシスト（1本）', pt(5), pt(4), pt(4), pt(4)],
-            ['キーパス 2本以上', '—', '—', pt(1), pt(1)],
-            ['キーパス 4本以上', '—', '—', pt(2), pt(2)],
-            ['キーパス 6本以上', '—', '—', pt(3), pt(3)],
+            ['ゴール / 1点', pt(6), pt(4), pt(4), pt(6)],
+            ['アシスト / 1本', pt(5), pt(4), pt(4), pt(4)],
+            ['キーパス / 2本以上', '—', '—', pt(1), pt(1)],
+            ['キーパス / 4本以上', '—', '—', pt(2), pt(2)],
+            ['キーパス / 6本以上', '—', '—', pt(3), pt(3)],
           ]}
         />
 
@@ -285,12 +288,12 @@ export default function RulesPage() {
           colAlignments={['left', 'center', 'left']}
           rows={[
             ['12pt以上', yen(2000), '上位3%のハイパフォーマンス'],
-            ['10〜11pt', yen(1200), '上位8%'],
-            ['8〜9pt', yen(600), '上位15%'],
-            ['6〜7pt', yen(300), '上位30%'],
-            ['4〜5pt', yen(0), '平均帯（変動なし）'],
-            ['2〜3pt', yen(-300), '平均以下'],
-            ['0〜1pt', yen(-700), '低パフォーマンス'],
+            ['10-11pt', yen(1200), '上位8%'],
+            ['8-9pt', yen(600), '上位15%'],
+            ['6-7pt', yen(300), '上位30%'],
+            ['4-5pt', yen(0), '平均帯（変動なし）'],
+            ['2-3pt', yen(-300), '平均以下'],
+            ['0-1pt', yen(-700), '低パフォーマンス'],
             ['-1pt以下', yen(-1200), 'カード・失点等でマイナス'],
             ['不出場（GW対象チーム）', yen(-800), 'ベンチ外・怪我など'],
           ]}
@@ -301,11 +304,11 @@ export default function RulesPage() {
           headers={['現在の移籍金', '上昇倍率', '特徴']}
           colAlignments={['left', 'center', 'left']}
           rows={[
-            ['〜2,000万', mul('1.8', '#4caf50'), '低価格帯は急上昇しやすい'],
-            ['2,001〜4,000万', mul('1.4', '#81c784'), ''],
-            ['4,001〜7,000万', mul('1.0', 'var(--text-primary)'), '基準'],
-            ['7,001〜10,000万', mul('0.7', '#ffb74d'), '高額になるほど上がりにくい'],
-            ['10,001万〜', mul('0.5', '#ef5350'), ''],
+            ['-2,000万', mul('1.8', '#4caf50'), '低価格帯は急上昇しやすい'],
+            ['2,001-4,000万', mul('1.4', '#81c784'), ''],
+            ['4,001-7,000万', mul('1.0', 'var(--text-primary)'), '基準'],
+            ['7,001-10,000万', mul('0.7', '#ffb74d'), '高額になるほど上がりにくい'],
+            ['10,001万-', mul('0.5', '#ef5350'), ''],
           ]}
         />
 
@@ -340,7 +343,7 @@ export default function RulesPage() {
           headers={['順位', '移籍金ボーナス']}
           rows={[
             ['1位', yen(1000)],
-            ['2〜5位', yen(500)],
+            ['2-5位', yen(500)],
           ]}
         />
       </Section>
