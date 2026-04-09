@@ -116,8 +116,8 @@ export default function RulesPage() {
         <Step n="1" title="クラブを設立する">
           監督名・クラブ名・クラブカラーを決めて登録します。あなただけのクラブが誕生します。
         </Step>
-        <Step n="2" title="初期スカッドを15-18人で編成する">
-          初期予算10億円でJ1リーグの選手を15-18人獲得します。ポジション構成と予算配分が最初の重要な決断です。
+        <Step n="2" title="初期スカッドを15-20人で編成する">
+          初期予算10億円でJ1リーグの選手を15-20人獲得します。ポジション構成と予算配分が最初の重要な決断です。
         </Step>
         <Step n="3" title="スタメン11人とキャプテンを選ぶ">
           毎節の試合前までに、スタメン11人とキャプテン1人を決定します。この11人の実際の試合成績がポイントに変換されます。
@@ -198,6 +198,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>出場時間</h3>
         <Table
           headers={['条件', 'pt']}
+          colAlignments={['left', 'right']}
           rows={[
             ['90分出場（フル出場）', pt(3)],
             ['60-89分出場', pt(2)],
@@ -209,6 +210,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>チーム成績</h3>
         <Table
           headers={['条件', 'pt']}
+          colAlignments={['left', 'right']}
           rows={[
             ['チーム勝利', pt(2)],
             ['引き分け・敗戦', pt(0)],
@@ -246,6 +248,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '4px 0 8px', textTransform: 'uppercase' }}>個人スタッツ</h3>
         <Table
           headers={['条件', 'pt']}
+          colAlignments={['left', 'right']}
           rows={[
             ['デュエル勝利 5回以上', pt(1)],
             ['デュエル勝利 8回以上', pt(2)],
@@ -257,6 +260,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>レーティング（SofaScore）</h3>
         <Table
           headers={['レーティング', 'pt']}
+          colAlignments={['left', 'right']}
           rows={[
             ['8.0以上', pt(3)],
             ['7.5以上', pt(2)],
@@ -268,6 +272,7 @@ export default function RulesPage() {
         <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '20px 0 8px', textTransform: 'uppercase' }}>ペナルティ</h3>
         <Table
           headers={['条件', 'pt']}
+          colAlignments={['left', 'right']}
           rows={[
             ['イエローカード', pt(-1)],
             ['レッドカード', pt(-4)],
