@@ -342,8 +342,8 @@ export default function NewSquadPage() {
               })}
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: squad.length >= 15 ? 'var(--accent)' : 'var(--text-secondary)' }}>{squad.length}</span>
-              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>/15</span>
+              <span style={{ fontSize: 22, fontWeight: 700, color: squad.length >= 15 ? 'var(--accent)' : 'var(--text-secondary)' }}>{squad.length}</span>
+              <span style={{ fontSize: 15, color: 'var(--text-secondary)', fontWeight: 400 }}>/15</span>
             </div>
           </div>
         </div>
