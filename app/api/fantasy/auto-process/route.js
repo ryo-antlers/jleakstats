@@ -22,7 +22,7 @@ function calcPoints(p, conceded, isWin, missedPk) {
   if (goals > 0) { const v = goals * (pos === 'GK' ? 6 : pos === 'DF' ? 4 : pos === 'MF' ? 4 : 6); pts += v; bd.goals = v }
   const assists = Number(p.assists) || 0
   if (assists > 0) { const v = assists * (pos === 'GK' ? 5 : 4); pts += v; bd.assists = v }
-  if (pos === 'MF' || pos === 'FW') { const kp = Number(p.passes_key) || 0; const v = kp >= 6 ? 3 : kp >= 4 ? 2 : kp >= 2 ? 1 : 0; if (v > 0) { pts += v; bd[`key_passes`] = v } }
+  if (pos === 'DF' || pos === 'MF' || pos === 'FW') { const kp = Number(p.passes_key) || 0; const v = kp >= 6 ? 3 : kp >= 4 ? 2 : kp >= 2 ? 1 : 0; if (v > 0) { pts += v; bd[`key_passes`] = v } }
   if (min >= 90 && conceded === 0) { const v = pos === 'GK' ? 3 : pos === 'DF' ? 3 : pos === 'MF' ? 1 : 0; if (v > 0) { pts += v; bd.clean_sheet = v } }
   if (pos === 'GK' || pos === 'DF') { const v = conceded >= 4 ? -3 : conceded === 3 ? -2 : conceded === 2 ? -1 : 0; if (v < 0) { pts += v; bd.conceded = v } }
   if (pos === 'GK') { const sv = Number(p.saves) || 0; const v = sv >= 6 ? 3 : sv >= 4 ? 2 : sv >= 2 ? 1 : 0; if (v > 0) { pts += v; bd.saves = v } }

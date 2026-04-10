@@ -48,8 +48,8 @@ function calcPoints(p, conceded, isWin, missedPk) {
     const v = assists * apt; pts += v; bd.assists = v
   }
 
-  // キーパス（MF/FW）
-  if (pos === 'MF' || pos === 'FW') {
+  // キーパス（DF/MF/FW）
+  if (pos === 'DF' || pos === 'MF' || pos === 'FW') {
     const kp = Number(p.passes_key) || 0
     const v = kp >= 6 ? 3 : kp >= 4 ? 2 : kp >= 2 ? 1 : 0
     if (v > 0) {
