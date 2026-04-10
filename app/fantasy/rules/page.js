@@ -102,7 +102,7 @@ export default function RulesPage() {
         <Link href="/fantasy" style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.08em' }}>← Fantasy TOP</Link>
         <div style={{ marginTop: 20 }}>
           <p style={{ fontSize: 11, letterSpacing: '0.2em', color: 'var(--accent)', textTransform: 'uppercase', margin: '0 0 8px', fontWeight: 700 }}>Manager's Handbook</p>
-          <h1 style={{ fontSize: 40, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 16px', lineHeight: 1.1 }}>Fantasy J.League<br />完全ガイド</h1>
+          <h1 style={{ fontSize: 40, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 16px', lineHeight: 1.1 }}>Fantasy J.League<br />ガイド</h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.8, maxWidth: 560 }}>
             あなたはJ1リーグに参戦するファンタジークラブの監督です。<br />
             限られた予算でスカッドを編成し、毎節のスタメンが稼ぐポイントで他の監督たちと競います。<br />
@@ -353,6 +353,31 @@ export default function RulesPage() {
             ['2-5位', yen(500)],
           ]}
         />
+      </Section>
+
+      {/* 海外に見つかる */}
+      <Section label="Special Event" title="海外に見つかる">
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.8 }}>
+          23歳以下の選手が1節で20ptを獲得した場合、通常の移籍金変動・MOPボーナスが適用された後、さらにその移籍金の30%が上乗せされます。若い才能が一気にスターへ駆け上がる、シーズンに数回あるかどうかの特別イベントです。
+        </p>
+        <div style={{ backgroundColor: '#161616', border: '1px solid var(--border-color)', borderRadius: 6, padding: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>対象</span>
+              <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 700 }}>23歳以下の選手 かつ そのGWで20pt以上を獲得</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>ボーナス</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#4caf50' }}>通常計算後の移籍金 × 30% を追加</span>
+            </div>
+          </div>
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.08em' }}>計算例</div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              23歳・2,000万の選手が20pt獲得 → 通常計算で+3,600万 → 5,600万 → さらに<span style={{ color: '#4caf50', fontWeight: 800 }}>+1,680万</span> → <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>計7,280万</span>
+            </div>
+          </div>
+        </div>
       </Section>
 
     </div>
