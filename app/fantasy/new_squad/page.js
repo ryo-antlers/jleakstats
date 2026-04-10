@@ -320,7 +320,6 @@ export default function NewSquadPage() {
                 const cnt = posCounts[pos] ?? 0
                 const limit = POS_LIMITS[pos]
                 const min = POS_MIN[pos]
-                const full = cnt >= limit
                 const minOk = cnt >= min
                 const colors = posColors[pos] ?? []
                 return (
@@ -519,7 +518,7 @@ export default function NewSquadPage() {
               const inSquad = squadIds.has(p.id)
               const posOver = (posCounts[p.position] ?? 0) >= POS_LIMITS[p.position]
               const budgetOver = (user?.budget ?? 0) < p.price * 10
-              const squadFull = squad.length >= 18
+              const squadFull = squad.length >= 20
               const clubOver = (clubCounts[p.team_abbr] ?? 0) >= 3
               const canAdd = !inSquad && !posOver && !budgetOver && !squadFull && !clubOver
               return (
