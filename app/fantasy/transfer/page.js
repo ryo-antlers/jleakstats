@@ -498,6 +498,7 @@ export default function TransferPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 112, textAlign: 'center' }}>直近5GW</span>
                 <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 40, textAlign: 'center' }}>次節</span>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 36, textAlign: 'center' }}>年齢</span>
                 <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 80, textAlign: 'center' }}>移籍金</span>
                 <span style={{ width: 34 }} />
               </div>
@@ -524,10 +525,7 @@ export default function TransferPage() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <Link href={`/player/${p.id}`} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.06em', textDecoration: 'none' }}>{p.name_ja ?? p.name_en}</Link>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span>{p.team_name_ja ?? p.team_abbr}</span>
-                        {calcAge(p.dob) != null && <span style={{ opacity: 0.5 }}>{calcAge(p.dob)}</span>}
-                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.team_name_ja ?? p.team_abbr}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0 }}>
@@ -542,6 +540,7 @@ export default function TransferPage() {
                       }
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 40, textAlign: 'center' }}>{p.next_opponent ?? '-'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 36, textAlign: 'center' }}>{calcAge(p.dob) ?? '-'}</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', width: 80, textAlign: 'left' }}>{formatPrice(p.price)}</span>
                     {inSquad ? (
                       <span style={{ fontSize: 12, color: 'var(--accent)', width: 34, textAlign: 'center' }}>✓</span>
@@ -600,6 +599,7 @@ export default function TransferPage() {
                 <div style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'var(--bg-tertiary)' }}>
                   <div style={{ flex: 1 }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 36, textAlign: 'center', whiteSpace: 'nowrap' }}>年齢</span>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 80, textAlign: 'center', whiteSpace: 'nowrap' }}>購入</span>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 80, textAlign: 'center', whiteSpace: 'nowrap' }}>現在</span>
                     <span style={{ width: 34 }} />
@@ -627,13 +627,11 @@ export default function TransferPage() {
                               </div>
                               <div style={{ minWidth: 0 }}>
                                 <Link href={`/player/${p.player_id}`} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.06em', textDecoration: 'none' }}>{p.name_ja ?? p.name_en}</Link>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                                  <span>{stats.team_name_ja ?? p.team_abbr}</span>
-                                  {calcAge(stats.dob) != null && <span style={{ opacity: 0.5 }}>{calcAge(stats.dob)}</span>}
-                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{stats.team_name_ja ?? p.team_abbr}</div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+                              <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 36, textAlign: 'center' }}>{calcAge(stats.dob) ?? '-'}</span>
                               <span style={{ fontSize: 13, color: 'var(--text-secondary)', width: 80, textAlign: 'center', whiteSpace: 'nowrap' }}>{formatPrice(p.bought_price)}</span>
                               <span style={{ fontSize: 13, fontWeight: 700, width: 80, textAlign: 'center', whiteSpace: 'nowrap', color: p.price > p.bought_price ? '#4caf50' : p.price < p.bought_price ? '#ef5350' : 'var(--text-primary)' }}>{formatPrice(p.price)}</span>
                               {canSell ? (

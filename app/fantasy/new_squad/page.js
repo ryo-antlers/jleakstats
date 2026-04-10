@@ -407,6 +407,7 @@ export default function NewSquadPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 112, whiteSpace: 'nowrap', textAlign: 'center' }}>直近5GW</span>
                 <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 40, whiteSpace: 'nowrap', textAlign: 'center' }}>次節</span>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 36, whiteSpace: 'nowrap', textAlign: 'center' }}>年齢</span>
                 <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 80, whiteSpace: 'nowrap', textAlign: 'center' }}>移籍金</span>
                 <span style={{ width: 34 }} />
               </div>
@@ -428,10 +429,7 @@ export default function NewSquadPage() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <Link href={`/player/${p.id}`} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.06em', textDecoration: 'none' }}>{p.name_ja ?? p.name_en}</Link>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span>{p.team_name_ja ?? p.team_abbr}</span>
-                        {calcAge(p.dob) != null && <span style={{ opacity: 0.5 }}>{calcAge(p.dob)}</span>}
-                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.team_name_ja ?? p.team_abbr}</div>
                     </div>
                   </div>
                   {/* 右：カテゴリー・順位・スタッツ＋価格＋ボタン */}
@@ -448,6 +446,7 @@ export default function NewSquadPage() {
                       }
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 40, textAlign: 'center' }}>{p.next_opponent ?? '-'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 36, textAlign: 'center' }}>{calcAge(p.dob) ?? '-'}</span>
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', width: 80, textAlign: 'left' }}>{formatPrice(p.price)}</span>
                     {String(actionLoading) === String(p.id) ? (
                       <button disabled style={{
@@ -520,6 +519,7 @@ export default function NewSquadPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 44, whiteSpace: 'nowrap', textAlign: 'center' }}>カテゴリー</span>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 36, whiteSpace: 'nowrap', textAlign: 'center' }}>次節</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 36, whiteSpace: 'nowrap', textAlign: 'center' }}>年齢</span>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 52, whiteSpace: 'nowrap', textAlign: 'center' }}>出場時間</span>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 52, whiteSpace: 'nowrap', textAlign: 'center' }}>平均評価点</span>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 72, whiteSpace: 'nowrap', textAlign: 'center' }}>移籍金</span>
@@ -542,15 +542,13 @@ export default function NewSquadPage() {
                               </div>
                               <div style={{ minWidth: 0 }}>
                                 <Link href={`/player/${p.player_id}`} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.06em', textDecoration: 'none' }}>{p.name_ja ?? p.name_en}</Link>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                                  <span>{stats.team_name_ja ?? p.team_abbr}</span>
-                                  {calcAge(stats.dob) != null && <span style={{ opacity: 0.5 }}>{calcAge(stats.dob)}</span>}
-                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{stats.team_name_ja ?? p.team_abbr}</div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
                               <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 44, textAlign: 'center' }}>{stats.category ?? '-'}</span>
                               <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 36, textAlign: 'center' }}>{stats.next_opponent ?? '-'}</span>
+                              <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 36, textAlign: 'center' }}>{calcAge(stats.dob) ?? '-'}</span>
                               <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 52, textAlign: 'center' }}>{stats.minutes ?? 0}</span>
                               <span style={{ fontSize: 12, color: 'var(--text-secondary)', width: 52, textAlign: 'center' }}>{stats.avg_rating ? Number(stats.avg_rating).toFixed(2) : '-'}</span>
                               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', width: 72, textAlign: 'left' }}>{formatPrice(p.bought_price)}</span>
