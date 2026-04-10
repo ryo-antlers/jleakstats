@@ -61,11 +61,11 @@ export async function POST(request) {
 
   const [user] = await sql`
     INSERT INTO fantasy_users (clerk_user_id, username, team_name, budget, team_color)
-    VALUES (${userId}, ${username.trim()}, ${team_name.trim()}, 1000000, ${team_color ?? '#e00000'})
+    VALUES (${userId}, ${username.trim()}, ${team_name.trim()}, 1200000, ${team_color ?? '#e00000'})
     ON CONFLICT (clerk_user_id) DO UPDATE SET
       username = EXCLUDED.username,
       team_name = EXCLUDED.team_name,
-      budget = 1000000,
+      budget = 1200000,
       team_color = EXCLUDED.team_color
     RETURNING *
   `
