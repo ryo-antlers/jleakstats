@@ -18,8 +18,8 @@ export async function GET(request) {
     JOIN players_master pm ON fs.player_id = pm.id
     LEFT JOIN teams_master tm ON pm.team_id = tm.id
     LEFT JOIN fantasy_users fu ON fu.clerk_user_id = fs.clerk_user_id
-    WHERE fs.clerk_user_id = ${userId} AND fs.is_starter = true
-    ORDER BY COALESCE(fs.sort_order, 0), pm.position
+    WHERE fs.clerk_user_id = ${userId}
+    ORDER BY fs.is_starter DESC, COALESCE(fs.sort_order, 0), pm.position
   `
 
   return Response.json({ squad }, {

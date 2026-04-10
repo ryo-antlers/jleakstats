@@ -23,7 +23,8 @@ function FormationModal({ user, onClose, nextOpponents }) {
       .catch(() => setSquad([]))
   }, [user.clerk_user_id])
 
-  const starters = squad ?? []
+  const starters = (squad ?? []).filter(p => p.is_starter)
+  const bench = (squad ?? []).filter(p => !p.is_starter)
 
   const PlayerCard = ({ p }) => {
     const color = p.team_color ?? '#555'
@@ -110,6 +111,30 @@ function FormationModal({ user, onClose, nextOpponents }) {
             </div>
           )}
         </div>
+
+        {/* ベンチ */}
+        {bench.length > 0 && (
+          <div style={{ backgroundColor: '#111', borderTop: '1px solid var(--border-color)', padding: '10px 16px' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-secondary)', marginBottom: 8 }}>BENCH</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {bench.map(p => {
+                const color = p.team_color ?? '#555'
+                const tc = textColor(color)
+                return (
+                  <div key={p.player_id} style={{ display: 'flex', alignItems: 'center', gap: 6, backgroundColor: 'var(--bg-tertiary)', padding: '4px 8px 4px 4px' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: tc }}>{p.no ?? '?'}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{p.name_ja ?? p.name_en}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{p.position} · {p.team_abbr}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
