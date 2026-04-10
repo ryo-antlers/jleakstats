@@ -123,7 +123,7 @@ export default function RulesPage() {
           毎節の試合前までに、スタメン11人とキャプテン1人を決定します。この11人の実際の試合成績がポイントに変換されます。
         </Step>
         <Step n="4" title="移籍市場で戦力を強化する">
-          GW終了後に移籍市場がオープン。選手を売却・獲得してスカッドを改善し続けます。選手の移籍金は毎節の成績に応じて変動します。
+          各節終了後に移籍市場がオープン。選手を売却・獲得してスカッドを改善し続けます。選手の移籍金は毎節の成績に応じて変動します。
         </Step>
       </Section>
 
@@ -152,13 +152,13 @@ export default function RulesPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
           <div style={{ backgroundColor: '#161616', border: '1px solid var(--border-color)', borderRadius: 6, padding: 16 }}>
             <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.1em', marginBottom: 8 }}>DEADLINE</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>GW初戦の3時間前</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>この時刻までにスタメン・移籍を確定させてください。締め切り後はGW終了まで変更不可。</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>各節初戦の3時間前</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>この時刻までにスタメン・移籍を確定させてください。締め切り後は各節終了まで変更不可。</div>
           </div>
           <div style={{ backgroundColor: '#161616', border: '1px solid var(--border-color)', borderRadius: 6, padding: 16 }}>
             <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.1em', marginBottom: 8 }}>MARKET OPEN</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>GW最終戦翌日の正午</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>全試合終了の翌日12:00に移籍市場が再開。次のGWの締め切りまで自由に売買できます。</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>各節最終戦翌日の正午</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>全試合終了の翌日12:00に移籍市場が再開。次の節の締め切りまで自由に売買できます。</div>
           </div>
         </div>
         <Table
@@ -183,7 +183,7 @@ export default function RulesPage() {
               <span style={{ fontSize: 14, fontWeight: 800, color: '#fffc2b' }}>ポイント2倍</span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.8 }}>
-              スタメン11人から1人をキャプテンに指定。そのGWで獲得したポイントが2倍になります（マイナスも2倍）。出場0分の場合は0ptのまま。
+              スタメン11人から1人をキャプテンに指定。その節で獲得したポイントが2倍になります（マイナスも2倍）。出場0分の場合は0ptのまま。
             </p>
           </div>
         </div>
@@ -286,12 +286,12 @@ export default function RulesPage() {
       {/* 移籍金変動 */}
       <Section label="Transfer Value" title="移籍金変動システム">
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.8 }}>
-          GW終了後、すべての選手の移籍金がそのGWのポイントに応じて変動します。好パフォーマンスの選手は値上がり、不調・不出場の選手は値下がりします。低価格帯の選手ほど上昇幅が大きいため、安くて活躍する選手の発掘が攻略の鍵です。
+          各節終了後、すべての選手の移籍金がその節のポイントに応じて変動します。好パフォーマンスの選手は値上がり、不調・不出場の選手は値下がりします。低価格帯の選手ほど上昇幅が大きいため、安くて活躍する選手の発掘が攻略の鍵です。
         </p>
 
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>GWポイント → 基本変動額</h3>
+        <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.12em', margin: '0 0 8px', textTransform: 'uppercase' }}>各節ポイント → 基本変動額</h3>
         <Table
-          headers={['GWポイント', '変動額', '目安']}
+          headers={['各節ポイント', '変動額', '目安']}
           colAlignments={['left', 'right', 'left']}
           rows={[
             ['12pt以上', yen(2000), '上位3%のハイパフォーマンス'],
@@ -302,7 +302,7 @@ export default function RulesPage() {
             ['2-3pt', yen(-300), '平均以下'],
             ['0-1pt', yen(-700), '低パフォーマンス'],
             ['-1pt以下', yen(-1200), 'カード・失点等でマイナス'],
-            ['不出場（GW対象チーム）', yen(-800), 'ベンチ外・怪我など'],
+            ['不出場（各節対象チーム）', yen(-800), 'ベンチ外・怪我など'],
           ]}
         />
 
@@ -344,7 +344,7 @@ export default function RulesPage() {
       {/* MOP */}
       <Section label="Weekly Award" title="Most Outstanding Player">
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.8 }}>
-          毎GW、最もポイントを獲得した選手に「MOP（最優秀選手）ボーナス」として移籍金が上乗せされます。同点の場合は全員が対象。この賞を受賞した選手の移籍金は急騰するため、早めの獲得が重要です。
+          毎節、最もポイントを獲得した選手に「MOP（最優秀選手）ボーナス」として移籍金が上乗せされます。同点の場合は全員が対象。この賞を受賞した選手の移籍金は急騰するため、早めの獲得が重要です。
         </p>
         <Table
           headers={['順位', '移籍金ボーナス']}
@@ -358,13 +358,13 @@ export default function RulesPage() {
       {/* 海外に見つかる */}
       <Section label="Special Event" title="海外に見つかる">
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.8 }}>
-          23歳以下の選手が1節で20ptを獲得した場合、通常の移籍金変動・MOPボーナスが適用された後、さらにその移籍金の30%が上乗せされます。若い才能が一気にスターへ駆け上がる、シーズンに数回あるかどうかの特別イベントです。
+          23歳以下の選手が1節で18ptを獲得した場合、通常の移籍金変動・MOPボーナスが適用された後、さらにその移籍金の30%が上乗せされます。若い才能が一気にスターへ駆け上がる、シーズンに数回あるかどうかの特別イベントです。
         </p>
         <div style={{ backgroundColor: '#161616', border: '1px solid var(--border-color)', borderRadius: 6, padding: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>対象</span>
-              <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 700 }}>23歳以下の選手 かつ そのGWで20pt以上を獲得</span>
+              <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 700 }}>23歳以下の選手 かつ その節で18pt以上を獲得</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>ボーナス</span>
@@ -374,7 +374,7 @@ export default function RulesPage() {
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-color)' }}>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.08em' }}>計算例</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              23歳・2,000万の選手が20pt獲得 → 通常計算で+3,600万 → 5,600万 → さらに<span style={{ color: '#4caf50', fontWeight: 800 }}>+1,680万</span> → <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>計7,280万</span>
+              23歳・2,000万の選手が18pt獲得 → 通常計算で+3,600万 → 5,600万 → さらに<span style={{ color: '#4caf50', fontWeight: 800 }}>+1,680万</span> → <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>計7,280万</span>
             </div>
           </div>
         </div>

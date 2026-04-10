@@ -5,7 +5,7 @@ export const revalidate = 300  // Next.js: 5分間キャッシュ
 export async function GET() {
   const players = await sql`
     SELECT
-      pm.id, pm.name_ja, pm.name_en, pm.position, pm.price, pm.team_id, pm.no,
+      pm.id, pm.name_ja, pm.name_en, pm.position, pm.price, pm.team_id, pm.no, pm.dob,
       tm.abbr AS team_abbr, tm.color_primary AS team_color, tm.sort AS team_sort, tm.name_ja AS team_name_ja,
       st.group_name AS category,
       nf.opponent_abbr AS next_opponent,

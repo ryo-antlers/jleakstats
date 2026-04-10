@@ -31,6 +31,15 @@ function formatPrice(value) {
 }
 
 
+function calcAge(dob) {
+  if (!dob) return null
+  const today = new Date()
+  const birth = new Date(dob)
+  let age = today.getFullYear() - birth.getFullYear()
+  if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age--
+  return age
+}
+
 function textColor(hex) {
   if (!hex) return '#fff'
   const r = parseInt(hex.slice(1, 3), 16)
@@ -180,6 +189,9 @@ export default function NewSquadPage() {
                   <span style={{ color: 'var(--accent)', marginRight: 5 }}>·</span>{rule}
                 </p>
               ))}
+              <Link href="/fantasy/rules" style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.5, marginTop: 2, textDecoration: 'none' }}>
+                ガイドを見る →
+              </Link>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
@@ -416,7 +428,10 @@ export default function NewSquadPage() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <Link href={`/player/${p.id}`} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.06em', textDecoration: 'none' }}>{p.name_ja ?? p.name_en}</Link>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.team_name_ja ?? p.team_abbr}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span>{p.team_name_ja ?? p.team_abbr}</span>
+                        {calcAge(p.dob) != null && <span style={{ opacity: 0.5 }}>{calcAge(p.dob)}</span>}
+                      </div>
                     </div>
                   </div>
                   {/* 右：カテゴリー・順位・スタッツ＋価格＋ボタン */}
@@ -527,7 +542,10 @@ export default function NewSquadPage() {
                               </div>
                               <div style={{ minWidth: 0 }}>
                                 <Link href={`/player/${p.player_id}`} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.06em', textDecoration: 'none' }}>{p.name_ja ?? p.name_en}</Link>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{stats.team_name_ja ?? p.team_abbr}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                                  <span>{stats.team_name_ja ?? p.team_abbr}</span>
+                                  {calcAge(stats.dob) != null && <span style={{ opacity: 0.5 }}>{calcAge(stats.dob)}</span>}
+                                </div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>

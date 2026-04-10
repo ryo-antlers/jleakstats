@@ -822,7 +822,7 @@ export default function FantasyPage() {
                   <span style={{ fontSize: 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
                 </div>
                 {captainId === p.player_id && (
-                  <div style={{ position: 'absolute', top: 16, right: -24, width: 15, height: 15, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
+                  <div style={{ position: 'absolute', top: 2, right: 56, width: 15, height: 15, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
                     <span style={{ fontSize: 8, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
                   </div>
                 )}

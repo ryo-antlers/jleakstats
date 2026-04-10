@@ -115,7 +115,7 @@ export async function POST(request) {
 
       // 「海外に見つかる」: 23歳以下 かつ 20pt以上 → 通常計算後の価格にさらに30%加算
       const pts = playedMap.get(player.id) ?? 0
-      if (pts >= 20 && player.dob) {
+      if (pts >= 18 && player.dob) {
         const age = new Date().getFullYear() - new Date(player.dob).getFullYear()
         if (age <= 23) {
           const bonus = Math.round(newPrice * 0.3)
