@@ -76,17 +76,19 @@ export async function POST(request) {
 
     const playedMap = new Map(playerPoints.map(r => [r.player_id, Number(r.total_pts)]))
 
-    // J1全選手
+    // J1全選手（dobも取得）
     const allPlayers = await sql`
-      SELECT pm.id, pm.price, pm.team_id
+      SELECT pm.id, pm.price, pm.team_id, pm.dob
       FROM players_master pm
       JOIN teams_master tm ON pm.team_id = tm.id
       WHERE tm.category = 'J1'
         AND pm.position IN ('GK', 'DF', 'MF', 'FW')
         AND pm.price IS NOT NULL
+        AND pm.canonical_id IS NULL
     `
 
     let updated = 0
+    let overseasEvent = null
     for (const player of allPlayers) {
       if (!gwTeamSet.has(player.team_id)) continue
 
@@ -109,16 +111,28 @@ export async function POST(request) {
         delta += mopBonus.get(player.id)
       }
 
-      if (delta === 0) continue
+      let newPrice = Math.max(1000, currentPrice + delta)
 
-      const newPrice = Math.max(1000, currentPrice + delta)
+      // 「海外に見つかる」: 23歳以下 かつ 20pt以上 → 通常計算後の価格にさらに30%加算
+      const pts = playedMap.get(player.id) ?? 0
+      if (pts >= 20 && player.dob) {
+        const age = new Date().getFullYear() - new Date(player.dob).getFullYear()
+        if (age <= 23) {
+          const bonus = Math.round(newPrice * 0.3)
+          newPrice = newPrice + bonus
+          overseasEvent = { player_id: player.id, pts, bonus }
+        }
+      }
+
+      if (delta === 0 && !overseasEvent) continue
+
       if (newPrice !== currentPrice) {
         await sql`UPDATE players_master SET price = ${newPrice} WHERE id = ${player.id}`
         updated++
       }
     }
 
-    return Response.json({ ok: true, gameweek_id, updated })
+    return Response.json({ ok: true, gameweek_id, updated, overseas_event: overseasEvent })
   } catch (err) {
     console.error('update-prices error:', err)
     return Response.json({ ok: false, error: err.message }, { status: 500 })
