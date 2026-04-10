@@ -387,18 +387,9 @@ export default function TransferPage() {
             </button>
           ))}
         </div>
-      </div>
-
-      {message && (
-        <p style={{ fontSize: 12, margin: '8px 0 0', padding: '8px 12px', borderRadius: 6, backgroundColor: message.type === 'error' ? '#3a1a1a' : '#1a3a1a', color: message.type === 'error' ? '#e55' : '#5e5' }}>
-          {message.text}
-        </p>
-      )}
-
-      {/* 獲得候補 */}
-      {mainTab === 'candidates' && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', gap: 0, marginBottom: 10 }}>
+        {/* ポジションタブ（candidates時のみ） */}
+        {mainTab === 'candidates' && (
+          <div style={{ display: 'flex', gap: 0, paddingBottom: 10, paddingTop: 4 }}>
             {POSITIONS.map(pos => (
               <button
                 key={pos}
@@ -414,6 +405,18 @@ export default function TransferPage() {
               </button>
             ))}
           </div>
+        )}
+      </div>
+
+      {message && (
+        <p style={{ fontSize: 12, margin: '8px 0 0', padding: '8px 12px', borderRadius: 6, backgroundColor: message.type === 'error' ? '#3a1a1a' : '#1a3a1a', color: message.type === 'error' ? '#e55' : '#5e5' }}>
+          {message.text}
+        </p>
+      )}
+
+      {/* 獲得候補 */}
+      {mainTab === 'candidates' && (
+        <div style={{ marginTop: 8 }}>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
             <button
