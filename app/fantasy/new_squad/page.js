@@ -63,6 +63,7 @@ export default function NewSquadPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null) // player_id or 'remove_xxx'
   const [message, setMessage] = useState(null)
+  const [showGuide, setShowGuide] = useState(true)
 
   useEffect(() => {
     Promise.all([
@@ -166,6 +167,92 @@ export default function NewSquadPage() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', minHeight: '100vh' }}>
 
+      {/* スターターガイド モーダル */}
+      {showGuide && (
+        <div
+          onClick={() => setShowGuide(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: '#111', border: '1px solid var(--border-color)',
+              width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto',
+              padding: '28px 24px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <p style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-secondary)', marginBottom: 4 }}>STARTER GUIDE</p>
+                <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>Fantasy J.League</p>
+              </div>
+              <button
+                onClick={() => setShowGuide(false)}
+                style={{ fontSize: 18, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                {
+                  label: '01 スカッド編成',
+                  body: 'GK 1〜2人、DF 4〜6人、MF 4〜7人、FW 1〜5人で合計15人以上（最大20人）を選ぶ。同じクラブから選べるのは最大3名まで。',
+                },
+                {
+                  label: '02 移籍資金',
+                  body: '最初に与えられる資金で選手を獲得する。予算内でやりくりしてスカッドを組もう。',
+                },
+                {
+                  label: '03 移籍金の変動',
+                  body: '毎節の成績に応じて全選手の移籍金が変動する。活躍した選手は値上がり、不調・不出場は値下がり。安くて活躍する選手を見つけるのが攻略の鍵。',
+                },
+                {
+                  label: '04 キャプテン',
+                  body: 'スタメン11人の中から1人をキャプテンに指定。その節で獲得したポイントが2倍になる。',
+                },
+                {
+                  label: '05 締め切り',
+                  body: '各節の初戦が始まる3時間前がスタメン・移籍の締め切り。それ以降は節が終わるまで変更できない。',
+                },
+              ].map(({ label, body }) => (
+                <div key={label} style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.1em', marginBottom: 4 }}>{label}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
+              <Link
+                href="/fantasy/rules"
+                style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', opacity: 0.6 }}
+                onClick={() => setShowGuide(false)}
+              >
+                詳細ガイドを見る →
+              </Link>
+              <span style={{ flex: 1 }} />
+              <button
+                onClick={() => setShowGuide(false)}
+                style={{
+                  padding: '10px 28px', fontSize: 13, fontWeight: 700,
+                  backgroundColor: 'var(--accent)', color: '#000',
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                選手を選ぶ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 固定ヘッダーエリア */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 10,
@@ -189,12 +276,20 @@ export default function NewSquadPage() {
                   <span style={{ color: 'var(--accent)', marginRight: 5 }}>·</span>{rule}
                 </p>
               ))}
-              <Link href="/fantasy/rules" style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.5, marginTop: 2, textDecoration: 'none' }}>
-                ガイドを見る →
-              </Link>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                onClick={() => setShowGuide(true)}
+                style={{
+                  padding: '10px 14px', borderRadius: 0, fontSize: 12, fontWeight: 700,
+                  backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-color)', cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                ? ガイド
+              </button>
             <button
               onClick={async () => {
                 if (!minMet) return
@@ -218,6 +313,7 @@ export default function NewSquadPage() {
                 <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #000', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
               ) : 'メンバー確定'}
             </button>
+            </div>
             {/* ポジション枠 */}
             <div style={{ display: 'flex', gap: 8 }}>
               {POSITIONS.map(pos => {
