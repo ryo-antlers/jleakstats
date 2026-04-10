@@ -1,10 +1,11 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export default function FantasyHeader() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isMarketOpen, setIsMarketOpen] = useState(false)
 
   useEffect(() => {
@@ -30,8 +31,8 @@ export default function FantasyHeader() {
       .catch(() => {})
   }, [])
 
-  // setup/new_squad では非表示
-  if (pathname === '/fantasy/setup' || pathname === '/fantasy/new_squad') return null
+  // setup/new_squad または ?setup=1 では非表示
+  if (pathname === '/fantasy/setup' || pathname === '/fantasy/new_squad' || searchParams.get('setup') === '1') return null
 
   const navItems = [
     { label: 'ホーム', href: '/fantasy' },

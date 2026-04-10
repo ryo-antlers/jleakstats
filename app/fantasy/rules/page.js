@@ -93,13 +93,17 @@ const pt = (n) => ({ label: n > 0 ? `+${n}` : `${n}`, color: n > 0 ? '#4caf50' :
 const yen = (n, note) => ({ label: (n > 0 ? `+${n.toLocaleString()}万` : `${n.toLocaleString()}万`) + (note ? `　${note}` : ''), color: n > 0 ? '#4caf50' : n < 0 ? '#ef5350' : 'var(--text-secondary)', weight: 700 })
 const mul = (x, color) => ({ label: `×${x}`, color, weight: 700 })
 
-export default function RulesPage() {
+export default function RulesPage({ searchParams }) {
+  const isSetup = searchParams?.setup === '1'
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', paddingBottom: 80 }}>
+    <div style={{ maxWidth: 760, margin: '0 auto', paddingBottom: 80, paddingTop: isSetup ? 24 : 0 }}>
 
       {/* ヘッダー */}
       <div style={{ marginBottom: 48, paddingTop: 8 }}>
-        <Link href="/fantasy" style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.08em' }}>← Fantasy TOP</Link>
+        {isSetup
+          ? <Link href="/fantasy/new_squad" style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.08em' }}>← スカッド編成に戻る</Link>
+          : <Link href="/fantasy" style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none', letterSpacing: '0.08em' }}>← Fantasy TOP</Link>
+        }
         <div style={{ marginTop: 20 }}>
           <p style={{ fontSize: 11, letterSpacing: '0.2em', color: 'var(--accent)', textTransform: 'uppercase', margin: '0 0 8px', fontWeight: 700 }}>Manager's Handbook</p>
           <h1 style={{ fontSize: 40, fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 16px', lineHeight: 1.1 }}>Fantasy J.League<br />ガイド</h1>

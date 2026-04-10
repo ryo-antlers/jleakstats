@@ -231,7 +231,7 @@ export default function NewSquadPage() {
 
             <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
               <Link
-                href="/fantasy/rules"
+                href="/fantasy/rules?setup=1"
                 style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', opacity: 0.6 }}
                 onClick={() => setShowGuide(false)}
               >
