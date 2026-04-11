@@ -260,7 +260,7 @@ export default async function HomePage() {
   // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
   const earlyWindowEnd = nextMain?.first_date ?? new Date('2099-01-01').toISOString()
 
-  const [fixtures, nextFixtures, earlyFixtures] = await Promise.all([
+  const [fixtures, nextFixtures, earlyFixturesRaw] = await Promise.all([
     getFixturesByRound(currentMain.round_number),
     nextMain ? getFixturesByRound(nextMain.round_number) : Promise.resolve([]),
     getEarlyFixtures(
@@ -269,6 +269,12 @@ export default async function HomePage() {
       [currentMain.round_number, nextMain?.round_number ?? currentMain.round_number]
     ),
   ])
+
+  // 念のため現在節・次節を除外（DBクエリの結果に関わらず）
+  const earlyFixtures = earlyFixturesRaw.filter(f =>
+    f.round_number !== currentMain.round_number &&
+    (nextMain == null || f.round_number !== nextMain.round_number)
+  )
 
   const sortByDateTime = (arr) => [...arr].sort((a, b) => {
     const dateDiff = new Date(a.date) - new Date(b.date)
