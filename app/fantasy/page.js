@@ -525,22 +525,20 @@ export default function FantasyPage() {
     setEditMode(false)
   }
 
-  // 移籍市場の開閉判定（statusに依存せず時刻で判定）
+  // 移籍市場の開閉判定
   const now = new Date()
-  const nowMs2 = now.getTime()
-  // GW終了判定：最終試合 + 3時間（gw_end）が過去であること
-  const lastFinishedGw = [...gameweeks]
-    .filter(g => {
-      const ms = g.gw_end
-        ? new Date(g.gw_end).getTime()
-        : g.market_open ? new Date(g.market_open).getTime() - 9 * 3600000 : null
-      return ms != null && ms <= nowMs2
-    })
-    .at(-1)
-  const nextUpcomingGw = gameweeks.find(g => g.deadline && new Date(g.deadline).getTime() > nowMs2)
-  const marketOpen = lastFinishedGw?.market_open ? new Date(lastFinishedGw.market_open) : null
-  const nextDeadline = nextUpcomingGw?.deadline ? new Date(nextUpcomingGw.deadline) : null
-  const isMarketOpen = marketOpen && now >= marketOpen && (!nextDeadline || now < nextDeadline)
+  const _gws = gameweeks
+    .filter(g => g.deadline)
+    .map(g => ({ deadline: new Date(g.deadline), marketOpen: g.market_open ? new Date(g.market_open) : null, gw_number: g.gw_number }))
+  const _pastGws = _gws.filter(g => g.deadline <= now)
+  const currentGw = _pastGws[_pastGws.length - 1] ?? null
+  const marketOpen = currentGw?.marketOpen ?? null
+  const nextDeadline = _gws.find(g => g.deadline > now)?.deadline ?? null
+  const isMarketOpen = _pastGws.length === 0
+    ? true // 締め切り前（シーズン開幕前）
+    : !(currentGw?.marketOpen && now < currentGw.marketOpen)
+  const lastFinishedGw = currentGw ? gameweeks.find(g => g.gw_number === currentGw.gw_number) ?? null : null
+  const nextUpcomingGw = _gws.find(g => g.deadline > now) ? gameweeks.find(g => g.deadline && new Date(g.deadline) > now) ?? null : null
 
   const fmtDateTime = (iso) => {
     if (!iso) return '-'

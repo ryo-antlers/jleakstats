@@ -12,21 +12,14 @@ export default function FantasyHeader() {
     fetch('/api/fantasy/gameweeks/schedule')
       .then(r => r.json())
       .then(d => {
-        const gws = d.gameweeks ?? []
-        const now = Date.now()
-        const lastFinished = [...gws]
-          .filter(g => {
-            const ms = g.gw_end
-              ? new Date(g.gw_end).getTime()
-              : g.market_open ? new Date(g.market_open).getTime() - 9 * 3600000 : null
-            return ms != null && ms <= now
-          })
-          .at(-1)
-        const nextUpcoming = gws.find(g => g.deadline && new Date(g.deadline).getTime() > now)
-        const marketOpen = lastFinished?.market_open ? new Date(lastFinished.market_open) : null
-        const nextDeadline = nextUpcoming?.deadline ? new Date(nextUpcoming.deadline) : null
-        const nowDate = new Date()
-        setIsMarketOpen(!!(marketOpen && nowDate >= marketOpen && (!nextDeadline || nowDate < nextDeadline)))
+        const now = new Date()
+        const gws = (d.gameweeks ?? [])
+          .filter(g => g.deadline)
+          .map(g => ({ deadline: new Date(g.deadline), marketOpen: g.market_open ? new Date(g.market_open) : null }))
+        const pastGws = gws.filter(g => g.deadline <= now)
+        if (pastGws.length === 0) { setIsMarketOpen(true); return }
+        const currentGw = pastGws[pastGws.length - 1]
+        setIsMarketOpen(!(currentGw.marketOpen && now < currentGw.marketOpen))
       })
       .catch(() => {})
   }, [])
@@ -38,7 +31,7 @@ export default function FantasyHeader() {
     { label: 'ホーム', href: '/fantasy' },
     { label: 'データ', href: '/', external: true },
     { label: '移籍', href: '/fantasy/transfer', disabled: !isMarketOpen },
-    { label: 'スタメン', href: '/fantasy/starters' },
+    { label: 'スタメン', href: '/fantasy/starters', disabled: !isMarketOpen },
     { label: '順位表', href: '/fantasy/rankings' },
     { label: 'ガイド', href: '/fantasy/rules' },
     { label: 'クラブ情報', href: '/fantasy/club' },
