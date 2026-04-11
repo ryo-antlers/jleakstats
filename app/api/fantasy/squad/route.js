@@ -83,10 +83,10 @@ export async function POST(request) {
       return Response.json({ error: '残高が不足しています' }, { status: 400 })
     }
 
-    // 追加 & 残高更新
+    // 追加 & 残高更新（is_starter=falseで登録）
     await sql`
-      INSERT INTO fantasy_squads (clerk_user_id, player_id, bought_price)
-      VALUES (${userId}, ${player_id}, ${player.price})
+      INSERT INTO fantasy_squads (clerk_user_id, player_id, bought_price, is_starter)
+      VALUES (${userId}, ${player_id}, ${player.price}, false)
     `
     await sql`
       UPDATE fantasy_users SET budget = budget - ${cost} WHERE clerk_user_id = ${userId}

@@ -6,7 +6,7 @@ export async function GET(request) {
   const userId = searchParams.get('user_id')
   if (!userId) return Response.json({ error: 'user_id required' }, { status: 400 })
 
-  const squad = await sql`
+  const rows = await sql`
     SELECT
       fs.player_id, fs.is_starter, COALESCE(fs.sort_order, 0) AS sort_order,
       COALESCE(fs.pos_offset_x, 0) AS pos_offset_x,
@@ -21,6 +21,17 @@ export async function GET(request) {
     WHERE fs.clerk_user_id = ${userId}
     ORDER BY fs.is_starter DESC, COALESCE(fs.sort_order, 0), pm.position
   `
+
+  // 重複を排除（同一player_idが複数ある場合、is_starter=trueを優先）
+  const seen = new Map()
+  for (const p of rows) {
+    const existing = seen.get(p.player_id)
+    if (!existing || (p.is_starter && !existing.is_starter)) {
+      seen.set(p.player_id, p)
+    }
+  }
+  const squad = [...seen.values()]
+    .sort((a, b) => (b.is_starter ? 1 : 0) - (a.is_starter ? 1 : 0) || a.sort_order - b.sort_order)
 
   return Response.json({ squad }, {
     headers: { 'Cache-Control': 'public, max-age=60' },
