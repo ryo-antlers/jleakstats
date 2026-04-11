@@ -30,8 +30,16 @@ export async function GET(request) {
       seen.set(p.player_id, p)
     }
   }
-  const squad = [...seen.values()]
+  const deduped = [...seen.values()]
     .sort((a, b) => (b.is_starter ? 1 : 0) - (a.is_starter ? 1 : 0) || a.sort_order - b.sort_order)
+
+  // スタメンが11人を超えている場合（データ不整合）、sort_order順に上位11人のみをスタメン扱いにする
+  const startersSorted = deduped.filter(p => p.is_starter).sort((a, b) => a.sort_order - b.sort_order)
+  const validStarterIds = new Set(startersSorted.slice(0, 11).map(p => p.player_id))
+  const squad = deduped.map(p => ({
+    ...p,
+    is_starter: p.is_starter && validStarterIds.has(p.player_id),
+  }))
 
   return Response.json({ squad }, {
     headers: { 'Cache-Control': 'public, max-age=60' },
