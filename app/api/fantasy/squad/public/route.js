@@ -42,6 +42,6 @@ export async function GET(request) {
   }))
 
   return Response.json({ squad }, {
-    headers: { 'Cache-Control': 'public, max-age=60' },
+    headers: { 'Cache-Control': 'no-store' },
   })
 }
