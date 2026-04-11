@@ -1098,7 +1098,7 @@ export default function FantasyPage() {
               ) : (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
                   {['FW','MF','DF','GK'].map(pos => {
-                    const players = rankingModalSquad.filter(p => p.position === pos)
+                    const players = rankingModalSquad.filter(p => p.position === pos && p.is_starter)
                     if (players.length === 0) return null
                     return (
                       <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: 40, alignItems: 'flex-start' }}>
