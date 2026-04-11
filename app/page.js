@@ -253,12 +253,12 @@ export default async function HomePage() {
   const currentMain = mainRounds.filter(r => toJSTDayNum(r.first_date) <= todayJSTNum).at(-1)
     ?? mainRounds[0]
 
-  // 次節 = currentMainの初戦日（JST日数）より後で、試合数1以上の最初の節
-  // roundInfoはMIN(date) ASCでソート済みなので find() で確実に取得できる
-  const currentMainDayNum = toJSTDayNum(currentMain.first_date)
-  const nextMain = roundInfo.find(r =>
-    toJSTDayNum(r.first_date) > currentMainDayNum && Number(r.match_count) >= 1
-  ) ?? null
+  // 次節 = round_numberが現在節より大きい最初の節（first_dateではなくround_number順で判定）
+  // first_dateはデータ不整合の可能性があるためround_numberで判断する
+  const currentRoundNum = Number(currentMain.round_number)
+  const nextMain = [...roundInfo]
+    .sort((a, b) => Number(a.round_number) - Number(b.round_number))
+    .find(r => Number(r.round_number) > currentRoundNum && Number(r.match_count) >= 1) ?? null
 
   // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
   const earlyWindowEnd = nextMain?.first_date ?? new Date('2099-01-01').toISOString()
