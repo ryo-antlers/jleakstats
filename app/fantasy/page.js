@@ -1028,7 +1028,7 @@ export default function FantasyPage() {
         <p style={{ fontFamily: '"Anta", sans-serif', fontSize: 40, letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>Transfer Market</p>
 
         {/* OPEN / CLOSE */}
-        <div style={{ fontFamily: '"Anta", sans-serif', fontSize: 48, fontWeight: 400, letterSpacing: '0.06em', color: isMarketOpen ? '#4caf50' : 'var(--text-secondary)', lineHeight: 1, marginBottom: 12 }}>
+        <div style={{ fontFamily: '"Anta", sans-serif', fontSize: 48, fontWeight: 400, letterSpacing: '0.06em', color: isMarketOpen ? '#4caf50' : '#e54a4a', lineHeight: 1, marginBottom: 12 }}>
           {isMarketOpen ? 'OPEN' : 'CLOSE'}
         </div>
 
@@ -1070,7 +1070,7 @@ export default function FantasyPage() {
               border: 'none', cursor: isMarketOpen ? 'pointer' : 'not-allowed',
             }}
           >
-            取引
+            {isMarketOpen ? '取引' : '取引停止中'}
           </button>
         </Link>
       </div>
