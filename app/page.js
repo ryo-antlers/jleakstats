@@ -253,9 +253,12 @@ export default async function HomePage() {
   const currentMain = mainRounds.filter(r => toJSTDayNum(r.first_date) <= todayJSTNum).at(-1)
     ?? mainRounds[0]
 
-  // 次節 = 試合数問わず、currentMainより後の最初の節
-  const currentMainIdx = roundInfo.findIndex(r => Number(r.round_number) === Number(currentMain.round_number))
-  const nextMain = roundInfo.slice(currentMainIdx + 1).find(r => Number(r.match_count) >= 1) ?? null
+  // 次節 = currentMainの初戦日（JST日数）より後で、試合数1以上の最初の節
+  // roundInfoはMIN(date) ASCでソート済みなので find() で確実に取得できる
+  const currentMainDayNum = toJSTDayNum(currentMain.first_date)
+  const nextMain = roundInfo.find(r =>
+    toJSTDayNum(r.first_date) > currentMainDayNum && Number(r.match_count) >= 1
+  ) ?? null
 
   // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
   const earlyWindowEnd = nextMain?.first_date ?? new Date('2099-01-01').toISOString()
@@ -263,17 +266,17 @@ export default async function HomePage() {
   const [fixtures, nextFixtures, earlyFixturesRaw] = await Promise.all([
     getFixturesByRound(currentMain.round_number),
     nextMain ? getFixturesByRound(nextMain.round_number) : Promise.resolve([]),
-    getEarlyFixtures(
+    nextMain ? getEarlyFixtures(
       currentMain.first_date,
       earlyWindowEnd,
-      [currentMain.round_number, nextMain?.round_number ?? currentMain.round_number]
-    ),
+      [currentMain.round_number, nextMain.round_number]
+    ) : Promise.resolve([]),
   ])
 
-  // 念のため現在節・次節を除外（DBクエリの結果に関わらず）
+  // Number()でキャスト比較（型不一致対策）
   const earlyFixtures = earlyFixturesRaw.filter(f =>
-    f.round_number !== currentMain.round_number &&
-    (nextMain == null || f.round_number !== nextMain.round_number)
+    Number(f.round_number) !== Number(currentMain.round_number) &&
+    Number(f.round_number) !== Number(nextMain?.round_number)
   )
 
   const sortByDateTime = (arr) => [...arr].sort((a, b) => {
