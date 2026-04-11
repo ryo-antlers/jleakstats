@@ -244,14 +244,16 @@ export default async function HomePage() {
   const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000)
   const todayJSTNum = nowJST.getUTCFullYear() * 10000 + (nowJST.getUTCMonth() + 1) * 100 + nowJST.getUTCDate()
 
-  // メイン節 = 5試合以上ある節
+  // メイン節 = 5試合以上ある節（現在節の特定に使用）
   const mainRounds = roundInfo.filter(r => Number(r.match_count) >= MAIN_ROUND_MIN_MATCHES)
 
   // 現在のメイン節 = JSTで初戦日 ≤ 今日 の中で最新
   const currentMain = mainRounds.filter(r => toJSTDayNum(r.first_date) <= todayJSTNum).at(-1)
     ?? mainRounds[0]
-  const currentMainIdx = mainRounds.indexOf(currentMain)
-  const nextMain = mainRounds[currentMainIdx + 1] ?? null
+
+  // 次節 = 試合数問わず、currentMainより後の最初の節
+  const currentMainIdx = roundInfo.indexOf(roundInfo.find(r => r.round_number === currentMain.round_number))
+  const nextMain = roundInfo.slice(currentMainIdx + 1).find(r => Number(r.match_count) >= 1) ?? null
 
   // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
   const earlyWindowEnd = nextMain?.first_date ?? new Date('2099-01-01').toISOString()
