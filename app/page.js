@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import sql from '@/lib/db'
 
+export const revalidate = 0 // キャッシュ無効・常に最新
+
 import GroupTabs from '@/app/components/GroupTabs'
 import StandingsChart from '@/app/components/StandingsChart'
 import PointsChart from '@/app/components/PointsChart'
@@ -252,7 +254,7 @@ export default async function HomePage() {
     ?? mainRounds[0]
 
   // 次節 = 試合数問わず、currentMainより後の最初の節
-  const currentMainIdx = roundInfo.indexOf(roundInfo.find(r => r.round_number === currentMain.round_number))
+  const currentMainIdx = roundInfo.findIndex(r => Number(r.round_number) === Number(currentMain.round_number))
   const nextMain = roundInfo.slice(currentMainIdx + 1).find(r => Number(r.match_count) >= 1) ?? null
 
   // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
