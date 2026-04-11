@@ -4,6 +4,22 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import FantasyLoading from '../FantasyLoading'
 
+async function fetchIsMarketOpen() {
+  try {
+    const res = await fetch('/api/fantasy/gameweeks/schedule')
+    const { gameweeks } = await res.json()
+    const now = new Date()
+    const gws = (gameweeks ?? [])
+      .filter(gw => gw.deadline)
+      .map(gw => ({ deadline: new Date(gw.deadline), marketOpen: gw.market_open ? new Date(gw.market_open) : null }))
+    const pastGws = gws.filter(gw => gw.deadline <= now)
+    if (pastGws.length === 0) return true
+    const currentGw = pastGws[pastGws.length - 1]
+    if (currentGw.marketOpen && now < currentGw.marketOpen) return false
+    return true
+  } catch { return true }
+}
+
 const POSITIONS = ['GK', 'DF', 'MF', 'FW']
 const POS_LIMITS = { GK: 2, DF: 6, MF: 7, FW: 5 }
 const POS_MIN = { GK: 1, DF: 4, MF: 4, FW: 1 }
@@ -64,6 +80,10 @@ export default function TransferPage() {
   const [confirmPlayer, setConfirmPlayer] = useState(null) // 売却確認モーダル
   const [confirmBuyPlayer, setConfirmBuyPlayer] = useState(null) // 購入確認モーダル
   const [tooltip, setTooltip] = useState(null) // { id, msg }
+
+  useEffect(() => {
+    fetchIsMarketOpen().then(open => { if (!open) router.replace('/fantasy') })
+  }, [])
 
   useEffect(() => {
     Promise.all([

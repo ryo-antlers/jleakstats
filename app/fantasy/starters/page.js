@@ -8,14 +8,14 @@ async function fetchIsMarketOpen() {
     const res = await fetch('/api/fantasy/gameweeks/schedule')
     const { gameweeks } = await res.json()
     const now = new Date()
-    for (const gw of gameweeks) {
-      if (!gw.deadline) continue
-      const deadline = new Date(gw.deadline)
-      const marketOpen = gw.market_open ? new Date(gw.market_open) : null
-      if (now < deadline) return true
-      if (marketOpen && now >= marketOpen) return true
-    }
-    return gameweeks.length === 0 // データなしなら開いているとみなす
+    const gws = (gameweeks ?? [])
+      .filter(gw => gw.deadline)
+      .map(gw => ({ deadline: new Date(gw.deadline), marketOpen: gw.market_open ? new Date(gw.market_open) : null }))
+    const pastGws = gws.filter(gw => gw.deadline <= now)
+    if (pastGws.length === 0) return true // 締め切り前 → オープン
+    const currentGw = pastGws[pastGws.length - 1]
+    if (currentGw.marketOpen && now < currentGw.marketOpen) return false // GW進行中 → クローズ
+    return true
   } catch { return true }
 }
 
