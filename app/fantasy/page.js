@@ -868,7 +868,7 @@ export default function FantasyPage() {
                         <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                       </span>
                     ) : hasNextGw && (
-                      <span style={{ fontSize: 8, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
+                      <span style={{ fontSize: 7, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
                     )}
                   </div>
                 </div>
@@ -1194,7 +1194,7 @@ export default function FantasyPage() {
                                       <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                                     </span>
                                   ) : hasNextGw && (
-                                    <span style={{ fontSize: 8, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
+                                    <span style={{ fontSize: 7, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
                                   ))}
                                 </div>
                               </div>
