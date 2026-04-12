@@ -1221,7 +1221,7 @@ export default function FantasyPage() {
         const visibleGwCols = isMobile ? gwColsWithData.slice(-3) : gwColsWithData.slice(-5)
         const gwColWidth = '44px'
         const gwColTemplate = visibleGwCols.map(() => gwColWidth).join(' ')
-        const gridCols = `28px 1fr ${gwColTemplate} 52px`
+        const gridCols = `28px 1fr 72px ${gwColTemplate} 52px`
 
         function openSquadModal(row) {
           setRankingModalUser(row)
@@ -1257,6 +1257,7 @@ export default function FantasyPage() {
             }}>
               <span>#</span>
               <span>クラブ / 監督</span>
+              <span style={{ textAlign: 'right' }}>総資産</span>
               {visibleGwCols.map(gw => (
                 <span key={gw} style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   GW{gw}
@@ -1290,14 +1291,12 @@ export default function FantasyPage() {
                     <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {row.team_name}
                     </span>
-                    {row.total_assets != null && (
-                      <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {formatBudget(row.total_assets)}
-                      </span>
-                    )}
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>監督: {row.username}</span>
                 </div>
+                <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                  {row.total_assets != null ? formatBudget(row.total_assets) : '-'}
+                </span>
                 {visibleGwCols.map(gw => {
                   const pts = row.gw_points?.[gw]
                   const isLive = gw === liveGwNumber

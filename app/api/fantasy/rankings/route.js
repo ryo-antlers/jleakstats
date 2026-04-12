@@ -250,7 +250,7 @@ export async function GET() {
         total_points: Number(u.total_points),
         total_with_live: Number(u.total_points) + liveExtra,
         gw_points: gwPts,
-        total_assets: Number(u.budget) + squadVal,
+        total_assets: Number(u.budget) + squadVal * 10,
       }
     })
 
