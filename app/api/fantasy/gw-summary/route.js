@@ -5,6 +5,7 @@ import sql from '@/lib/db'
  * GWまとめページ用: ポイント・スタッツ各種TOP10
  */
 export async function GET(request) {
+  try {
   const { searchParams } = new URL(request.url)
   const gw_number = searchParams.get('gw_number')
   if (!gw_number) return Response.json({ error: 'gw_number required' }, { status: 400 })
@@ -126,4 +127,8 @@ export async function GET(request) {
       minutes: top10(stats, 'minutes'),
     },
   })
+  } catch (err) {
+    console.error('gw-summary error:', err)
+    return Response.json({ error: err.message }, { status: 500 })
+  }
 }
