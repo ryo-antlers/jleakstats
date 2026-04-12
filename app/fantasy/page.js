@@ -1148,7 +1148,8 @@ export default function FantasyPage() {
                           const tc = textColor(color)
                           const offX = p.pos_offset_x ?? 0
                           const offY = p.pos_offset_y ?? 0
-                          const gwPts = isGwMode ? (p.has_points ? Number(p.points) : null) : null
+                          const gwPtsRaw = isGwMode ? (p.has_points ? Number(p.points) : null) : null
+                          const gwPts = gwPtsRaw != null && p.is_captain ? gwPtsRaw * 2 : gwPtsRaw
                           return (
                             <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
                               <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', width: 30, height: 30, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
@@ -1158,8 +1159,8 @@ export default function FantasyPage() {
                                 <div style={{ display: 'flex' }}>
                                   <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
                                   {isGwMode && (
-                                    <div style={{ width: 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? '#ffd700' : '#fff', flexShrink: 0 }}>
-                                      {gwPts == null ? '-' : p.is_captain ? `${gwPts}C` : gwPts}
+                                    <div style={{ width: 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? 'rgb(255, 237, 29)' : 'var(--accent)', flexShrink: 0 }}>
+                                      {gwPts == null ? '-' : gwPts}
                                     </div>
                                   )}
                                 </div>
