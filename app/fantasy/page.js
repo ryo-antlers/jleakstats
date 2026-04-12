@@ -344,6 +344,8 @@ export default function FantasyPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [rankingModalUser, setRankingModalUser] = useState(null)
   const [rankingModalSquad, setRankingModalSquad] = useState(null)
+  const [rankingModalGwNum, setRankingModalGwNum] = useState(null)
+  const [rankingModalGwPlayers, setRankingModalGwPlayers] = useState(null)
   const [nextOpponents, setNextOpponents] = useState({})
   const [myId, setMyId] = useState(null)
 
@@ -1104,29 +1106,40 @@ export default function FantasyPage() {
       </div>
 
       {/* ランキングモーダル */}
-      {rankingModalUser && (
-        <div onClick={() => setRankingModalUser(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      {rankingModalUser && (() => {
+        const isGwMode = rankingModalGwNum != null
+        const modalPlayers = isGwMode ? rankingModalGwPlayers : rankingModalSquad
+        const isLoading = modalPlayers === null
+        const isEmpty = modalPlayers !== null && modalPlayers.length === 0
+
+        return (
+        <div onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null) }} style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ backgroundColor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: rankingModalUser.team_color ?? 'var(--text-primary)' }}>{rankingModalUser.team_name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{rankingModalUser.username}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: rankingModalUser.team_color ?? 'var(--text-primary)' }}>{rankingModalUser.team_name}</span>
+                  {isGwMode && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 8px', borderRadius: 4 }}>GW{rankingModalGwNum}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>監督: {rankingModalUser.username}</div>
               </div>
-              <button onClick={() => setRankingModalUser(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              <button onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 420, position: 'relative', overflow: 'hidden' }}>
-              {rankingModalSquad === null ? (
+              {isLoading ? (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ width: 28, height: 28, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                 </div>
-              ) : rankingModalSquad.length === 0 ? (
+              ) : isEmpty ? (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>スタメン未登録</p>
                 </div>
               ) : (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
                   {['FW','MF','DF','GK'].map(pos => {
-                    const players = rankingModalSquad.filter(p => p.position === pos && p.is_starter)
+                    const players = isGwMode
+                      ? modalPlayers.filter(p => p.position === pos)
+                      : modalPlayers.filter(p => p.position === pos && p.is_starter)
                     if (players.length === 0) return null
                     return (
                       <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: 40, alignItems: 'flex-start' }}>
@@ -1135,16 +1148,24 @@ export default function FantasyPage() {
                           const tc = textColor(color)
                           const offX = p.pos_offset_x ?? 0
                           const offY = p.pos_offset_y ?? 0
+                          const gwPts = isGwMode ? (p.has_points ? Number(p.points) : null) : null
                           return (
                             <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
                               <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', width: 30, height: 30, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
                                 {p.no ?? '?'}
                               </div>
                               <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
-                                <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
+                                <div style={{ display: 'flex' }}>
+                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
+                                  {isGwMode && (
+                                    <div style={{ width: 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? '#ffd700' : '#fff', flexShrink: 0 }}>
+                                      {gwPts == null ? '-' : p.is_captain ? `${gwPts}C` : gwPts}
+                                    </div>
+                                  )}
+                                </div>
                                 <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                                   <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
-                                  {nextOpponents[p.team_id] && (
+                                  {!isGwMode && nextOpponents[p.team_id] && (
                                     <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
                                       <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
                                       <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
@@ -1164,14 +1185,42 @@ export default function FantasyPage() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* 常時表示: ファンタジーランキング */}
       {rankings.length > 0 && (() => {
-        const visibleGwCols = isMobile ? gwColumns.slice(-3) : gwColumns.slice(-5)
-        // GW列: 32px each、PT列: 52px
-        const gwColTemplate = visibleGwCols.map(() => '32px').join(' ')
+        // ポイントがあるGW or ライブGWのみ表示
+        const gwColsWithData = gwColumns.filter(gw =>
+          gw === liveGwNumber || rankings.some(r => r.gw_points?.[gw] != null)
+        )
+        const visibleGwCols = isMobile ? gwColsWithData.slice(-3) : gwColsWithData.slice(-5)
+        const gwColWidth = '44px'
+        const gwColTemplate = visibleGwCols.map(() => gwColWidth).join(' ')
         const gridCols = `28px 1fr ${gwColTemplate} 52px`
+
+        function openSquadModal(row) {
+          setRankingModalUser(row)
+          setRankingModalSquad(null)
+          setRankingModalGwNum(null)
+          setRankingModalGwPlayers(null)
+          fetch(`/api/fantasy/squad/public?user_id=${row.clerk_user_id}`)
+            .then(r => r.json())
+            .then(d => setRankingModalSquad(d.squad ?? []))
+            .catch(() => setRankingModalSquad([]))
+        }
+
+        function openGwModal(row, gwNum) {
+          setRankingModalUser(row)
+          setRankingModalSquad(null)
+          setRankingModalGwNum(gwNum)
+          setRankingModalGwPlayers(null)
+          fetch(`/api/fantasy/gw-player-points?gw_number=${gwNum}&clerk_user_id=${row.clerk_user_id}`)
+            .then(r => r.json())
+            .then(d => setRankingModalGwPlayers(d.players ?? []))
+            .catch(() => setRankingModalGwPlayers([]))
+        }
+
         return (
         <div style={{ marginBottom: 40 }}>
           <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase' }}>Ranking</p>
@@ -1185,11 +1234,11 @@ export default function FantasyPage() {
               <span>#</span>
               <span>クラブ / 監督</span>
               {visibleGwCols.map(gw => (
-                <span key={gw} style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                <span key={gw} style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                  GW{gw}
                   {gw === liveGwNumber && (
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#ff4444', display: 'inline-block', flexShrink: 0 }} />
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#ff4444', display: 'inline-block', flexShrink: 0, marginLeft: 2 }} />
                   )}
-                  {gw}
                 </span>
               ))}
               <span style={{ textAlign: 'right' }}>PT</span>
@@ -1203,41 +1252,39 @@ export default function FantasyPage() {
             ) : (
               <div
                 key={row.id}
-                onClick={() => {
-                  setRankingModalUser(row)
-                  setRankingModalSquad(null)
-                  fetch(`/api/fantasy/squad/public?user_id=${row.clerk_user_id}`)
-                    .then(r => r.json())
-                    .then(d => setRankingModalSquad(d.squad ?? []))
-                    .catch(() => setRankingModalSquad([]))
-                }}
                 style={{
                   display: 'grid', gridTemplateColumns: gridCols,
                   padding: '9px 14px',
                   backgroundColor: '#1a1a1a',
                   borderTop: '1px solid var(--border-color)',
                   alignItems: 'center',
-                  cursor: 'pointer',
                 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.rank}</span>
-                <div style={{ overflow: 'hidden' }}>
+                <div style={{ overflow: 'hidden', cursor: 'pointer' }} onClick={() => openSquadModal(row)}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {row.team_color && <div style={{ width: 4, height: 16, backgroundColor: row.team_color, borderRadius: 1, flexShrink: 0 }} />}
                     <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {row.team_name}
                     </span>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{row.username}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>監督: {row.username}</span>
                 </div>
                 {visibleGwCols.map(gw => {
                   const pts = row.gw_points?.[gw]
                   const isLive = gw === liveGwNumber
+                  const hasPoints = pts != null
                   return (
-                    <span key={gw} style={{
-                      fontSize: 11, fontWeight: 600, textAlign: 'right',
-                      color: isLive ? '#ff9944' : pts == null ? 'var(--text-secondary)' : 'var(--text-primary)',
-                    }}>
-                      {pts == null ? '-' : pts}
+                    <span
+                      key={gw}
+                      onClick={() => hasPoints && openGwModal(row, gw)}
+                      style={{
+                        fontSize: 11, fontWeight: 600, textAlign: 'right',
+                        color: isLive ? '#ff9944' : !hasPoints ? 'var(--text-secondary)' : 'var(--text-primary)',
+                        cursor: hasPoints ? 'pointer' : 'default',
+                        textDecoration: hasPoints ? 'underline dotted' : 'none',
+                      }}
+                    >
+                      {!hasPoints ? '-' : pts}
                     </span>
                   )
                 })}
