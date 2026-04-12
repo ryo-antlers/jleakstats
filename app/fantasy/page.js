@@ -586,10 +586,16 @@ export default function FantasyPage() {
   async function toggleExpand(playerId) {
     const isOpen = expandedPlayerId === playerId
     setExpandedPlayerId(isOpen ? null : playerId)
-    if (!isOpen && playerDetails[playerId] === undefined && tab0GwId) {
-      setPlayerDetails(prev => ({ ...prev, [playerId]: null }))
-      const data = await fetch(`/api/fantasy/gw-detail?gw_id=${tab0GwId}&player_id=${playerId}`).then(r => r.json())
-      setPlayerDetails(prev => ({ ...prev, [playerId]: data.fixtures ?? [] }))
+    if (!isOpen && playerDetails[playerId] === undefined) {
+      if (showLive) {
+        // liveモード: APIレスポンスに含まれるlive_fixturesを使う
+        const livePlayer = liveGwPlayers.find(p => p.player_id === playerId)
+        setPlayerDetails(prev => ({ ...prev, [playerId]: livePlayer?.live_fixtures ?? [] }))
+      } else if (tab0GwId) {
+        setPlayerDetails(prev => ({ ...prev, [playerId]: null }))
+        const data = await fetch(`/api/fantasy/gw-detail?gw_id=${tab0GwId}&player_id=${playerId}`).then(r => r.json())
+        setPlayerDetails(prev => ({ ...prev, [playerId]: data.fixtures ?? [] }))
+      }
     }
   }
 
