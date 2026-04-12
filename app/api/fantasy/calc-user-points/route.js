@@ -22,26 +22,34 @@ export async function POST(request) {
       )
     `
 
-    // is_starter=true の選手のGWポイントをユーザーごとに合算（キャプテンは2倍）
+    // スナップショット存在確認
+    const [snapshotCheck] = await sql`
+      SELECT COUNT(*) AS cnt FROM fantasy_gw_starters WHERE gameweek_id = ${gameweek_id}
+    `
+    if (Number(snapshotCheck.cnt) === 0) {
+      return Response.json({ error: 'GWのスナップショットが取得されていません。先にスタメンSnapshotを実行してください。' }, { status: 400 })
+    }
+
+    // スナップショットのスタメンでGWポイントをユーザーごとに合算（キャプテンは2倍）
     const userPoints = await sql`
       SELECT
-        fs.clerk_user_id,
+        fgs.clerk_user_id,
         COALESCE(SUM(
-          CASE WHEN fs.player_id = fu.captain_player_id
+          CASE WHEN fgs.player_id = fu.captain_player_id
             THEN COALESCE(fp.points, 0) * 2
             ELSE COALESCE(fp.points, 0)
           END
         ), 0) AS gw_points
-      FROM fantasy_squads fs
-      LEFT JOIN fantasy_users fu ON fu.clerk_user_id = fs.clerk_user_id
+      FROM fantasy_gw_starters fgs
+      LEFT JOIN fantasy_users fu ON fu.clerk_user_id = fgs.clerk_user_id
       LEFT JOIN (
         SELECT player_id, SUM(points) AS points
         FROM fantasy_points
         WHERE gameweek_id = ${gameweek_id}
         GROUP BY player_id
-      ) fp ON fp.player_id = fs.player_id
-      WHERE fs.is_starter = true
-      GROUP BY fs.clerk_user_id
+      ) fp ON fp.player_id = fgs.player_id
+      WHERE fgs.gameweek_id = ${gameweek_id}
+      GROUP BY fgs.clerk_user_id
     `
 
     if (userPoints.length === 0) {
