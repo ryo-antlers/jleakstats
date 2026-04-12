@@ -80,32 +80,52 @@ export async function POST() {
       `
       const missedPkSet = new Set(missedPks.map(e => `${e.fixture_id}_${e.player_id}`))
 
-      await sql`DELETE FROM fantasy_points WHERE gameweek_id = ${gw.id}`
-      let count = 0
-      for (const f of fixtures) {
+      // 全試合の選手スタッツを一括取得
+      const allPlayers = await sql`
+        SELECT
+          COALESCE(pm.canonical_id, fps.player_id) AS player_id,
+          fps.fixture_id, fps.position, fps.minutes, fps.rating, fps.goals, fps.assists,
+          fps.passes_key, fps.passes_total, fps.passes_accuracy, fps.saves, fps.tackles, fps.interceptions, fps.blocks,
+          fps.duels_won, fps.fouls_drawn, fps.yellow_cards, fps.red_cards, fps.team_id, fps.conceded
+        FROM fixture_player_stats fps
+        LEFT JOIN players_master pm ON pm.id = fps.player_id
+        WHERE fps.fixture_id = ANY(${fixtureIds}) AND fps.position IN ('G', 'D', 'M', 'F')
+      `
+      const fixtureMap = Object.fromEntries(fixtures.map(f => [f.id, f]))
+
+      // ポイント計算
+      const rows = []
+      for (const p of allPlayers) {
+        const f = fixtureMap[p.fixture_id]
+        if (!f) continue
         const isAet = f.status === 'AET' || f.status === 'PEN'
-        const players = await sql`
+        const isHome = p.team_id === f.home_team_id
+        const teamScore = isHome ? Number(f.home_score) : Number(f.away_score)
+        const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
+        const { pts, breakdown } = calcPoints(p, Number(p.conceded) || oppScore, isAet ? false : teamScore > oppScore, missedPkSet.has(`${p.fixture_id}_${p.player_id}`))
+        rows.push({ gwId: gw.id, fixtureId: p.fixture_id, playerId: p.player_id, pts, breakdown })
+      }
+
+      // バルクINSERT (unnest)
+      await sql`DELETE FROM fantasy_points WHERE gameweek_id = ${gw.id}`
+      const count = rows.length
+      if (count > 0) {
+        const gwIds      = rows.map(r => r.gwId)
+        const fixtureIds2 = rows.map(r => r.fixtureId)
+        const playerIds  = rows.map(r => r.playerId)
+        const pts        = rows.map(r => r.pts)
+        const bds        = rows.map(r => JSON.stringify(r.breakdown))
+        await sql`
+          INSERT INTO fantasy_points (gameweek_id, fixture_id, player_id, points, breakdown)
           SELECT
-            COALESCE(pm.canonical_id, fps.player_id) AS player_id,
-            fps.position, fps.minutes, fps.rating, fps.goals, fps.assists,
-            fps.passes_key, fps.passes_total, fps.passes_accuracy, fps.saves, fps.tackles, fps.interceptions, fps.blocks,
-            fps.duels_won, fps.fouls_drawn, fps.yellow_cards, fps.red_cards, fps.team_id, fps.conceded
-          FROM fixture_player_stats fps
-          LEFT JOIN players_master pm ON pm.id = fps.player_id
-          WHERE fps.fixture_id = ${f.id} AND fps.position IN ('G', 'D', 'M', 'F')
+            unnest(${gwIds}::int[]),
+            unnest(${fixtureIds2}::int[]),
+            unnest(${playerIds}::int[]),
+            unnest(${pts}::int[]),
+            unnest(${bds}::jsonb[])
+          ON CONFLICT (gameweek_id, fixture_id, player_id) DO UPDATE
+            SET points = EXCLUDED.points, breakdown = EXCLUDED.breakdown
         `
-        for (const p of players) {
-          const isHome = p.team_id === f.home_team_id
-          const teamScore = isHome ? Number(f.home_score) : Number(f.away_score)
-          const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
-          const { pts, breakdown } = calcPoints(p, Number(p.conceded) || oppScore, isAet ? false : teamScore > oppScore, missedPkSet.has(`${f.id}_${p.player_id}`))
-          await sql`
-            INSERT INTO fantasy_points (gameweek_id, fixture_id, player_id, points, breakdown)
-            VALUES (${gw.id}, ${f.id}, ${p.player_id}, ${pts}, ${JSON.stringify(breakdown)})
-            ON CONFLICT (gameweek_id, fixture_id, player_id) DO UPDATE SET points = EXCLUDED.points, breakdown = EXCLUDED.breakdown
-          `
-          count++
-        }
       }
 
       await sql`
