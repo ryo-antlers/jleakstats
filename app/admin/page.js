@@ -150,6 +150,24 @@ function FantasyGwActions() {
     }
   }
 
+  async function runAutoProcess() {
+    setLoading(true)
+    setStatus(null)
+    try {
+      const res = await fetch('/api/admin/run-auto-process', { method: 'POST' })
+      const data = await res.json()
+      if (data.ok) {
+        setStatus(`✅ ${data.log?.length ? data.log.join(' / ') : '処理なし（全GW処理済み）'}`)
+      } else {
+        setStatus(`❌ ${data.error}`)
+      }
+    } catch (e) {
+      setStatus(`❌ ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function checkSnapshot() {
     if (!selectedGw) return
     setLoading(true)
@@ -194,6 +212,11 @@ function FantasyGwActions() {
           backgroundColor: '#1a2a4a', color: '#87c8ff', border: '1px solid #87c8ff',
           cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
         }}>Snapshot確認</button>
+        <button onClick={runAutoProcess} disabled={loading} style={{
+          padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+          backgroundColor: '#2a1a4a', color: '#c87fff', border: '1px solid #c87fff',
+          cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+        }}>ポイント計算実行</button>
         {[
           { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices' },
