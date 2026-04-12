@@ -169,6 +169,7 @@ function FantasyGwActions() {
           cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
         }}>ポイント確認</button>
         {[
+          { label: 'スタメンSnapshot', endpoint: '/api/fantasy/gw-starters' },
           { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices' },
         ].map(({ label, endpoint }) => (
