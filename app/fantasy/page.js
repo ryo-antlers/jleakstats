@@ -337,6 +337,8 @@ export default function FantasyPage() {
   const [expandedPlayerId, setExpandedPlayerId] = useState(null)
   const [playerDetails, setPlayerDetails] = useState({})
   const [rankings, setRankings] = useState([])
+  const [gwColumns, setGwColumns] = useState([])
+  const [liveGwNumber, setLiveGwNumber] = useState(null)
   const [activeTab, setActiveTab] = useState(1)
   const [countdown, setCountdown] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -366,7 +368,11 @@ export default function FantasyPage() {
         setLiveGwPlayers(d.players ?? [])
       }
     }).catch(() => {})
-    fetch('/api/fantasy/rankings').then(r => r.json()).then(d => setRankings(d.rankings ?? [])).catch(() => {})
+    fetch('/api/fantasy/rankings').then(r => r.json()).then(d => {
+      setRankings(d.rankings ?? [])
+      setGwColumns(d.gw_columns ?? [])
+      setLiveGwNumber(d.live_gw_number ?? null)
+    }).catch(() => {})
     fetch('/api/fantasy/next-opponents').then(r => r.json()).then(d => setNextOpponents(d.opponents ?? {})).catch(() => {})
   }, [])
 
@@ -1161,17 +1167,31 @@ export default function FantasyPage() {
       )}
 
       {/* 常時表示: ファンタジーランキング */}
-      {rankings.length > 0 && (
+      {rankings.length > 0 && (() => {
+        const visibleGwCols = isMobile ? gwColumns.slice(-3) : gwColumns.slice(-5)
+        // GW列: 32px each、PT列: 52px
+        const gwColTemplate = visibleGwCols.map(() => '32px').join(' ')
+        const gridCols = `28px 1fr ${gwColTemplate} 52px`
+        return (
         <div style={{ marginBottom: 40 }}>
           <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase' }}>Ranking</p>
           <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+            {/* ヘッダー */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '28px 1fr 52px',
+              display: 'grid', gridTemplateColumns: gridCols,
               padding: '6px 14px', backgroundColor: 'var(--bg-tertiary)',
               fontSize: 9, fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.05em',
             }}>
               <span>#</span>
               <span>クラブ / 監督</span>
+              {visibleGwCols.map(gw => (
+                <span key={gw} style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                  {gw === liveGwNumber && (
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#ff4444', display: 'inline-block', flexShrink: 0 }} />
+                  )}
+                  {gw}
+                </span>
+              ))}
               <span style={{ textAlign: 'right' }}>PT</span>
             </div>
             {rankingDisplayRows.map((row, i) => row === null ? (
@@ -1192,7 +1212,7 @@ export default function FantasyPage() {
                     .catch(() => setRankingModalSquad([]))
                 }}
                 style={{
-                  display: 'grid', gridTemplateColumns: '28px 1fr 52px',
+                  display: 'grid', gridTemplateColumns: gridCols,
                   padding: '9px 14px',
                   backgroundColor: '#1a1a1a',
                   borderTop: '1px solid var(--border-color)',
@@ -1209,12 +1229,25 @@ export default function FantasyPage() {
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{row.username}</span>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', color: 'var(--accent)' }}>{row.total_points}</span>
+                {visibleGwCols.map(gw => {
+                  const pts = row.gw_points?.[gw]
+                  const isLive = gw === liveGwNumber
+                  return (
+                    <span key={gw} style={{
+                      fontSize: 11, fontWeight: 600, textAlign: 'right',
+                      color: isLive ? '#ff9944' : pts == null ? 'var(--text-secondary)' : 'var(--text-primary)',
+                    }}>
+                      {pts == null ? '-' : pts}
+                    </span>
+                  )
+                })}
+                <span style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', color: 'var(--accent)' }}>{row.total_with_live ?? row.total_points}</span>
               </div>
             ))}
           </div>
         </div>
-      )}
+        )
+      })()}
 
     </div>
   )
