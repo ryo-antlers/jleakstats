@@ -196,7 +196,6 @@ function FantasyGwActions() {
         }}>Snapshot確認</button>
         {[
           { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points' },
-          { label: '価格スナップショット', endpoint: '/api/fantasy/gw-price-snapshot' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices' },
         ].map(({ label, endpoint }) => (
           <button key={label} onClick={() => run(endpoint)} disabled={loading || !selectedGw} style={{

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cat -n app/fixture/[id]/page.js)",
       "Read(//dev/**)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(node -e ':*)"
     ]
   }
 }
