@@ -66,7 +66,7 @@ export async function GET() {
     ])
 
     // フェーズ1: 独立クエリを並列実行
-    const [recentGws, liveGwRows, users] = await Promise.all([
+    const [recentGws, liveGwRows, users, squadValues] = await Promise.all([
       sql`
         SELECT id, gw_number FROM fantasy_gameweeks
         WHERE start_date::timestamptz < NOW()
@@ -96,8 +96,15 @@ export async function GET() {
         ORDER BY fg.gw_number DESC LIMIT 1
       `,
       sql`
-        SELECT id, clerk_user_id, username, team_name, team_color, COALESCE(total_points, 0) AS total_points
+        SELECT id, clerk_user_id, username, team_name, team_color, COALESCE(total_points, 0) AS total_points,
+          COALESCE(budget, 0) AS budget
         FROM fantasy_users ORDER BY team_name
+      `,
+      sql`
+        SELECT fs.clerk_user_id, COALESCE(SUM(pm.price), 0) AS squad_value
+        FROM fantasy_squads fs
+        JOIN players_master pm ON pm.id = fs.player_id
+        GROUP BY fs.clerk_user_id
       `,
     ])
 
@@ -224,6 +231,8 @@ export async function GET() {
       }
     }
 
+    const squadValueMap = Object.fromEntries(squadValues.map(s => [s.clerk_user_id, Number(s.squad_value)]))
+
     const result = users.map(u => {
       const gwPts = {}
       for (const gw of recentGwsAsc) {
@@ -235,11 +244,13 @@ export async function GET() {
         }
       }
       const liveExtra = liveGw ? (liveUserPts[u.clerk_user_id] ?? 0) : 0
+      const squadVal = squadValueMap[u.clerk_user_id] ?? 0
       return {
         ...u,
         total_points: Number(u.total_points),
         total_with_live: Number(u.total_points) + liveExtra,
         gw_points: gwPts,
+        total_assets: Number(u.budget) + squadVal,
       }
     })
 

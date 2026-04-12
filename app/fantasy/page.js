@@ -1290,6 +1290,11 @@ export default function FantasyPage() {
                     <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {row.team_name}
                     </span>
+                    {row.total_assets != null && (
+                      <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {formatBudget(row.total_assets)}
+                      </span>
+                    )}
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>監督: {row.username}</span>
                 </div>
