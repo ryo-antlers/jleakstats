@@ -95,81 +95,95 @@ export async function GET() {
   const liveUserPts = {}
 
   if (liveGw) {
-    const finishedFixtures = await sql`
-      SELECT f.id, f.home_team_id, f.away_team_id, f.home_score, f.away_score, f.status
-      FROM fantasy_gameweek_fixtures fgf
-      JOIN fixtures f ON f.id = fgf.fixture_id
-      WHERE fgf.gameweek_id = ${liveGw.id}
-        AND f.status IN ('FT', 'AET', 'PEN')
-    `
-    const finishedIds = finishedFixtures.map(f => f.id)
-
-    if (finishedIds.length > 0) {
-      const missedPks = await sql`
-        SELECT fixture_id, player_id FROM fixture_events
-        WHERE fixture_id = ANY(${finishedIds}) AND type = 'Goal' AND detail = 'Missed Penalty'
-      `
-      const missedPkSet = new Set(missedPks.map(e => `${e.fixture_id}_${e.player_id}`))
-
-      const stats = await sql`
-        SELECT
-          COALESCE(pm.canonical_id, fps.player_id) AS player_id,
-          fps.fixture_id, fps.position, fps.minutes, fps.rating,
-          fps.goals, fps.assists, fps.passes_key, fps.passes_total, fps.passes_accuracy,
-          fps.saves, fps.tackles, fps.interceptions, fps.blocks,
-          fps.duels_won, fps.fouls_drawn, fps.yellow_cards, fps.red_cards,
-          fps.team_id, fps.conceded
-        FROM fixture_player_stats fps
-        LEFT JOIN players_master pm ON pm.id = fps.player_id
-        WHERE fps.fixture_id = ANY(${finishedIds})
-          AND fps.position IN ('G', 'D', 'M', 'F')
-      `
-
-      const fixtureMap = Object.fromEntries(finishedFixtures.map(f => [f.id, f]))
-      for (const p of stats) {
-        const fixture = fixtureMap[p.fixture_id]
-        if (!fixture) continue
-        const isHome = p.team_id === fixture.home_team_id
-        const isAet = fixture.status === 'AET' || fixture.status === 'PEN'
-        const myScore = isHome ? Number(fixture.home_score) : Number(fixture.away_score)
-        const oppScore = isHome ? Number(fixture.away_score) : Number(fixture.home_score)
-        const pts = calcPoints(
-          p,
-          Number(p.conceded) || oppScore,
-          isAet ? false : myScore > oppScore,
-          missedPkSet.has(`${p.fixture_id}_${p.player_id}`)
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS fantasy_gw_starters (
+          id SERIAL PRIMARY KEY,
+          gameweek_id INTEGER NOT NULL REFERENCES fantasy_gameweeks(id),
+          clerk_user_id TEXT NOT NULL,
+          player_id INTEGER NOT NULL,
+          UNIQUE (gameweek_id, clerk_user_id, player_id)
         )
-        livePlayerPts[p.player_id] = (livePlayerPts[p.player_id] ?? 0) + pts
-      }
-    }
-
-    // 全ユーザーのスタメン（snapshot優先、なければ現在のsquad）
-    let allStarters = await sql`
-      SELECT clerk_user_id, player_id FROM fantasy_gw_starters
-      WHERE gameweek_id = ${liveGw.id}
-    `
-    if (allStarters.length === 0) {
-      allStarters = await sql`
-        SELECT clerk_user_id, player_id FROM fantasy_squads WHERE is_starter = true
       `
-    }
+      const finishedFixtures = await sql`
+        SELECT f.id, f.home_team_id, f.away_team_id, f.home_score, f.away_score, f.status
+        FROM fantasy_gameweek_fixtures fgf
+        JOIN fixtures f ON f.id = fgf.fixture_id
+        WHERE fgf.gameweek_id = ${liveGw.id}
+          AND f.status IN ('FT', 'AET', 'PEN')
+      `
+      const finishedIds = finishedFixtures.map(f => f.id)
 
-    // スターターセット（キャプテン判定用）
-    const startersByUser = {}
-    for (const s of allStarters) {
-      if (!startersByUser[s.clerk_user_id]) startersByUser[s.clerk_user_id] = new Set()
-      startersByUser[s.clerk_user_id].add(s.player_id)
-      liveUserPts[s.clerk_user_id] = (liveUserPts[s.clerk_user_id] ?? 0) + (livePlayerPts[s.player_id] ?? 0)
-    }
+      if (finishedIds.length > 0) {
+        const missedPks = await sql`
+          SELECT fixture_id, player_id FROM fixture_events
+          WHERE fixture_id = ANY(${finishedIds}) AND type = 'Goal' AND detail = 'Missed Penalty'
+        `
+        const missedPkSet = new Set(missedPks.map(e => `${e.fixture_id}_${e.player_id}`))
 
-    // キャプテン2倍（+1倍分を追加）
-    const captains = await sql`
-      SELECT clerk_user_id, captain_player_id FROM fantasy_users WHERE captain_player_id IS NOT NULL
-    `
-    for (const c of captains) {
-      if (startersByUser[c.clerk_user_id]?.has(c.captain_player_id)) {
-        liveUserPts[c.clerk_user_id] = (liveUserPts[c.clerk_user_id] ?? 0) + (livePlayerPts[c.captain_player_id] ?? 0)
+        const stats = await sql`
+          SELECT
+            COALESCE(pm.canonical_id, fps.player_id) AS player_id,
+            fps.fixture_id, fps.position, fps.minutes, fps.rating,
+            fps.goals, fps.assists, fps.passes_key, fps.passes_total, fps.passes_accuracy,
+            fps.saves, fps.tackles, fps.interceptions, fps.blocks,
+            fps.duels_won, fps.fouls_drawn, fps.yellow_cards, fps.red_cards,
+            fps.team_id, fps.conceded
+          FROM fixture_player_stats fps
+          LEFT JOIN players_master pm ON pm.id = fps.player_id
+          WHERE fps.fixture_id = ANY(${finishedIds})
+            AND fps.position IN ('G', 'D', 'M', 'F')
+        `
+
+        const fixtureMap = Object.fromEntries(finishedFixtures.map(f => [f.id, f]))
+        for (const p of stats) {
+          const fixture = fixtureMap[p.fixture_id]
+          if (!fixture) continue
+          const isHome = p.team_id === fixture.home_team_id
+          const isAet = fixture.status === 'AET' || fixture.status === 'PEN'
+          const myScore = isHome ? Number(fixture.home_score) : Number(fixture.away_score)
+          const oppScore = isHome ? Number(fixture.away_score) : Number(fixture.home_score)
+          const pts = calcPoints(
+            p,
+            Number(p.conceded) || oppScore,
+            isAet ? false : myScore > oppScore,
+            missedPkSet.has(`${p.fixture_id}_${p.player_id}`)
+          )
+          livePlayerPts[p.player_id] = (livePlayerPts[p.player_id] ?? 0) + pts
+        }
       }
+
+      // 全ユーザーのスタメン（snapshot優先、なければ現在のsquad）
+      let allStarters = await sql`
+        SELECT clerk_user_id, player_id FROM fantasy_gw_starters
+        WHERE gameweek_id = ${liveGw.id}
+      `
+      if (allStarters.length === 0) {
+        allStarters = await sql`
+          SELECT clerk_user_id, player_id FROM fantasy_squads WHERE is_starter = true
+        `
+      }
+
+      // スターターセット（キャプテン判定用）
+      const startersByUser = {}
+      for (const s of allStarters) {
+        if (!startersByUser[s.clerk_user_id]) startersByUser[s.clerk_user_id] = new Set()
+        startersByUser[s.clerk_user_id].add(s.player_id)
+        liveUserPts[s.clerk_user_id] = (liveUserPts[s.clerk_user_id] ?? 0) + (livePlayerPts[s.player_id] ?? 0)
+      }
+
+      // キャプテン2倍（+1倍分を追加）
+      const captains = await sql`
+        SELECT clerk_user_id, captain_player_id FROM fantasy_users WHERE captain_player_id IS NOT NULL
+      `
+      for (const c of captains) {
+        if (startersByUser[c.clerk_user_id]?.has(c.captain_player_id)) {
+          liveUserPts[c.clerk_user_id] = (liveUserPts[c.clerk_user_id] ?? 0) + (livePlayerPts[c.captain_player_id] ?? 0)
+        }
+      }
+    } catch (liveErr) {
+      console.error('rankings live calc error:', liveErr)
+      // ライブ計算失敗しても基本ランキングは返す
     }
   }
 
