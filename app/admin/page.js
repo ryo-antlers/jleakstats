@@ -168,6 +168,29 @@ function FantasyGwActions() {
     }
   }
 
+  async function previewPrices() {
+    if (!selectedGw) return
+    setLoading(true)
+    setStatus(null)
+    try {
+      const res = await fetch('/api/admin/preview-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameweek_id: Number(selectedGw) }),
+      })
+      const data = await res.json()
+      if (!data.ok) { setStatus(`❌ ${data.error}`); return }
+      const top = data.changes.slice(0, 10).map(c =>
+        `${c.name} ${c.old_price}→${c.new_price}(${c.delta > 0 ? '+' : ''}${c.delta})`
+      ).join(' / ')
+      setStatus(`✅ ${data.total}件変動予定: ${top}${data.total > 10 ? ` ...他${data.total - 10}件` : ''}`)
+    } catch (e) {
+      setStatus(`❌ ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function checkSnapshot() {
     if (!selectedGw) return
     setLoading(true)
@@ -217,6 +240,11 @@ function FantasyGwActions() {
           backgroundColor: '#2a1a4a', color: '#c87fff', border: '1px solid #c87fff',
           cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
         }}>ポイント計算実行</button>
+        <button onClick={previewPrices} disabled={loading || !selectedGw} style={{
+          padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+          backgroundColor: '#2a2a1a', color: '#ffdd87', border: '1px solid #ffdd87',
+          cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+        }}>移籍金プレビュー</button>
         {[
           { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices' },
