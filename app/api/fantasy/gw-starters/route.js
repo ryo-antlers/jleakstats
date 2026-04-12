@@ -28,11 +28,18 @@ export async function POST(request) {
     // 既存スナップショットを削除（再取得対応）
     await sql`DELETE FROM fantasy_gw_starters WHERE gameweek_id = ${gameweek_id}`
 
-    // 全ユーザーのis_starter=trueをスナップショット
+    // GW初戦日時より前にスタメンを確定させたユーザーのみスナップショット
     const starters = await sql`
-      SELECT clerk_user_id, player_id
-      FROM fantasy_squads
-      WHERE is_starter = true
+      SELECT fs.clerk_user_id, fs.player_id
+      FROM fantasy_squads fs
+      JOIN fantasy_users fu ON fu.clerk_user_id = fs.clerk_user_id
+      WHERE fs.is_starter = true
+        AND fu.starters_updated_at IS NOT NULL
+        AND fu.starters_updated_at < (
+          SELECT MIN(f.date) FROM fantasy_gameweek_fixtures fgf
+          JOIN fixtures f ON f.id = fgf.fixture_id
+          WHERE fgf.gameweek_id = ${gameweek_id}
+        )
     `
 
     for (const s of starters) {

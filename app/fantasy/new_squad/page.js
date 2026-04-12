@@ -130,7 +130,7 @@ export default function NewSquadPage() {
     const res = await fetch('/api/fantasy/squad', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_id: player.id }),
+      body: JSON.stringify({ player_id: player.id, no_fee: true }),
     })
     const data = await res.json()
     if (!res.ok) {

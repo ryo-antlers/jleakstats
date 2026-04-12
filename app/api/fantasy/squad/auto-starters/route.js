@@ -72,6 +72,8 @@ export async function POST() {
       WHERE clerk_user_id = ${userId}
       AND player_id = ANY(${starterIds})
     `
+    // スタメン更新日時を記録
+    await sql`UPDATE fantasy_users SET starters_updated_at = NOW() WHERE clerk_user_id = ${userId}`
 
     return Response.json({ ok: true })
   } catch (err) {

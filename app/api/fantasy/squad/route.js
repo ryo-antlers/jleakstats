@@ -28,11 +28,15 @@ export async function POST(request) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const marketError = await checkMarketOpen()
-    if (marketError) return Response.json({ error: marketError }, { status: 403 })
-
     const body = await request.json()
     const player_id = parseInt(body.player_id)
+    const no_fee = body.no_fee === true
+
+    // no_fee=true（new_squad）はマーケットチェックをスキップ、通常取引のみチェック
+    if (!no_fee) {
+      const marketError = await checkMarketOpen()
+      if (marketError) return Response.json({ error: marketError }, { status: 403 })
+    }
 
     // ユーザー情報取得
     const [user] = await sql`SELECT * FROM fantasy_users WHERE clerk_user_id = ${userId}`

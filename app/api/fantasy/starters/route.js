@@ -29,10 +29,14 @@ export async function POST(request) {
       `
     }
 
-    // キャプテン保存
-    if (captain_player_id) {
-      await sql`UPDATE fantasy_users SET captain_player_id = ${captain_player_id} WHERE clerk_user_id = ${userId}`
-    }
+    // キャプテン保存 & スタメン更新日時記録
+    await sql`
+      UPDATE fantasy_users
+      SET
+        captain_player_id = COALESCE(${captain_player_id ?? null}, captain_player_id),
+        starters_updated_at = NOW()
+      WHERE clerk_user_id = ${userId}
+    `
 
     return Response.json({ ok: true })
   } catch (err) {
