@@ -59,11 +59,11 @@ export async function GET() {
     )
   `
 
-  // 直近5GW（deadline済み）を降順で取得
+  // 直近5GW（開始済み）を降順で取得
   const recentGws = await sql`
     SELECT id, gw_number
     FROM fantasy_gameweeks
-    WHERE deadline < NOW()
+    WHERE start_date < NOW()
     ORDER BY gw_number DESC
     LIMIT 5
   `

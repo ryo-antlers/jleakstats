@@ -76,7 +76,7 @@ export async function GET(request) {
     const gwsNeedingSnapshot = await sql`
       SELECT fg.id, fg.gw_number
       FROM fantasy_gameweeks fg
-      WHERE fg.deadline < NOW()
+      WHERE fg.start_date < NOW()
         AND NOT EXISTS (
           SELECT 1 FROM fantasy_gw_starters fgs WHERE fgs.gameweek_id = fg.id
         )
