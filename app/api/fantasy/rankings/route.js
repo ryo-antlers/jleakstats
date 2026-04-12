@@ -63,7 +63,7 @@ export async function GET() {
   const recentGws = await sql`
     SELECT id, gw_number
     FROM fantasy_gameweeks
-    WHERE start_date < NOW()
+    WHERE start_date::timestamptz < NOW()
     ORDER BY gw_number DESC
     LIMIT 5
   `
