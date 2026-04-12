@@ -1234,7 +1234,7 @@ export default function FantasyPage() {
               <span>#</span>
               <span>クラブ / 監督</span>
               {visibleGwCols.map(gw => (
-                <span key={gw} style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                <span key={gw} style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   GW{gw}
                   {gw === liveGwNumber && (
                     <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#ff4444', display: 'inline-block', flexShrink: 0, marginLeft: 2 }} />
@@ -1278,7 +1278,7 @@ export default function FantasyPage() {
                       key={gw}
                       onClick={() => hasPoints && openGwModal(row, gw)}
                       style={{
-                        fontSize: 11, fontWeight: 600, textAlign: 'right',
+                        fontSize: 11, fontWeight: 600, textAlign: 'center',
                         color: isLive ? '#ff9944' : !hasPoints ? 'var(--text-secondary)' : 'var(--text-primary)',
                         cursor: hasPoints ? 'pointer' : 'default',
                         textDecoration: hasPoints ? 'underline dotted' : 'none',
