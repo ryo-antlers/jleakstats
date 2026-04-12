@@ -331,6 +331,9 @@ export default function FantasyPage() {
   const [lastGwNum, setLastGwNum] = useState(null)
   const [lastGwId, setLastGwId] = useState(null)
   const [lastGwPlayers, setLastGwPlayers] = useState([])
+  const [liveGwNum, setLiveGwNum] = useState(null)
+  const [liveGwId, setLiveGwId] = useState(null)
+  const [liveGwPlayers, setLiveGwPlayers] = useState([])
   const [expandedPlayerId, setExpandedPlayerId] = useState(null)
   const [playerDetails, setPlayerDetails] = useState({})
   const [rankings, setRankings] = useState([])
@@ -355,6 +358,13 @@ export default function FantasyPage() {
       setLastGwNum(d.gw_number ?? null)
       setLastGwId(d.gw_id ?? null)
       setLastGwPlayers(d.players ?? [])
+    }).catch(() => {})
+    fetch('/api/fantasy/live-gw-points').then(r => r.json()).then(d => {
+      if (d.gw_number) {
+        setLiveGwNum(d.gw_number)
+        setLiveGwId(d.gw_id)
+        setLiveGwPlayers(d.players ?? [])
+      }
     }).catch(() => {})
     fetch('/api/fantasy/rankings').then(r => r.json()).then(d => setRankings(d.rankings ?? [])).catch(() => {})
     fetch('/api/fantasy/next-opponents').then(r => r.json()).then(d => setNextOpponents(d.opponents ?? {})).catch(() => {})
@@ -548,7 +558,12 @@ export default function FantasyPage() {
   }
 
   const teamColor = user?.team_color ?? '#e00000'
-  const derivedLastGwNum = lastFinishedGw?.gw_number ?? lastGwNum
+  // 進行中GWがあればliveデータをタブ0に表示、なければ完了済みGWデータを表示
+  const showLive = liveGwNum != null
+  const tab0GwNum = showLive ? liveGwNum : (lastFinishedGw?.gw_number ?? lastGwNum)
+  const tab0Players = showLive ? liveGwPlayers : lastGwPlayers
+  const tab0GwId = showLive ? liveGwId : lastGwId
+  const derivedLastGwNum = tab0GwNum
 
   // カウントダウンタイマー: OPEN中→締切まで、CLOSE中→次回オープンまで
   useEffect(() => {
@@ -571,9 +586,9 @@ export default function FantasyPage() {
   async function toggleExpand(playerId) {
     const isOpen = expandedPlayerId === playerId
     setExpandedPlayerId(isOpen ? null : playerId)
-    if (!isOpen && playerDetails[playerId] === undefined && lastGwId) {
+    if (!isOpen && playerDetails[playerId] === undefined && tab0GwId) {
       setPlayerDetails(prev => ({ ...prev, [playerId]: null }))
-      const data = await fetch(`/api/fantasy/gw-detail?gw_id=${lastGwId}&player_id=${playerId}`).then(r => r.json())
+      const data = await fetch(`/api/fantasy/gw-detail?gw_id=${tab0GwId}&player_id=${playerId}`).then(r => r.json())
       setPlayerDetails(prev => ({ ...prev, [playerId]: data.fixtures ?? [] }))
     }
   }
@@ -619,7 +634,7 @@ export default function FantasyPage() {
       {/* タブ */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)', marginBottom: 24 }}>
         {[
-          { label: derivedLastGwNum != null ? `GW${derivedLastGwNum}` : '直近節', idx: 0 },
+          { label: derivedLastGwNum != null ? `GW${derivedLastGwNum}${showLive ? ' 暫定' : ''}` : '直近節', idx: 0 },
           { label: nextUpcomingGw ? `GW${nextUpcomingGw.gw_number}` : '直後節', idx: 1 },
         ].map(({ label, idx }) => (
           <button
@@ -647,13 +662,13 @@ export default function FantasyPage() {
         {/* Tab 0: 直近節 - GW結果 */}
         {activeTab === 0 && (
           <div>
-            {lastGwPlayers.length === 0 ? (
+            {tab0Players.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', padding: '40px 0' }}>
                 {derivedLastGwNum == null ? 'まだ終了したGWがありません' : 'データなし'}
               </p>
             ) : (() => {
-              const starters = lastGwPlayers.filter(p => p.is_starter)
-              const bench = lastGwPlayers.filter(p => !p.is_starter)
+              const starters = tab0Players.filter(p => p.is_starter)
+              const bench = tab0Players.filter(p => !p.is_starter)
               const starterTotal = starters.reduce((s, p) => s + (p.points ?? 0), 0)
               const BOX_W = 80
 
@@ -666,11 +681,10 @@ export default function FantasyPage() {
                 return           { bg: '#1a1a1e', fg: '#546e7a' }
               }
 
-              const renderRows = (players, isBench) => players.map(p => {
+              const renderRows = (players) => players.map(p => {
                 const isOpen = expandedPlayerId === p.player_id
                 const details = playerDetails[p.player_id]
-                const { bg, fg } = ptBox(p.points)
-                const clubColor = p.team_color ?? '#444'
+                const { bg, fg } = p.points == null ? { bg: '#111', fg: '#555' } : ptBox(p.points)
                 return (
                   <div key={p.player_id}>
                     {/* メイン行 */}
@@ -680,7 +694,9 @@ export default function FantasyPage() {
                     >
                       {/* 左端ポイントボックス（ポイント色） */}
                       <div style={{ width: BOX_W, flexShrink: 0, backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 15, fontWeight: 900, color: fg, letterSpacing: '-0.02em' }}>{p.points}</span>
+                        <span style={{ fontSize: 15, fontWeight: 900, color: fg, letterSpacing: '-0.02em' }}>
+                          {p.points == null ? '-' : p.points}
+                        </span>
                       </div>
                       {/* 選手情報 */}
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '10px 14px', minWidth: 0 }}>
@@ -746,7 +762,7 @@ export default function FantasyPage() {
                   </div>
 
                   {/* スタメン行 */}
-                  {renderRows(starters, false)}
+                  {renderRows(starters)}
 
                   {/* BENCH区切り */}
                   {bench.length > 0 && (
@@ -755,7 +771,7 @@ export default function FantasyPage() {
                         <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Bench</span>
                         <div style={{ flex: 1, height: 1, backgroundColor: 'var(--border-color)' }} />
                       </div>
-                      {renderRows(bench, true)}
+                      {renderRows(bench)}
                     </>
                   )}
                 </div>
