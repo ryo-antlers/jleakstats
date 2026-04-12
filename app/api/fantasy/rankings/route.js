@@ -47,6 +47,18 @@ function calcPoints(p, conceded, isWin, missedPk) {
 }
 
 export async function GET() {
+  try {
+  // テーブルが存在しない場合に備えて作成
+  await sql`
+    CREATE TABLE IF NOT EXISTS fantasy_gw_user_points (
+      id SERIAL PRIMARY KEY,
+      gameweek_id INTEGER NOT NULL,
+      clerk_user_id TEXT NOT NULL,
+      gw_points INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (gameweek_id, clerk_user_id)
+    )
+  `
+
   // 直近5GW（deadline済み）を降順で取得
   const recentGws = await sql`
     SELECT id, gw_number
@@ -202,4 +214,8 @@ export async function GET() {
   }, {
     headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=15' },
   })
+  } catch (err) {
+    console.error('rankings error:', err)
+    return Response.json({ error: err.message }, { status: 500 })
+  }
 }
