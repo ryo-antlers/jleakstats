@@ -130,8 +130,8 @@ export async function GET() {
 
     if (liveGw) {
       try {
-        if (liveGwAllDone) {
-          // 全試合終了済み: fantasy_pointsから確定選手ポイントを使う
+        if (liveGwAllDone && confirmedPlayerPts.length > 0) {
+          // 全試合終了済み & fantasy_points確定済み: 確定データを使う
           const confirmedMap = Object.fromEntries(confirmedPlayerPts.map(p => [p.player_id, Number(p.points)]))
           const allStarters = snapshotStarters.length > 0
             ? snapshotStarters
@@ -150,7 +150,17 @@ export async function GET() {
             }
           }
         } else {
-          const finishedIds = finishedFixtures.map(f => f.id)
+          // 進行中 or fantasy_points未集計: fixture_player_statsから暫定計算
+          // finishedFixturesがフェーズ2で取得されていない場合は取得する
+          const actualFinishedFixtures = liveGwAllDone
+            ? await sql`
+                SELECT f.id, f.home_team_id, f.away_team_id, f.home_score, f.away_score, f.status
+                FROM fantasy_gameweek_fixtures fgf
+                JOIN fixtures f ON f.id = fgf.fixture_id
+                WHERE fgf.gameweek_id = ${liveGw.id} AND f.status IN ('FT', 'AET', 'PEN')
+              `
+            : finishedFixtures
+          const finishedIds = actualFinishedFixtures.map(f => f.id)
 
           // フェーズ3: 選手スタッツ・PKミス・fallbackスタメンを並列取得
           const [missedPks, stats, fallbackStarters] = await Promise.all([
@@ -177,7 +187,7 @@ export async function GET() {
 
           const allStarters = snapshotStarters.length > 0 ? snapshotStarters : (fallbackStarters ?? [])
           const missedPkSet = new Set(missedPks.map(e => `${e.fixture_id}_${e.player_id}`))
-          const fixtureMap = Object.fromEntries(finishedFixtures.map(f => [f.id, f]))
+          const fixtureMap = Object.fromEntries(actualFinishedFixtures.map(f => [f.id, f]))
 
           for (const p of stats) {
             const fixture = fixtureMap[p.fixture_id]
