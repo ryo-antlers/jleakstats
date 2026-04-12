@@ -10,6 +10,9 @@ async function ensureTable() {
       UNIQUE (gameweek_id, clerk_user_id, player_id)
     )
   `
+  await sql`
+    ALTER TABLE fantasy_users ADD COLUMN IF NOT EXISTS starters_updated_at TIMESTAMPTZ
+  `
 }
 
 /**
