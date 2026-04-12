@@ -19,7 +19,7 @@ const SECTIONS = [
 ]
 
 function PlayerRow({ rank, player, valueKey, unit, decimals }) {
-  const val = player[valueKey ?? player.points !== undefined ? 'points' : valueKey]
+  const val = player[valueKey]
   const display = decimals ? Number(val).toFixed(decimals) : Math.round(Number(val))
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr auto', alignItems: 'center', padding: '7px 14px', borderTop: '1px solid var(--border-color)', backgroundColor: '#1a1a1a', gap: 8 }}>
