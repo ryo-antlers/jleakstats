@@ -346,6 +346,7 @@ export default function FantasyPage() {
   const [rankingModalSquad, setRankingModalSquad] = useState(null)
   const [rankingModalGwNum, setRankingModalGwNum] = useState(null)
   const [rankingModalGwPlayers, setRankingModalGwPlayers] = useState(null)
+  const [gwModalExpandedId, setGwModalExpandedId] = useState(null)
   const [nextOpponents, setNextOpponents] = useState({})
   const [myId, setMyId] = useState(null)
 
@@ -1113,7 +1114,7 @@ export default function FantasyPage() {
         const isEmpty = modalPlayers !== null && modalPlayers.length === 0
 
         return (
-        <div onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null) }} style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null); setGwModalExpandedId(null) }} style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ backgroundColor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
               <div>
@@ -1123,7 +1124,7 @@ export default function FantasyPage() {
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>監督: {rankingModalUser.username}</div>
               </div>
-              <button onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              <button onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null); setGwModalExpandedId(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 420, position: 'relative', overflow: 'hidden' }}>
               {isLoading ? (
@@ -1150,6 +1151,8 @@ export default function FantasyPage() {
                           const offY = p.pos_offset_y ?? 0
                           const gwPtsRaw = isGwMode ? (p.has_points ? Number(p.points) : null) : null
                           const gwPts = gwPtsRaw != null && p.is_captain ? gwPtsRaw * 2 : gwPtsRaw
+                          const isExpanded = gwModalExpandedId === p.player_id
+                          const fixtures = p.live_fixtures ?? []
                           return (
                             <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
                               <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', width: 30, height: 30, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
@@ -1159,8 +1162,23 @@ export default function FantasyPage() {
                                 <div style={{ display: 'flex' }}>
                                   <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
                                   {isGwMode && (
-                                    <div style={{ width: 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? 'rgb(255, 237, 29)' : 'var(--accent)', flexShrink: 0 }}>
+                                    <div
+                                      onClick={() => gwPts != null && setGwModalExpandedId(isExpanded ? null : p.player_id)}
+                                      style={{ width: 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? 'rgb(255, 237, 29)' : 'var(--accent)', flexShrink: 0, cursor: gwPts != null ? 'pointer' : 'default' }}>
                                       {gwPts == null ? '-' : gwPts}
+                                    </div>
+                                  )}
+                                  {isGwMode && isExpanded && fixtures.length > 0 && (
+                                    <div style={{ position: 'absolute', left: '100%', top: 0, backgroundColor: '#111', border: '1px solid #333', borderRadius: 4, padding: '6px 8px', zIndex: 10, minWidth: 140, boxShadow: '0 4px 12px rgba(0,0,0,0.7)' }}>
+                                      {fixtures.flatMap((fx, fi) => [
+                                        <div key={`hd-${fi}`} style={{ fontSize: 9, color: '#888', marginBottom: 3, marginTop: fi > 0 ? 6 : 0 }}>{fx.date} vs {fx.opponent}</div>,
+                                        ...fx.events.sort((a, b) => b.pts - a.pts).map((ev, j) => (
+                                          <div key={`ev-${fi}-${j}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 10, color: ev.pts > 0 ? '#ccc' : '#ff6b6b', lineHeight: 1.6 }}>
+                                            <span>{ev.label}</span>
+                                            <span style={{ fontWeight: 700, color: ev.pts > 0 ? 'var(--accent)' : '#ff6b6b' }}>{ev.pts > 0 ? `+${ev.pts}` : ev.pts}</span>
+                                          </div>
+                                        )),
+                                      ])}
                                     </div>
                                   )}
                                 </div>
