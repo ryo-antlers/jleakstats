@@ -1154,7 +1154,7 @@ export default function FantasyPage() {
                           const isExpanded = gwModalExpandedId === p.player_id
                           const fixtures = p.live_fixtures ?? []
                           return (
-                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14 }}>
+                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14, zIndex: isExpanded ? 20 : 'auto' }}>
                               <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', width: 30, height: 30, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
                                 {p.no ?? '?'}
                               </div>
@@ -1169,7 +1169,7 @@ export default function FantasyPage() {
                                     </div>
                                   )}
                                   {isGwMode && isExpanded && fixtures.length > 0 && (
-                                    <div style={{ position: 'absolute', left: '100%', top: 0, backgroundColor: '#111', border: '1px solid #333', borderRadius: 4, padding: '6px 8px', zIndex: 10, minWidth: 140, boxShadow: '0 4px 12px rgba(0,0,0,0.7)' }}>
+                                    <div style={{ position: 'absolute', left: '100%', top: 0, backgroundColor: '#111', padding: '6px 8px', zIndex: 20, minWidth: 140 }}>
                                       {fixtures.flatMap((fx, fi) => [
                                         <div key={`hd-${fi}`} style={{ fontSize: 9, color: '#888', marginBottom: 3, marginTop: fi > 0 ? 6 : 0 }}>{fx.date} vs {fx.opponent}</div>,
                                         ...fx.events.sort((a, b) => b.pts - a.pts).map((ev, j) => (
