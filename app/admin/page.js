@@ -150,6 +150,27 @@ function FantasyGwActions() {
     }
   }
 
+  async function checkSnapshot() {
+    if (!selectedGw) return
+    setLoading(true)
+    setStatus(null)
+    try {
+      const res = await fetch(`/api/fantasy/gw-starters?gameweek_id=${selectedGw}`)
+      const data = await res.json()
+      if (data.error) { setStatus(`❌ ${data.error}`); return }
+      const users = data.users ?? []
+      if (users.length === 0) {
+        setStatus(`⚠️ GW${gameweeks.find(g => String(g.id) === selectedGw)?.gw_number}のSnapshotはまだ取得されていません`)
+      } else {
+        setStatus(`✅ Snapshot取得済み: ${users.length}人 (${users.map(u => `${u.clerk_user_id.slice(0, 8)}…:${u.count}人`).join(', ')})`)
+      }
+    } catch (e) {
+      setStatus(`❌ ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16 }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>ファンタジー手動操作</p>
@@ -168,8 +189,12 @@ function FantasyGwActions() {
           backgroundColor: '#1a4a2a', color: '#00ff87', border: '1px solid #00ff87',
           cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
         }}>ポイント確認</button>
+        <button onClick={checkSnapshot} disabled={loading || !selectedGw} style={{
+          padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+          backgroundColor: '#1a2a4a', color: '#87c8ff', border: '1px solid #87c8ff',
+          cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+        }}>Snapshot確認</button>
         {[
-          { label: 'スタメンSnapshot', endpoint: '/api/fantasy/gw-starters' },
           { label: 'ユーザーPT付与', endpoint: '/api/fantasy/calc-user-points' },
           { label: '移籍金変動', endpoint: '/api/fantasy/update-prices' },
         ].map(({ label, endpoint }) => (
@@ -269,6 +294,38 @@ function GameweekManager() {
 
 function BackupSync() {
   const [open, setOpen] = useState(false)
+  const [gameweeks, setGameweeks] = useState([])
+  const [selectedGw, setSelectedGw] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/fantasy/gameweeks').then(r => r.json()).then(d => {
+      const gws = d.gameweeks ?? []
+      setGameweeks(gws)
+      if (gws.length) setSelectedGw(String(gws.at(-1).id))
+    })
+  }, [])
+
+  async function takeSnapshot() {
+    if (!selectedGw) return
+    setLoading(true)
+    setStatus(null)
+    try {
+      const res = await fetch('/api/fantasy/gw-starters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameweek_id: Number(selectedGw) }),
+      })
+      const data = await res.json()
+      setStatus(data.ok ? `✅ ${JSON.stringify(data)}` : `❌ ${data.error}`)
+    } catch (e) {
+      setStatus(`❌ ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, overflow: 'hidden' }}>
       <button onClick={() => setOpen(v => !v)} style={{
@@ -280,6 +337,25 @@ function BackupSync() {
       </button>
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, backgroundColor: 'var(--bg-primary)' }}>
+          <div style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>スタメンSnapshot（手動）</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>対象GW</span>
+              <select value={selectedGw} onChange={e => setSelectedGw(e.target.value)} style={{
+                fontSize: 12, padding: '4px 8px', borderRadius: 4,
+                backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)',
+              }}>
+                {gameweeks.map(gw => <option key={gw.id} value={gw.id}>GW{gw.gw_number}</option>)}
+              </select>
+              <button onClick={takeSnapshot} disabled={loading || !selectedGw} style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                backgroundColor: loading ? 'var(--bg-tertiary)' : 'var(--accent)',
+                color: '#000', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+              }}>{loading ? '実行中…' : 'スタメンSnapshot'}</button>
+            </div>
+            {status && <p style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{status}</p>}
+            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>通常はauto-processが締め切り後に自動取得</p>
+          </div>
           <SyncButton label="試合日程・結果を同期" endpoint="/api/sync/fixtures" description="30分ごとに自動実行中" />
           <SyncButton label="試合詳細データを同期（10試合ずつ）" endpoint="/api/sync/fixture-details" description="30分ごとに自動実行中。複数回押してください。" />
           <SyncButton label="開催前試合のオッズを同期" endpoint="/api/sync/odds" description="自動実行中" />
