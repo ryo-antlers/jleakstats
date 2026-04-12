@@ -62,6 +62,40 @@ export async function GET(request) {
       steps JSONB
     )`
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS fantasy_gw_starters (
+        id SERIAL PRIMARY KEY,
+        gameweek_id INTEGER NOT NULL REFERENCES fantasy_gameweeks(id),
+        clerk_user_id TEXT NOT NULL,
+        player_id INTEGER NOT NULL,
+        UNIQUE (gameweek_id, clerk_user_id, player_id)
+      )
+    `
+
+    // 締め切り済みでまだSnapshotがないGWを自動取得
+    const gwsNeedingSnapshot = await sql`
+      SELECT fg.id, fg.gw_number
+      FROM fantasy_gameweeks fg
+      WHERE fg.deadline < NOW()
+        AND NOT EXISTS (
+          SELECT 1 FROM fantasy_gw_starters fgs WHERE fgs.gameweek_id = fg.id
+        )
+      ORDER BY fg.gw_number
+    `
+    for (const gw of gwsNeedingSnapshot) {
+      const starters = await sql`
+        SELECT clerk_user_id, player_id FROM fantasy_squads WHERE is_starter = true
+      `
+      for (const s of starters) {
+        await sql`
+          INSERT INTO fantasy_gw_starters (gameweek_id, clerk_user_id, player_id)
+          VALUES (${gw.id}, ${s.clerk_user_id}, ${s.player_id})
+          ON CONFLICT DO NOTHING
+        `
+      }
+      log.push({ snapshot: `GW${gw.gw_number}`, count: starters.length })
+    }
+
     // GW内の全試合が終了済みのGWを検索（6時間待ちなし）
     const pendingGws = await sql`
       SELECT fg.id, fg.gw_number
