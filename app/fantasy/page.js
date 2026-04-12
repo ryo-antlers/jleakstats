@@ -1257,7 +1257,7 @@ export default function FantasyPage() {
             }}>
               <span>#</span>
               <span>クラブ / 監督</span>
-              <span style={{ textAlign: 'right' }}>総資産</span>
+              <span>総資産</span>
               {visibleGwCols.map(gw => (
                 <span key={gw} style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   GW{gw}
@@ -1294,7 +1294,7 @@ export default function FantasyPage() {
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>監督: {row.username}</span>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
                   {row.total_assets != null ? formatBudget(row.total_assets) : '-'}
                 </span>
                 {visibleGwCols.map(gw => {
