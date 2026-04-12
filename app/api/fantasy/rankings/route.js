@@ -72,14 +72,20 @@ export async function GET() {
         WHERE start_date::timestamptz < NOW()
         ORDER BY gw_number DESC LIMIT 5
       `,
+      // ライブGW: 進行中 or 全試合終了済みだがfantasy_gw_user_pointsが未集計
       sql`
-        SELECT fg.id, fg.gw_number
+        SELECT fg.id, fg.gw_number,
+          COUNT(*) = COUNT(CASE WHEN f.status IN ('FT', 'AET', 'PEN') THEN 1 END) AS all_done
         FROM fantasy_gameweeks fg
         JOIN fantasy_gameweek_fixtures fgf ON fgf.gameweek_id = fg.id
         JOIN fixtures f ON f.id = fgf.fixture_id
+        WHERE fg.start_date::timestamptz < NOW()
         GROUP BY fg.id, fg.gw_number
         HAVING MIN(f.date) <= NOW()
-          AND COUNT(*) > COUNT(CASE WHEN f.status IN ('FT', 'AET', 'PEN') THEN 1 END)
+          AND (
+            COUNT(*) > COUNT(CASE WHEN f.status IN ('FT', 'AET', 'PEN') THEN 1 END)
+            OR NOT EXISTS (SELECT 1 FROM fantasy_gw_user_points WHERE gameweek_id = fg.id)
+          )
         ORDER BY fg.gw_number DESC LIMIT 1
       `,
       sql`
@@ -89,15 +95,16 @@ export async function GET() {
     ])
 
     const liveGw = liveGwRows[0] ?? null
+    const liveGwAllDone = liveGw?.all_done === true
     const recentGwsAsc = [...recentGws].sort((a, b) => Number(a.gw_number) - Number(b.gw_number))
     const recentGwIds = recentGws.map(g => g.id)
 
     // フェーズ2: recentGwIds・liveGwに依存するクエリを並列実行
-    const [gwUserPts, finishedFixtures, snapshotStarters, captains] = await Promise.all([
+    const [gwUserPts, finishedFixtures, snapshotStarters, captains, confirmedPlayerPts] = await Promise.all([
       recentGwIds.length > 0
         ? sql`SELECT clerk_user_id, gameweek_id, gw_points FROM fantasy_gw_user_points WHERE gameweek_id = ANY(${recentGwIds})`
         : Promise.resolve([]),
-      liveGw
+      liveGw && !liveGwAllDone
         ? sql`
             SELECT f.id, f.home_team_id, f.away_team_id, f.home_score, f.away_score, f.status
             FROM fantasy_gameweek_fixtures fgf
@@ -111,6 +118,10 @@ export async function GET() {
       liveGw
         ? sql`SELECT clerk_user_id, captain_player_id FROM fantasy_users WHERE captain_player_id IS NOT NULL`
         : Promise.resolve([]),
+      // 全試合終了済みの場合はfantasy_pointsから確定選手ポイントを取得
+      liveGw && liveGwAllDone
+        ? sql`SELECT player_id, SUM(points) AS points FROM fantasy_points WHERE gameweek_id = ${liveGw.id} GROUP BY player_id`
+        : Promise.resolve([]),
     ])
 
     // ライブポイント計算
@@ -119,55 +130,76 @@ export async function GET() {
 
     if (liveGw) {
       try {
-        const finishedIds = finishedFixtures.map(f => f.id)
+        if (liveGwAllDone) {
+          // 全試合終了済み: fantasy_pointsから確定選手ポイントを使う
+          const confirmedMap = Object.fromEntries(confirmedPlayerPts.map(p => [p.player_id, Number(p.points)]))
+          const allStarters = snapshotStarters.length > 0
+            ? snapshotStarters
+            : await sql`SELECT clerk_user_id, player_id FROM fantasy_squads WHERE is_starter = true`
 
-        // フェーズ3: 選手スタッツ・PKミス・fallbackスタメンを並列取得
-        const [missedPks, stats, fallbackStarters] = await Promise.all([
-          finishedIds.length > 0
-            ? sql`SELECT fixture_id, player_id FROM fixture_events WHERE fixture_id = ANY(${finishedIds}) AND type = 'Goal' AND detail = 'Missed Penalty'`
-            : Promise.resolve([]),
-          finishedIds.length > 0
-            ? sql`
-                SELECT COALESCE(pm.canonical_id, fps.player_id) AS player_id,
-                  fps.fixture_id, fps.position, fps.minutes, fps.rating,
-                  fps.goals, fps.assists, fps.passes_key, fps.passes_total, fps.passes_accuracy,
-                  fps.saves, fps.tackles, fps.interceptions, fps.blocks,
-                  fps.duels_won, fps.fouls_drawn, fps.yellow_cards, fps.red_cards,
-                  fps.team_id, fps.conceded
-                FROM fixture_player_stats fps
-                LEFT JOIN players_master pm ON pm.id = fps.player_id
-                WHERE fps.fixture_id = ANY(${finishedIds}) AND fps.position IN ('G', 'D', 'M', 'F')
-              `
-            : Promise.resolve([]),
-          snapshotStarters.length === 0
-            ? sql`SELECT clerk_user_id, player_id FROM fantasy_squads WHERE is_starter = true`
-            : Promise.resolve(null),
-        ])
+          const startersByUser = {}
+          for (const s of allStarters) {
+            if (!startersByUser[s.clerk_user_id]) startersByUser[s.clerk_user_id] = new Set()
+            startersByUser[s.clerk_user_id].add(Number(s.player_id))
+            livePlayerPts[s.player_id] = confirmedMap[s.player_id] ?? 0
+            liveUserPts[s.clerk_user_id] = (liveUserPts[s.clerk_user_id] ?? 0) + (confirmedMap[s.player_id] ?? 0)
+          }
+          for (const c of captains) {
+            if (startersByUser[c.clerk_user_id]?.has(Number(c.captain_player_id))) {
+              liveUserPts[c.clerk_user_id] = (liveUserPts[c.clerk_user_id] ?? 0) + (confirmedMap[c.captain_player_id] ?? 0)
+            }
+          }
+        } else {
+          const finishedIds = finishedFixtures.map(f => f.id)
 
-        const allStarters = snapshotStarters.length > 0 ? snapshotStarters : (fallbackStarters ?? [])
-        const missedPkSet = new Set(missedPks.map(e => `${e.fixture_id}_${e.player_id}`))
-        const fixtureMap = Object.fromEntries(finishedFixtures.map(f => [f.id, f]))
+          // フェーズ3: 選手スタッツ・PKミス・fallbackスタメンを並列取得
+          const [missedPks, stats, fallbackStarters] = await Promise.all([
+            finishedIds.length > 0
+              ? sql`SELECT fixture_id, player_id FROM fixture_events WHERE fixture_id = ANY(${finishedIds}) AND type = 'Goal' AND detail = 'Missed Penalty'`
+              : Promise.resolve([]),
+            finishedIds.length > 0
+              ? sql`
+                  SELECT COALESCE(pm.canonical_id, fps.player_id) AS player_id,
+                    fps.fixture_id, fps.position, fps.minutes, fps.rating,
+                    fps.goals, fps.assists, fps.passes_key, fps.passes_total, fps.passes_accuracy,
+                    fps.saves, fps.tackles, fps.interceptions, fps.blocks,
+                    fps.duels_won, fps.fouls_drawn, fps.yellow_cards, fps.red_cards,
+                    fps.team_id, fps.conceded
+                  FROM fixture_player_stats fps
+                  LEFT JOIN players_master pm ON pm.id = fps.player_id
+                  WHERE fps.fixture_id = ANY(${finishedIds}) AND fps.position IN ('G', 'D', 'M', 'F')
+                `
+              : Promise.resolve([]),
+            snapshotStarters.length === 0
+              ? sql`SELECT clerk_user_id, player_id FROM fantasy_squads WHERE is_starter = true`
+              : Promise.resolve(null),
+          ])
 
-        for (const p of stats) {
-          const fixture = fixtureMap[p.fixture_id]
-          if (!fixture) continue
-          const isHome = p.team_id === fixture.home_team_id
-          const isAet = fixture.status === 'AET' || fixture.status === 'PEN'
-          const myScore = isHome ? Number(fixture.home_score) : Number(fixture.away_score)
-          const oppScore = isHome ? Number(fixture.away_score) : Number(fixture.home_score)
-          const pts = calcPoints(p, Number(p.conceded) || oppScore, isAet ? false : myScore > oppScore, missedPkSet.has(`${p.fixture_id}_${p.player_id}`))
-          livePlayerPts[p.player_id] = (livePlayerPts[p.player_id] ?? 0) + pts
-        }
+          const allStarters = snapshotStarters.length > 0 ? snapshotStarters : (fallbackStarters ?? [])
+          const missedPkSet = new Set(missedPks.map(e => `${e.fixture_id}_${e.player_id}`))
+          const fixtureMap = Object.fromEntries(finishedFixtures.map(f => [f.id, f]))
 
-        const startersByUser = {}
-        for (const s of allStarters) {
-          if (!startersByUser[s.clerk_user_id]) startersByUser[s.clerk_user_id] = new Set()
-          startersByUser[s.clerk_user_id].add(s.player_id)
-          liveUserPts[s.clerk_user_id] = (liveUserPts[s.clerk_user_id] ?? 0) + (livePlayerPts[s.player_id] ?? 0)
-        }
-        for (const c of captains) {
-          if (startersByUser[c.clerk_user_id]?.has(c.captain_player_id)) {
-            liveUserPts[c.clerk_user_id] = (liveUserPts[c.clerk_user_id] ?? 0) + (livePlayerPts[c.captain_player_id] ?? 0)
+          for (const p of stats) {
+            const fixture = fixtureMap[p.fixture_id]
+            if (!fixture) continue
+            const isHome = p.team_id === fixture.home_team_id
+            const isAet = fixture.status === 'AET' || fixture.status === 'PEN'
+            const myScore = isHome ? Number(fixture.home_score) : Number(fixture.away_score)
+            const oppScore = isHome ? Number(fixture.away_score) : Number(fixture.home_score)
+            const pts = calcPoints(p, Number(p.conceded) || oppScore, isAet ? false : myScore > oppScore, missedPkSet.has(`${p.fixture_id}_${p.player_id}`))
+            livePlayerPts[p.player_id] = (livePlayerPts[p.player_id] ?? 0) + pts
+          }
+
+          const startersByUser = {}
+          for (const s of allStarters) {
+            if (!startersByUser[s.clerk_user_id]) startersByUser[s.clerk_user_id] = new Set()
+            startersByUser[s.clerk_user_id].add(s.player_id)
+            liveUserPts[s.clerk_user_id] = (liveUserPts[s.clerk_user_id] ?? 0) + (livePlayerPts[s.player_id] ?? 0)
+          }
+          for (const c of captains) {
+            if (startersByUser[c.clerk_user_id]?.has(c.captain_player_id)) {
+              liveUserPts[c.clerk_user_id] = (liveUserPts[c.clerk_user_id] ?? 0) + (livePlayerPts[c.captain_player_id] ?? 0)
+            }
           }
         }
       } catch (liveErr) {
