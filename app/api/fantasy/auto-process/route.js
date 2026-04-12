@@ -89,12 +89,11 @@ export async function GET(request) {
         FROM fantasy_squads fs
         JOIN fantasy_users fu ON fu.clerk_user_id = fs.clerk_user_id
         WHERE fs.is_starter = true
-          AND fu.starters_updated_at IS NOT NULL
-          AND fu.starters_updated_at < (
+          AND (fu.starters_updated_at IS NULL OR fu.starters_updated_at < (
             SELECT MIN(f.date) FROM fantasy_gameweek_fixtures fgf
             JOIN fixtures f ON f.id = fgf.fixture_id
             WHERE fgf.gameweek_id = ${gw.id}
-          )
+          ))
       `
       for (const s of starters) {
         await sql`
