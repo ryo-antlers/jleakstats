@@ -595,10 +595,10 @@ export default function FantasyPage() {
     const isOpen = expandedPlayerId === playerId
     setExpandedPlayerId(isOpen ? null : playerId)
     if (!isOpen && playerDetails[playerId] === undefined) {
-      if (showLive) {
-        // liveモード: APIレスポンスに含まれるlive_fixturesを使う
-        const livePlayer = liveGwPlayers.find(p => p.player_id === playerId)
-        setPlayerDetails(prev => ({ ...prev, [playerId]: livePlayer?.live_fixtures ?? [] }))
+      const tab0Player = tab0Players.find(p => p.player_id === playerId)
+      if (tab0Player?.live_fixtures != null) {
+        // live_fixturesが含まれている場合はそれを使う（live・last-gw両対応）
+        setPlayerDetails(prev => ({ ...prev, [playerId]: tab0Player.live_fixtures }))
       } else if (tab0GwId) {
         setPlayerDetails(prev => ({ ...prev, [playerId]: null }))
         const data = await fetch(`/api/fantasy/gw-detail?gw_id=${tab0GwId}&player_id=${playerId}`).then(r => r.json())
