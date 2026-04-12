@@ -92,6 +92,24 @@ export async function POST(request) {
       UPDATE fantasy_users SET budget = budget - ${cost} WHERE clerk_user_id = ${userId}
     `
 
+    // キャプテン未設定の場合、スカッド内で最も移籍金が高い選手を自動設定
+    if (!user.captain_player_id) {
+      const [topPlayer] = await sql`
+        SELECT fs.player_id
+        FROM fantasy_squads fs
+        JOIN players_master pm ON pm.id = fs.player_id
+        WHERE fs.clerk_user_id = ${userId}
+        ORDER BY pm.price DESC
+        LIMIT 1
+      `
+      if (topPlayer) {
+        await sql`
+          UPDATE fantasy_users SET captain_player_id = ${topPlayer.player_id}
+          WHERE clerk_user_id = ${userId}
+        `
+      }
+    }
+
     return Response.json({ ok: true })
   } catch (err) {
     console.error('POST /api/fantasy/squad error:', err)
