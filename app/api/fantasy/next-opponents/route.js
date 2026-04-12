@@ -12,7 +12,7 @@ export async function GET() {
     LIMIT 1
   `
 
-  if (!nextGw) return Response.json({ opponents: {} })
+  if (!nextGw) return Response.json({ opponents: {}, has_next_gw: false })
 
   const fixtures = await sql`
     SELECT
@@ -35,7 +35,7 @@ export async function GET() {
     if (f.away_team_id) opponents[f.away_team_id] = { abbr: f.home_abbr, color: f.home_color, home: false }
   }
 
-  return Response.json({ opponents }, {
+  return Response.json({ opponents, has_next_gw: true }, {
     headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=60' },
   })
 }

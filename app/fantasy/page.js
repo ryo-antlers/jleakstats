@@ -348,6 +348,7 @@ export default function FantasyPage() {
   const [rankingModalGwPlayers, setRankingModalGwPlayers] = useState(null)
   const [gwModalExpandedId, setGwModalExpandedId] = useState(null)
   const [nextOpponents, setNextOpponents] = useState({})
+  const [hasNextGw, setHasNextGw] = useState(false)
   const [myId, setMyId] = useState(null)
 
   useEffect(() => {
@@ -376,7 +377,7 @@ export default function FantasyPage() {
       setGwColumns(d.gw_columns ?? [])
       setLiveGwNumber(d.live_gw_number ?? null)
     }).catch(() => {})
-    fetch('/api/fantasy/next-opponents').then(r => r.json()).then(d => setNextOpponents(d.opponents ?? {})).catch(() => {})
+    fetch('/api/fantasy/next-opponents').then(r => r.json()).then(d => { setNextOpponents(d.opponents ?? {}); setHasNextGw(d.has_next_gw ?? false) }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -860,12 +861,14 @@ export default function FantasyPage() {
                   <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} />
                   <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
-                    {nextOpponents[p.team_id] && (
+                    {nextOpponents[p.team_id] ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
                         <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
                         <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                       </span>
+                    ) : hasNextGw && (
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
                     )}
                   </div>
                 </div>
@@ -1184,13 +1187,15 @@ export default function FantasyPage() {
                                 </div>
                                 <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
                                   <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
-                                  {!isGwMode && nextOpponents[p.team_id] && (
+                                  {!isGwMode && (nextOpponents[p.team_id] ? (
                                     <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
                                       <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
                                       <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
                                       <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                                     </span>
-                                  )}
+                                  ) : hasNextGw && (
+                                    <span style={{ fontSize: 8, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
+                                  ))}
                                 </div>
                               </div>
                             </div>
