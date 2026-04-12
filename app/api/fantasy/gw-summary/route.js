@@ -59,10 +59,10 @@ export async function GET(request) {
       SUM(fps.duels_won) AS duels_won,
       SUM(fps.passes_key) AS passes_key,
       SUM(fps.passes_total) AS passes_total,
-      AVG(CASE WHEN fps.minutes >= 45 THEN fps.passes_accuracy END) AS passes_accuracy,
+      AVG(CASE WHEN fps.minutes >= 45 THEN fps.passes_accuracy::numeric END) AS passes_accuracy,
       SUM(fps.fouls_drawn) AS fouls_drawn,
       SUM(fps.minutes) AS minutes,
-      AVG(CASE WHEN fps.minutes >= 45 THEN fps.rating END) AS avg_rating
+      AVG(CASE WHEN fps.minutes >= 45 THEN fps.rating::numeric END) AS avg_rating
     FROM fixture_player_stats fps
     LEFT JOIN players_master pm2 ON pm2.id = fps.player_id
     WHERE fps.fixture_id = ANY(${fixtureIds})
