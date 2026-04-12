@@ -84,7 +84,14 @@ export async function GET() {
         HAVING MIN(f.date) <= NOW()
           AND (
             COUNT(*) > COUNT(CASE WHEN f.status IN ('FT', 'AET', 'PEN') THEN 1 END)
-            OR NOT EXISTS (SELECT 1 FROM fantasy_gw_user_points WHERE gameweek_id = fg.id)
+            OR (
+              NOT EXISTS (SELECT 1 FROM fantasy_gw_user_points WHERE gameweek_id = fg.id)
+              AND NOT EXISTS (
+                SELECT 1 FROM fantasy_gameweeks fg2
+                JOIN fantasy_gw_user_points fgup ON fgup.gameweek_id = fg2.id
+                WHERE fg2.gw_number > fg.gw_number
+              )
+            )
           )
         ORDER BY fg.gw_number DESC LIMIT 1
       `,
