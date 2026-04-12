@@ -177,7 +177,7 @@ export async function GET() {
     const oppScore = isHome ? fixture.away_score : fixture.home_score
     const isWin = myScore > oppScore
     const missedPk = missedPkSet.has(`${p.fixture_id}_${p.player_id}`)
-    const { pts, breakdown } = calcPoints(p, Number(p.conceded) || 0, isWin, missedPk)
+    const { pts, breakdown } = calcPoints(p, Number(p.conceded) || Number(oppScore), isWin, missedPk)
 
     pointsByPlayer[p.player_id] = (pointsByPlayer[p.player_id] ?? 0) + pts
 
