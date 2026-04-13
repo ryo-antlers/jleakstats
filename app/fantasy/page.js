@@ -146,7 +146,7 @@ function PitchRow({ players, starterIds, editMode, onToggle }) {
   )
 }
 
-function WeekCalendar({ gameweeks }) {
+function WeekCalendar({ gameweeks, isMobile }) {
   const JST = 'Asia/Tokyo'
 
   const isoToJSTDate = (iso) => {
@@ -230,7 +230,7 @@ function WeekCalendar({ gameweeks }) {
   }
 
   return (
-    <div style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+    <div style={{ borderRadius: isMobile ? 0 : 6, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
       {/* Date header */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--border-color)' }}>
         {days.map((day, i) => {
@@ -243,21 +243,21 @@ function WeekCalendar({ gameweeks }) {
           const cellColor = hasGw ? GW_GREEN : isToday ? 'var(--accent)' : isSun ? '#e55' : isSat ? '#5af' : 'var(--text-secondary)'
           return (
             <div key={i} style={{
-              textAlign: 'center', padding: '6px 2px', fontSize: 11,
+              textAlign: 'center', padding: '6px 2px', fontSize: isMobile ? 9 : 11,
               backgroundColor: 'var(--bg-tertiary)',
               color: cellColor,
               fontWeight: isToday || hasGw ? 700 : 400,
               borderLeft: i > 0 ? '1px solid var(--border-color)' : 'none',
             }}>
               <div>{fmtDay(day)}</div>
-              <div style={{ fontSize: 9, marginTop: 1 }}>{dow}</div>
+              <div style={{ fontSize: isMobile ? 7 : 9, marginTop: 1 }}>{dow}</div>
             </div>
           )
         })}
       </div>
 
       {/* Content row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: 72 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: isMobile ? 56 : 72 }}>
         {segments.map((seg, i) => {
           const isGw = seg.kind === 'gw'
           const isDeadline = seg.kind === 'deadline'
@@ -269,35 +269,34 @@ function WeekCalendar({ gameweeks }) {
               gridColumn: `${seg.colStart} / ${seg.colEnd + 1}`,
               backgroundColor: bg,
               borderLeft: i > 0 ? `1px solid var(--border-color)` : 'none',
-              padding: '10px 10px',
+              padding: isMobile ? '6px 6px' : '10px 10px',
               display: 'flex', flexDirection: 'column', justifyContent: 'center',
             }}>
               {isGw && (
                 <>
                   {seg.data.isDeadlineDay && (
                     <>
-                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>{seg.data.deadlineTime}</span>
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>スタメン締切</span>
+                      <span style={{ fontSize: isMobile ? 8 : 11, color: 'rgba(255,255,255,0.75)' }}>{seg.data.deadlineTime}</span>
+                      <span style={{ fontSize: isMobile ? 7 : 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>スタメン締切</span>
                     </>
                   )}
-                  <span style={{ fontSize: 15, fontWeight: 800, color: fg }}>GW{seg.data.gw?.gw_number}</span>
+                  <span style={{ fontSize: isMobile ? 11 : 15, fontWeight: 800, color: fg }}>GW{seg.data.gw?.gw_number}</span>
                 </>
               )}
               {isDeadline && (
                 <>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>{seg.data.time}</span>
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>スタメン締切</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: fg, marginTop: 2 }}>GW{seg.data.gw?.gw_number}</span>
+                  <span style={{ fontSize: isMobile ? 8 : 11, color: 'rgba(255,255,255,0.75)' }}>{seg.data.time}</span>
+                  <span style={{ fontSize: isMobile ? 7 : 10, color: 'rgba(255,255,255,0.6)' }}>スタメン締切</span>
+                  <span style={{ fontSize: isMobile ? 11 : 15, fontWeight: 800, color: fg, marginTop: 2 }}>GW{seg.data.gw?.gw_number}</span>
                 </>
               )}
               {isMarket && (
                 <>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{seg.data.time}</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: fg }}>移籍市場</span>
+                  <span style={{ fontSize: isMobile ? 8 : 11, color: 'var(--text-secondary)' }}>{seg.data.time}</span>
+                  <span style={{ fontSize: isMobile ? 9 : 12, fontWeight: 600, color: fg }}>移籍市場</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 11, color: '#4caf50', fontWeight: 700, flexShrink: 0 }}>OPEN</span>
-                    <div style={{ flex: 1, height: 1, backgroundColor: 'var(--border-color)' }} />
-                    <span style={{ color: 'var(--text-secondary)', fontSize: 13, flexShrink: 0 }}>›</span>
+                    <span style={{ fontSize: isMobile ? 9 : 11, color: '#4caf50', fontWeight: 700, flexShrink: 0 }}>OPEN</span>
+                    {!isMobile && <><div style={{ flex: 1, height: 1, backgroundColor: 'var(--border-color)' }} /><span style={{ color: 'var(--text-secondary)', fontSize: 13, flexShrink: 0 }}>›</span></>}
                   </div>
                 </>
               )}
@@ -658,10 +657,10 @@ export default function FantasyPage() {
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <p style={{ fontSize: 12, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>Fantasy J.League</p>
-          <h1 style={{ fontSize: isMobile ? 20 : 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.2 }}>
+          <h1 style={{ fontSize: isMobile ? 16 : 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.2 }}>
             {user?.team_name}
           </h1>
-          <p style={{ fontSize: isMobile ? 13 : 16, color: 'var(--text-secondary)', margin: '6px 0 0' }}>{user?.username}</p>
+          <p style={{ fontSize: isMobile ? 11 : 16, color: 'var(--text-secondary)', margin: '4px 0 0' }}>{user?.username}</p>
         </div>
         {rankings.length > 0 && (
           <div style={{ flexShrink: 0, minWidth: isMobile ? 140 : 220, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 16 }}>
@@ -687,7 +686,9 @@ export default function FantasyPage() {
       {gameweeks.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 12, textTransform: 'uppercase' }}>Schedule</p>
-          <WeekCalendar gameweeks={gameweeks} />
+          <div style={isMobile ? { margin: '0 -16px' } : {}}>
+            <WeekCalendar gameweeks={gameweeks} isMobile={isMobile} />
+          </div>
         </div>
       )}
 
@@ -730,7 +731,7 @@ export default function FantasyPage() {
               const starters = tab0Players.filter(p => p.is_starter)
               const bench = tab0Players.filter(p => !p.is_starter)
               const starterTotal = starters.reduce((s, p) => s + (p.points ?? 0), 0)
-              const BOX_W = 80
+              const BOX_W = isMobile ? 48 : 80
 
               // ポイント数に応じたボックス色
               const ptBox = (pts) => {
@@ -754,17 +755,17 @@ export default function FantasyPage() {
                     >
                       {/* 左端ポイントボックス（ポイント色） */}
                       <div style={{ width: BOX_W, flexShrink: 0, backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 15, fontWeight: 900, color: fg, letterSpacing: '-0.02em' }}>
+                        <span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 900, color: fg, letterSpacing: '-0.02em' }}>
                           {p.points == null ? '-' : p.points}
                         </span>
                       </div>
                       {/* 選手情報 */}
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '10px 14px', minWidth: 0 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', width: 28, flexShrink: 0 }}>{p.position}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: isMobile ? '8px 10px' : '10px 14px', minWidth: 0 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', width: isMobile ? 22 : 28, flexShrink: 0 }}>{p.position}</span>
+                        <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {p.name_ja}
                         </span>
-                        {p.team_name && (
+                        {p.team_name && !isMobile && (
                           <span style={{ fontSize: 11, color: '#fff', marginLeft: 8, whiteSpace: 'nowrap', flexShrink: 0 }}>
                             / {p.team_name}
                           </span>
@@ -809,12 +810,12 @@ export default function FantasyPage() {
                 <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                   {/* ヘッダー: 合計ポイント + チーム名 */}
                   <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--border-color)' }}>
-                    <div style={{ width: BOX_W, flexShrink: 0, backgroundColor: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 0' }}>
-                      <span style={{ fontSize: 20, fontWeight: 900, color: starterTotal > 0 ? 'var(--accent)' : 'var(--text-secondary)', letterSpacing: '-0.02em' }}>{starterTotal}</span>
+                    <div style={{ width: BOX_W, flexShrink: 0, backgroundColor: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '10px 0' : '14px 0' }}>
+                      <span style={{ fontSize: isMobile ? 15 : 20, fontWeight: 900, color: starterTotal > 0 ? 'var(--accent)' : 'var(--text-secondary)', letterSpacing: '-0.02em' }}>{starterTotal}</span>
                     </div>
-                    <div style={{ flex: 1, padding: '12px 14px' }}>
+                    <div style={{ flex: 1, padding: isMobile ? '8px 10px' : '12px 14px' }}>
                       <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.08em', marginBottom: 3 }}>GW{derivedLastGwNum}</div>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>{user?.team_name}</div>
+                      <div style={{ fontSize: isMobile ? 12 : 15, fontWeight: 800, color: 'var(--text-primary)' }}>{user?.team_name}</div>
                       {starters.length === 0 && (
                         <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 3, opacity: 0.7 }}>締め切り前にスタメン未登録</div>
                       )}
@@ -827,7 +828,7 @@ export default function FantasyPage() {
                   {/* BENCH区切り */}
                   {bench.length > 0 && (
                     <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px 7px 66px', backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? `7px 10px 7px ${BOX_W - 4}px` : '7px 14px 7px 66px', backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
                         <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Bench</span>
                         <div style={{ flex: 1, height: 1, backgroundColor: 'var(--border-color)' }} />
                       </div>
@@ -921,7 +922,7 @@ export default function FantasyPage() {
           }
 
           const formationRow = (players) => (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 40 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: isMobile ? 8 : 40 }}>
               {players.map(p => {
                 const off = playerOffsets[p.player_id] ?? { x: 0, y: 0 }
                 const isMoving = posEditId === p.player_id
@@ -967,7 +968,7 @@ export default function FantasyPage() {
             <div style={{ overflow: 'hidden', border: '1px solid var(--border-color)' }}>
               {/* 上段: クラブ名バー（全幅） */}
               <div style={{ backgroundColor: 'rgb(26,26,26)', display: 'flex', alignItems: 'stretch', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', flex: 1, textAlign: 'center', padding: '12px 14px', paddingLeft: 170 + 14 + 80, alignSelf: 'center' }}>{user?.team_name}</span>
+                <span style={{ fontSize: isMobile ? 12 : 16, fontWeight: 800, color: '#fff', flex: 1, textAlign: 'center', padding: '12px 14px', paddingLeft: isMobile ? 14 : 170 + 14 + 80, alignSelf: 'center' }}>{user?.team_name}</span>
                 <div style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>
                   {posEditMode ? (
                     <div style={{ display: 'flex', alignItems: 'stretch' }}>
@@ -1011,40 +1012,10 @@ export default function FantasyPage() {
                 </div>
               </div>
 
-              {isMobile ? (
-                /* モバイル: スタメン＋ベンチの縦積みリスト */
-                (() => {
-                  const posOrder = { GK: 1, DF: 2, MF: 3, FW: 4 }
-                  const sortedStarters = [...starterList].sort((a, b) => (posOrder[a.position] ?? 9) - (posOrder[b.position] ?? 9))
-                  const mobileRow = (p, isBench) => {
-                    const clubColor = p.team_color ?? '#444'
-                    return (
-                      <div key={p.player_id} style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #1a1a1a' }}>
-                        <div style={{ width: 36, flexShrink: 0, backgroundColor: clubColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ fontSize: 12, fontWeight: 900, color: textColor(clubColor) }}>{p.no ?? '?'}</span>
-                        </div>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', backgroundColor: isBench ? '#141414' : 'rgb(26,26,26)', minWidth: 0 }}>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', flexShrink: 0, width: 22 }}>{p.position}</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: isBench ? 'var(--text-secondary)' : '#f0f0f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name_ja}</span>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return (
-                    <div style={{ backgroundColor: 'rgb(26,26,26)' }}>
-                      {sortedStarters.map(p => mobileRow(p, false))}
-                      <div style={{ padding: '8px 10px', backgroundColor: '#363636', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Bench</span>
-                      </div>
-                      {sortedBench.map(p => mobileRow(p, true))}
-                    </div>
-                  )
-                })()
-              ) : (
-                /* デスクトップ: 2カラム */
-                <div style={{ display: 'flex', backgroundColor: 'rgb(26,26,26)' }}>
-                  {/* 左カラム: ベンチ */}
-                  <div style={{ width: 170, flexShrink: 0, borderRight: '1px solid var(--border-color)' }}>
+              {/* フォーメーション: モバイルはベンチ列なし */}
+              <div style={{ display: 'flex', backgroundColor: 'rgb(26,26,26)' }}>
+                  {/* 左カラム: ベンチ（デスクトップのみ） */}
+                  {!isMobile && <div style={{ width: 170, flexShrink: 0, borderRight: '1px solid var(--border-color)' }}>
                     <div style={{ padding: '10px 10px', backgroundColor: '#363636', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Manager</span>
                     </div>
@@ -1081,12 +1052,12 @@ export default function FantasyPage() {
                         </div>
                       )
                     })}
-                  </div>
+                  </div>}
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: 420 }}>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: isMobile ? 300 : 420 }}>
                     {/* 選手行: 縦方向に均等配置、上下にパディング */}
-                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: isMobile ? '24px 4px 4px' : '38px 16px 8px' }}>
                       {formationRow(fwPlayers)}
                       {formationRow(mfPlayers)}
                       {formationRow(dfPlayers)}
@@ -1094,7 +1065,6 @@ export default function FantasyPage() {
                     </div>
                   </div>
                 </div>
-              )}
             </div>
           )
         })()}
