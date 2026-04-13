@@ -362,7 +362,7 @@ export default function FantasyPage() {
   const [myId, setMyId] = useState(null)
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640)
+    const check = () => setIsMobile(window.innerWidth < 768)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
@@ -652,7 +652,7 @@ export default function FantasyPage() {
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '0 16px' : '0 24px' }}>
 
       {/* ヘッダー */}
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
@@ -664,19 +664,19 @@ export default function FantasyPage() {
           <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
         </div>
         {rankings.length > 0 && (
-          <div style={{ flexShrink: 0, minWidth: 220, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ flexShrink: 0, minWidth: isMobile ? 140 : 220, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ display: 'inline-block', padding: '2px 8px', border: '1px solid #00ff87', fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#00ff87', marginBottom: 8 }}>RANK</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
-                <span style={{ fontSize: 40, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myRank ?? '-'}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
+              <div style={{ display: 'inline-block', padding: '2px 6px', border: '1px solid #00ff87', fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', color: '#00ff87', marginBottom: isMobile ? 4 : 8 }}>RANK</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1 }}>
+                <span style={{ fontSize: isMobile ? 26 : 40, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myRank ?? '-'}</span>
+                <span style={{ fontSize: isMobile ? 11 : 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ display: 'inline-block', padding: '2px 8px', border: '1px solid #aaff44', fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#aaff44', marginBottom: 8 }}>GW{latestGw}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
-                <span style={{ fontSize: 40, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
+              <div style={{ display: 'inline-block', padding: '2px 6px', border: '1px solid #aaff44', fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', color: '#aaff44', marginBottom: isMobile ? 4 : 8 }}>GW{latestGw}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1 }}>
+                <span style={{ fontSize: isMobile ? 26 : 40, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
+                <span style={{ fontSize: isMobile ? 11 : 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
               </div>
             </div>
           </div>
@@ -1265,7 +1265,7 @@ export default function FantasyPage() {
         const visibleGwCols = isMobile ? gwColsWithData.slice(-3) : gwColsWithData.slice(-5)
         const gwColWidth = '44px'
         const gwColTemplate = visibleGwCols.map(() => gwColWidth).join(' ')
-        const gridCols = `28px 1fr 72px ${gwColTemplate} 52px`
+        const gridCols = isMobile ? `28px 1fr ${gwColTemplate} 52px` : `28px 1fr 72px ${gwColTemplate} 52px`
 
         function openSquadModal(row) {
           setRankingModalUser(row)
@@ -1301,7 +1301,7 @@ export default function FantasyPage() {
             }}>
               <span>#</span>
               <span>クラブ / 監督</span>
-              <span style={{ textAlign: 'center' }}>利益</span>
+              {!isMobile && <span style={{ textAlign: 'center' }}>利益</span>}
               {visibleGwCols.map(gw => (
                 <span key={gw} style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   GW{gw}
@@ -1338,7 +1338,7 @@ export default function FantasyPage() {
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>監督: {row.username}</span>
                 </div>
-                {(() => {
+                {!isMobile && (() => {
                   if (row.total_assets == null) return <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>-</span>
                   const profit = row.total_assets - 1200000
                   const color = profit > 0 ? '#00cc66' : profit < 0 ? '#ff4444' : 'var(--text-secondary)'
