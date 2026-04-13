@@ -93,11 +93,14 @@ export async function GET(request) {
       SELECT
         pm.id AS player_id, pm.name_ja, pm.name_en, pm.position, pm.no,
         tm.color_primary AS team_color, pm.team_id,
-        (pm.id = fu.captain_player_id) AS is_captain
+        (pm.id = fu.captain_player_id) AS is_captain,
+        COALESCE(fs.pos_offset_x, 0) AS pos_offset_x,
+        COALESCE(fs.pos_offset_y, 0) AS pos_offset_y
       FROM fantasy_gw_starters fgs
       JOIN players_master pm ON pm.id = fgs.player_id
       LEFT JOIN teams_master tm ON tm.id = pm.team_id
       LEFT JOIN fantasy_users fu ON fu.clerk_user_id = fgs.clerk_user_id
+      LEFT JOIN fantasy_squads fs ON fs.clerk_user_id = fgs.clerk_user_id AND fs.player_id = fgs.player_id
       WHERE fgs.gameweek_id = ${gw.id}
         AND fgs.clerk_user_id = ${clerk_user_id}
       ORDER BY
