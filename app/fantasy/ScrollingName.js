@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 const GAP = 8 // 2コピー間のスペース(px)
 const SPEED = 7.3 // px/秒
 
-export default function ScrollingName({ name, color, tc, width = 94 }) {
+export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13 }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
   const [scrollAmount, setScrollAmount] = useState(0)
@@ -36,15 +36,15 @@ export default function ScrollingName({ name, color, tc, width = 94 }) {
           animation: `marquee ${duration}s linear infinite`,
           '--marquee-amount': `-${scrollAmount}px`,
         }}>
-          <span ref={innerRef} style={{ fontSize: 13, fontWeight: 700, color: tc, letterSpacing: '0.04em', paddingRight: GAP }}>
+          <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', paddingRight: GAP }}>
             {name}
           </span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>
+          <span style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>
             {name}
           </span>
         </span>
       ) : (
-        <span ref={innerRef} style={{ fontSize: 13, fontWeight: 700, color: tc, letterSpacing: '0.04em', display: 'inline-block', whiteSpace: 'nowrap' }}>
+        <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', display: 'inline-block', whiteSpace: 'nowrap' }}>
           {name}
         </span>
       )}
