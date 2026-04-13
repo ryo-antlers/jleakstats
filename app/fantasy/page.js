@@ -658,10 +658,10 @@ export default function FantasyPage() {
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <p style={{ fontSize: 12, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>Fantasy J.League</p>
-          <h1 style={{ fontSize: 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.1 }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.2 }}>
             {user?.team_name}
           </h1>
-          <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
+          <p style={{ fontSize: isMobile ? 13 : 16, color: 'var(--text-secondary)', margin: '6px 0 0' }}>{user?.username}</p>
         </div>
         {rankings.length > 0 && (
           <div style={{ flexShrink: 0, minWidth: isMobile ? 140 : 220, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 16 }}>
@@ -1101,39 +1101,39 @@ export default function FantasyPage() {
       </div>
 
       {/* 常時表示: 移籍市場 */}
-      <div style={{ padding: '36px 24px 32px', backgroundColor: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 16, textAlign: 'center' }}>
+      <div style={{ padding: isMobile ? '20px 16px 20px' : '36px 24px 32px', backgroundColor: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 16, textAlign: 'center' }}>
         {/* タイトル */}
-        <p style={{ fontFamily: '"Anta", sans-serif', fontSize: 40, letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>Transfer Market</p>
+        <p style={{ fontFamily: '"Anta", sans-serif', fontSize: isMobile ? 22 : 40, letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>Transfer Market</p>
 
         {/* OPEN / CLOSE */}
-        <div style={{ fontFamily: '"Anta", sans-serif', fontSize: 48, fontWeight: 400, letterSpacing: '0.06em', color: isMarketOpen ? '#4caf50' : '#e54a4a', lineHeight: 1, marginBottom: 12 }}>
+        <div style={{ fontFamily: '"Anta", sans-serif', fontSize: isMobile ? 28 : 48, fontWeight: 400, letterSpacing: '0.06em', color: isMarketOpen ? '#4caf50' : '#e54a4a', lineHeight: 1, marginBottom: 8 }}>
           {isMarketOpen ? 'OPEN' : 'CLOSE'}
         </div>
 
         {/* カウントダウン */}
         {countdown && (
-          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'flex', gap: isMobile ? 8 : 20, justifyContent: 'center', marginBottom: isMobile ? 16 : 28 }}>
             {[{ v: countdown.d, label: 'DAYS' }, { v: countdown.h, label: 'HRS' }, { v: countdown.m, label: 'MIN' }, { v: countdown.s, label: 'SEC' }].map(({ v, label }) => (
               <div key={label} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: '"Anta", sans-serif', fontSize: 48, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1, background: 'var(--bg-tertiary)', width: 90, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ fontFamily: '"Anta", sans-serif', fontSize: isMobile ? 26 : 48, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1, background: 'var(--bg-tertiary)', width: isMobile ? 56 : 90, height: isMobile ? 56 : 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {String(v).padStart(2, '0')}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
+                <div style={{ fontSize: isMobile ? 8 : 10, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
               </div>
             ))}
           </div>
         )}
 
         {/* 移籍資金 + 保有資産 */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? 16 : 32, marginBottom: isMobile ? 14 : 24 }}>
           <div>
             <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase' }}>補強予算</p>
-            <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{formatBudget(user?.budget ?? 0)}</p>
+            <p style={{ fontSize: isMobile ? 15 : 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{formatBudget(user?.budget ?? 0)}</p>
           </div>
           <div style={{ width: 1, backgroundColor: 'var(--border-color)' }} />
           <div>
             <p style={{ fontSize: 11, letterSpacing: '0.1em', color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase' }}>保有選手資産</p>
-            <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{formatBudget((squad.reduce((sum, p) => sum + (p.price ?? 0), 0)) * 10)}</p>
+            <p style={{ fontSize: isMobile ? 15 : 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{formatBudget((squad.reduce((sum, p) => sum + (p.price ?? 0), 0)) * 10)}</p>
           </div>
         </div>
 
