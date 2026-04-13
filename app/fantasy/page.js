@@ -664,19 +664,19 @@ export default function FantasyPage() {
           <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
         </div>
         {rankings.length > 0 && (
-          <div style={{ flexShrink: 0, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', minWidth: 140, backgroundColor: '#fff' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #ccc' }}>
-              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#aaa', textAlign: 'center', borderRight: '1px solid #333' }}>RANK</div>
-              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#aaa', textAlign: 'center' }}>GW{latestGw}</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-              <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: '1px solid #ccc' }}>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#000', lineHeight: 1 }}>{myRank ?? '-'}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>/{totalUsers}</span>
+          <div style={{ flexShrink: 0, overflow: 'hidden', minWidth: 160, display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+            <div style={{ backgroundColor: '#0a2e1a', padding: '6px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', color: '#00ff87', marginBottom: 6 }}>RANK</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1 }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myRank ?? '-'}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#00ff87' }}>/{totalUsers}</span>
               </div>
-              <div style={{ padding: '10px 8px', textAlign: 'center' }}>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#000', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>/{totalUsers}</span>
+            </div>
+            <div style={{ backgroundColor: '#1a2a0a', padding: '6px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', color: '#aaff44', marginBottom: 6 }}>GW{latestGw}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1 }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#aaff44' }}>/{totalUsers}</span>
               </div>
             </div>
           </div>
