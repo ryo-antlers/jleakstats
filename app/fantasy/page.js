@@ -616,6 +616,20 @@ export default function FantasyPage() {
   const TOP_N = 10
   const AROUND = 5
   const myRank = rankings.find(r => r.id === myId)?.rank ?? null
+  const totalUsers = rankings.length
+  // 直近GW順位
+  const latestGw = liveGwNumber ?? (gwColumns.length > 0 ? gwColumns[gwColumns.length - 1] : null)
+  const myGwRank = (() => {
+    if (!latestGw || !myId) return null
+    const withPts = rankings.filter(r => r.gw_points?.[latestGw] != null)
+    const sorted = [...withPts].sort((a, b) => (b.gw_points[latestGw] ?? 0) - (a.gw_points[latestGw] ?? 0))
+    let rank = 1
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i].gw_points[latestGw] < sorted[i - 1].gw_points[latestGw]) rank = i + 1
+      if (sorted[i].id === myId) return rank
+    }
+    return null
+  })()
   const top10 = rankings.filter(r => r.rank <= TOP_N)
   let rankingDisplayRows
   if (!myRank || myRank <= TOP_N) {
@@ -631,12 +645,32 @@ export default function FantasyPage() {
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* ヘッダー */}
-      <div style={{ marginBottom: 28 }}>
-        <p style={{ fontSize: 12, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>Fantasy J.League</p>
-        <h1 style={{ fontSize: 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.1 }}>
-          {user?.team_name}
-        </h1>
-        <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <p style={{ fontSize: 12, letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>Fantasy J.League</p>
+          <h1 style={{ fontSize: 36, fontWeight: 900, color: teamColor, margin: 0, lineHeight: 1.1 }}>
+            {user?.team_name}
+          </h1>
+          <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
+        </div>
+        {rankings.length > 0 && (
+          <div style={{ flexShrink: 0, border: '1px solid var(--border-color)', borderRadius: 6, overflow: 'hidden', minWidth: 90 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-secondary)', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>RANK</div>
+              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-secondary)', textAlign: 'center' }}>GW{latestGw}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+              <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>{myRank ?? '-'}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>/{totalUsers}</span>
+              </div>
+              <div style={{ padding: '10px 8px', textAlign: 'center' }}>
+                <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>/{totalUsers}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* GWスケジュール */}
