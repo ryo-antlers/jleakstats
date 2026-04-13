@@ -668,14 +668,14 @@ export default function FantasyPage() {
             <div style={{ textAlign: 'center' }}>
               <div style={{ display: 'inline-block', padding: '2px 8px', border: '1px solid #00ff87', fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#00ff87', marginBottom: 8 }}>RANK</div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
-                <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myRank ?? '-'}</span>
+                <span style={{ fontSize: 40, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myRank ?? '-'}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ display: 'inline-block', padding: '2px 8px', border: '1px solid #aaff44', fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#aaff44', marginBottom: 8 }}>GW{latestGw}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
-                <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
+                <span style={{ fontSize: 40, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
               </div>
             </div>
