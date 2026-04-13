@@ -790,12 +790,12 @@ export default function FantasyPage() {
                                 width: BOX_W, flexShrink: 0,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                               }}>
-                                <span style={{ fontSize: 12, fontWeight: 800, color: ev.pts > 0 ? '#66bb6a' : ev.pts < 0 ? '#ef5350' : 'var(--text-secondary)' }}>
+                                <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: 800, color: ev.pts > 0 ? '#66bb6a' : ev.pts < 0 ? '#ef5350' : 'var(--text-secondary)' }}>
                                   {ev.pts > 0 ? `+${ev.pts}` : ev.pts}
                                 </span>
                               </div>
-                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '8px 14px' }}>
-                                <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{ev.label}</span>
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: isMobile ? '5px 10px' : '8px 14px' }}>
+                                <span style={{ fontSize: isMobile ? 10 : 12, color: 'var(--text-primary)' }}>{ev.label}</span>
                               </div>
                             </div>
                           ))
@@ -878,7 +878,7 @@ export default function FantasyPage() {
                 } : undefined}
                 style={{
                   position: 'relative',
-                  paddingTop: 12,
+                  paddingTop: isMobile ? 8 : 12,
                   display: 'inline-block',
                   cursor: canDrop ? 'copy' : 'default',
                   opacity: dimmed ? 0.35 : 1,
@@ -888,31 +888,31 @@ export default function FantasyPage() {
               >
                 {/* 背番号バッジ */}
                 <div style={{
-                  position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', zIndex: 1,
-                  width: 30, height: 30, borderRadius: '50%',
+                  position: 'absolute', top: isMobile ? -9 : -14, left: '50%', transform: 'translateX(-50%)', zIndex: 1,
+                  width: isMobile ? 20 : 30, height: isMobile ? 20 : 30, borderRadius: '50%',
                   backgroundColor: clubColor,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px',
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
+                  <span style={{ fontSize: isMobile ? 9 : 13, fontWeight: 900, color: txtColor, lineHeight: 1 }}>{p.no ?? '?'}</span>
                 </div>
                 {captainId === p.player_id && (
-                  <div style={{ position: 'absolute', top: 2, right: 56, width: 15, height: 15, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
-                    <span style={{ fontSize: 8, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
+                  <div style={{ position: 'absolute', top: 2, right: isMobile ? 36 : 56, width: isMobile ? 10 : 15, height: isMobile ? 10 : 15, borderRadius: '50%', backgroundColor: '#fffc2b', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
+                    <span style={{ fontSize: isMobile ? 6 : 8, fontWeight: 900, color: '#000', lineHeight: 1 }}>C</span>
                   </div>
                 )}
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>
-                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} />
-                  <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
-                    {nextOpponents[p.team_id] ? (
+                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} width={isMobile ? 60 : 94} />
+                  <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: isMobile ? 10 : 13, padding: '0 5px', gap: 6 }}>
+                    <span style={{ fontSize: isMobile ? 7 : 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
+                    {!isMobile && nextOpponents[p.team_id] ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
                         <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
                         <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
                       </span>
-                    ) : hasNextGw && (
+                    ) : !isMobile && hasNextGw && (
                       <span style={{ fontSize: 7, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
                     )}
                   </div>
