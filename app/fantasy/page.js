@@ -664,19 +664,19 @@ export default function FantasyPage() {
           <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
         </div>
         {rankings.length > 0 && (
-          <div style={{ flexShrink: 0, overflow: 'hidden', minWidth: 220, display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-            <div style={{ backgroundColor: '#0a2e1a', padding: '8px 14px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#00ff87', marginBottom: 10 }}>RANK</div>
+          <div style={{ flexShrink: 0, minWidth: 220, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ display: 'inline-block', padding: '2px 8px', border: '1px solid #00ff87', fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#00ff87', marginBottom: 8 }}>RANK</div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
                 <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myRank ?? '-'}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#00ff87' }}>/{totalUsers}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
               </div>
             </div>
-            <div style={{ backgroundColor: '#1a2a0a', padding: '8px 14px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#aaff44', marginBottom: 10 }}>GW{latestGw}</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ display: 'inline-block', padding: '2px 8px', border: '1px solid #aaff44', fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', color: '#aaff44', marginBottom: 8 }}>GW{latestGw}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 2 }}>
                 <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#aaff44' }}>/{totalUsers}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>/{totalUsers}</span>
               </div>
             </div>
           </div>
