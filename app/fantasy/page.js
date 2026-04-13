@@ -1348,19 +1348,26 @@ export default function FantasyPage() {
                   const pts = row.gw_points?.[gw]
                   const isLive = gw === liveGwNumber
                   const hasPoints = pts != null
+                  const boxColor = !hasPoints ? null : isLive ? '#ff9944' : pts >= 76 ? '#00aa44' : pts >= 51 ? '#aaaa00' : '#aa2222'
                   return (
-                    <span
-                      key={gw}
-                      onClick={() => hasPoints && openGwModal(row, gw)}
-                      style={{
-                        fontSize: 11, fontWeight: 600, textAlign: 'center',
-                        color: isLive ? '#ff9944' : !hasPoints ? 'var(--text-secondary)' : 'var(--text-primary)',
-                        cursor: hasPoints ? 'pointer' : 'default',
-                        textDecoration: hasPoints ? 'underline dotted' : 'none',
-                      }}
-                    >
-                      {!hasPoints ? '-' : pts}
-                    </span>
+                    <div key={gw} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      {!hasPoints ? (
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>-</span>
+                      ) : (
+                        <span
+                          onClick={() => openGwModal(row, gw)}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 34, height: 34,
+                            backgroundColor: boxColor,
+                            fontSize: 11, fontWeight: 700, color: '#fff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {pts}
+                        </span>
+                      )}
+                    </div>
                   )
                 })}
                 <span style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', color: 'var(--accent)' }}>{row.total_with_live ?? row.total_points}</span>
