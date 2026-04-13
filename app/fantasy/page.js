@@ -654,19 +654,19 @@ export default function FantasyPage() {
           <p style={{ fontSize: 16, color: 'var(--text-secondary)', margin: '10px 0 0' }}>{user?.username}</p>
         </div>
         {rankings.length > 0 && (
-          <div style={{ flexShrink: 0, border: '1px solid var(--border-color)', borderRadius: 6, overflow: 'hidden', minWidth: 90 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)' }}>
-              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-secondary)', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>RANK</div>
-              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-secondary)', textAlign: 'center' }}>GW{latestGw}</div>
+          <div style={{ flexShrink: 0, border: '1px solid #ccc', borderRadius: 6, overflow: 'hidden', minWidth: 140, backgroundColor: '#fff' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid #ccc' }}>
+              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#aaa', textAlign: 'center', borderRight: '1px solid #333' }}>RANK</div>
+              <div style={{ padding: '4px 8px', backgroundColor: '#111', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: '#aaa', textAlign: 'center' }}>GW{latestGw}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-              <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
-                <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>{myRank ?? '-'}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>/{totalUsers}</span>
+              <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: '1px solid #ccc' }}>
+                <span style={{ fontSize: 22, fontWeight: 900, color: '#000', lineHeight: 1 }}>{myRank ?? '-'}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>/{totalUsers}</span>
               </div>
               <div style={{ padding: '10px 8px', textAlign: 'center' }}>
-                <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>/{totalUsers}</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: '#000', lineHeight: 1 }}>{myGwRank ?? '-'}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#666' }}>/{totalUsers}</span>
               </div>
             </div>
           </div>
