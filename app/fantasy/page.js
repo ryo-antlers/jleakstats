@@ -1301,7 +1301,7 @@ export default function FantasyPage() {
             }}>
               <span>#</span>
               <span>クラブ / 監督</span>
-              <span>利益</span>
+              <span style={{ textAlign: 'center' }}>利益</span>
               {visibleGwCols.map(gw => (
                 <span key={gw} style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   GW{gw}
@@ -1310,7 +1310,7 @@ export default function FantasyPage() {
                   )}
                 </span>
               ))}
-              <span style={{ textAlign: 'right' }}>PT</span>
+              <span style={{ textAlign: 'center' }}>PT</span>
             </div>
             {rankingDisplayRows.map((row, i) => row === null ? (
               <div key="sep" style={{ padding: '10px 14px', borderTop: '2px solid #00ff87', borderBottom: '2px solid #00ff87', backgroundColor: '#111', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1342,7 +1342,7 @@ export default function FantasyPage() {
                   if (row.total_assets == null) return <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>-</span>
                   const profit = row.total_assets - 1200000
                   const color = profit > 0 ? '#00cc66' : profit < 0 ? '#ff4444' : 'var(--text-secondary)'
-                  return <span style={{ fontSize: 11, fontWeight: 700, color }}>{formatProfit(profit)}</span>
+                  return <span style={{ fontSize: 11, fontWeight: 700, color, textAlign: 'center' }}>{formatProfit(profit)}</span>
                 })()}
                 {visibleGwCols.map(gw => {
                   const pts = row.gw_points?.[gw]
@@ -1358,9 +1358,9 @@ export default function FantasyPage() {
                           onClick={() => openGwModal(row, gw)}
                           style={{
                             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 34, height: 34,
+                            width: 28, height: 28,
                             backgroundColor: boxColor,
-                            fontSize: 11, fontWeight: 700, color: '#fff',
+                            fontSize: 10, fontWeight: 700, color: '#fff',
                             cursor: 'pointer',
                           }}
                         >
@@ -1370,7 +1370,7 @@ export default function FantasyPage() {
                     </div>
                   )
                 })}
-                <span style={{ fontSize: 14, fontWeight: 700, textAlign: 'right', color: 'var(--accent)' }}>{row.total_with_live ?? row.total_points}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, textAlign: 'center', color: 'var(--accent)' }}>{row.total_with_live ?? row.total_points}</span>
               </div>
             ))}
           </div>
