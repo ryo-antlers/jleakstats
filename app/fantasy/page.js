@@ -32,6 +32,16 @@ function formatBudget(value) {
   return `${oku}億${man}万`
 }
 
+function formatProfit(value) {
+  const sign = value >= 0 ? '+' : '-'
+  const absYen = Math.abs(value) * 1000
+  const oku = Math.floor(absYen / 100000000)
+  const man = Math.floor((absYen % 100000000) / 10000)
+  if (oku === 0) return `${sign}${man}万`
+  if (man === 0) return `${sign}${oku}億`
+  return `${sign}${oku}億${man}万`
+}
+
 function autoSelect(squad) {
   const f = FORMATIONS.find(f => f.name === '4-4-2')
   const byPos = {
@@ -1291,7 +1301,7 @@ export default function FantasyPage() {
             }}>
               <span>#</span>
               <span>クラブ / 監督</span>
-              <span>総資産</span>
+              <span>利益</span>
               {visibleGwCols.map(gw => (
                 <span key={gw} style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   GW{gw}
@@ -1328,9 +1338,12 @@ export default function FantasyPage() {
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>監督: {row.username}</span>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  {row.total_assets != null ? formatBudget(row.total_assets) : '-'}
-                </span>
+                {(() => {
+                  if (row.total_assets == null) return <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>-</span>
+                  const profit = row.total_assets - 1200000
+                  const color = profit > 0 ? '#00cc66' : profit < 0 ? '#ff4444' : 'var(--text-secondary)'
+                  return <span style={{ fontSize: 11, fontWeight: 700, color }}>{formatProfit(profit)}</span>
+                })()}
                 {visibleGwCols.map(gw => {
                   const pts = row.gw_points?.[gw]
                   const isLive = gw === liveGwNumber
