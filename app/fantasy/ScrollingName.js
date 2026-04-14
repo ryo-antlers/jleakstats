@@ -25,8 +25,9 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
         padding: `${vPad}px 4px`,
         overflow: 'hidden',
         width,
-        textAlign: 'center',
-        lineHeight: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
         <span style={{ fontSize, fontWeight: 700, color: tc, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
           {name}
@@ -43,8 +44,9 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
         padding: `${vPad}px 6px`,
         overflow: 'hidden',
         width,
-        textAlign: scrollAmount > 0 ? 'left' : 'center',
-        lineHeight: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: scrollAmount > 0 ? 'flex-start' : 'center',
       }}
     >
       {scrollAmount > 0 ? (

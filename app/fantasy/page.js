@@ -878,7 +878,7 @@ export default function FantasyPage() {
                 } : undefined}
                 style={{
                   position: 'relative',
-                  paddingTop: isMobile ? 7 : 12,
+                  paddingTop: isMobile ? 5 : 12,
                   display: 'inline-block',
                   cursor: canDrop ? 'copy' : 'default',
                   opacity: dimmed ? 0.35 : 1,
@@ -903,8 +903,8 @@ export default function FantasyPage() {
                 )}
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>
-                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 0 : 3} />
-                  <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: isMobile ? 6 : 13, padding: '0 3px' }}>
+                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 1 : 3} />
+                  <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: isMobile ? 5 : 13, padding: '0 3px' }}>
                     <span style={{ fontSize: isMobile ? 6 : 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.03em' }}>{p.position}</span>
                     {!isMobile && nextOpponents[p.team_id] ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
@@ -1173,13 +1173,13 @@ export default function FantasyPage() {
                           const badgeSize = isMobile ? 13 : 30
                           const badgeTop = isMobile ? -6 : -14
                           return (
-                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: isMobile ? 7 : 14, zIndex: isExpanded ? 20 : 'auto' }}>
+                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: isMobile ? 5 : 14, zIndex: isExpanded ? 20 : 'auto' }}>
                               <div style={{ position: 'absolute', top: badgeTop, left: '50%', transform: 'translateX(-50%)', width: badgeSize, height: badgeSize, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 6 : 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
                                 {p.no ?? '?'}
                               </div>
                               <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
                                 <div style={{ display: 'flex' }}>
-                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 0 : 3} />
+                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 1 : 3} />
                                   {isGwMode && (
                                     <div
                                       onClick={() => gwPts != null && setGwModalExpandedId(isExpanded ? null : p.player_id)}
@@ -1201,7 +1201,7 @@ export default function FantasyPage() {
                                     </div>
                                   )}
                                 </div>
-                                <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', height: isMobile ? 6 : 13, padding: '0 3px' }}>
+                                <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', height: isMobile ? 5 : 13, padding: '0 3px' }}>
                                   <span style={{ fontSize: isMobile ? 6 : 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.03em' }}>{p.position}</span>
                                 </div>
                               </div>
