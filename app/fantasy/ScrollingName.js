@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 const GAP = 8 // 2コピー間のスペース(px)
 const SPEED = 7.3 // px/秒
 
-export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13, vPad = 3, noScroll = false }) {
+export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13, vPad = 3, noScroll = false, tight = false }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
   const [scrollAmount, setScrollAmount] = useState(0)
@@ -25,11 +25,12 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
         padding: `${vPad}px 4px`,
         overflow: 'hidden',
         width,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        ...(tight
+          ? { display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }
+          : { textAlign: 'center' }
+        ),
       }}>
-        <span style={{ fontSize, fontWeight: 700, color: tc, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
+        <span style={{ fontSize, fontWeight: 700, color: tc, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(tight ? { lineHeight: 1 } : {}) }}>
           {name}
         </span>
       </div>
@@ -44,28 +45,29 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
         padding: `${vPad}px 6px`,
         overflow: 'hidden',
         width,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: scrollAmount > 0 ? 'flex-start' : 'center',
+        ...(tight
+          ? { display: 'flex', alignItems: 'center', justifyContent: scrollAmount > 0 ? 'flex-start' : 'center', lineHeight: 1 }
+          : { textAlign: scrollAmount > 0 ? 'left' : 'center' }
+        ),
       }}
     >
       {scrollAmount > 0 ? (
         <span style={{
           display: 'inline-flex',
           whiteSpace: 'nowrap',
-          lineHeight: 1,
+          ...(tight ? { lineHeight: 1 } : {}),
           animation: `marquee ${duration}s linear infinite`,
           '--marquee-amount': `-${scrollAmount}px`,
         }}>
-          <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', paddingRight: GAP, lineHeight: 1 }}>
+          <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', paddingRight: GAP, ...(tight ? { lineHeight: 1 } : {}) }}>
             {name}
           </span>
-          <span style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', lineHeight: 1 }}>
+          <span style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', ...(tight ? { lineHeight: 1 } : {}) }}>
             {name}
           </span>
         </span>
       ) : (
-        <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', display: 'inline-block', whiteSpace: 'nowrap', lineHeight: 1 }}>
+        <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', display: 'inline-block', whiteSpace: 'nowrap', ...(tight ? { lineHeight: 1 } : {}) }}>
           {name}
         </span>
       )}
