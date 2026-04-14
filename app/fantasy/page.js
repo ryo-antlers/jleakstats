@@ -903,7 +903,7 @@ export default function FantasyPage() {
                 )}
                 {/* 名前ボックス + ポジションボックス */}
                 <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', position: 'relative', zIndex: 2, boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px' }}>
-                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 2 : 3} />
+                  <ScrollingName name={p.name_ja ?? p.name_en} color={clubColor} tc={txtColor} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 1 : 3} />
                   <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: isMobile ? 8 : 13, padding: '0 3px' }}>
                     <span style={{ fontSize: isMobile ? 6 : 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.03em' }}>{p.position}</span>
                     {!isMobile && nextOpponents[p.team_id] ? (
@@ -1179,7 +1179,7 @@ export default function FantasyPage() {
                               </div>
                               <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
                                 <div style={{ display: 'flex' }}>
-                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 2 : 3} />
+                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} width={isMobile ? 50 : 94} fontSize={isMobile ? 7 : 13} vPad={isMobile ? 1 : 3} />
                                   {isGwMode && (
                                     <div
                                       onClick={() => gwPts != null && setGwModalExpandedId(isExpanded ? null : p.player_id)}
