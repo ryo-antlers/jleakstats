@@ -4,19 +4,35 @@ import { useEffect, useRef, useState } from 'react'
 const GAP = 8 // 2コピー間のスペース(px)
 const SPEED = 7.3 // px/秒
 
-export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13, vPad = 3 }) {
+export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13, vPad = 3, noScroll = false }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
   const [scrollAmount, setScrollAmount] = useState(0)
 
   useEffect(() => {
-    if (!outerRef.current || !innerRef.current) return
+    if (noScroll || !outerRef.current || !innerRef.current) return
     const available = outerRef.current.clientWidth - 14
     const textWidth = innerRef.current.scrollWidth
     setScrollAmount(textWidth > available ? textWidth + GAP : 0)
-  }, [name])
+  }, [name, noScroll])
 
   const duration = scrollAmount > 0 ? (scrollAmount / SPEED).toFixed(1) : 0
+
+  if (noScroll) {
+    return (
+      <div style={{
+        backgroundColor: color,
+        padding: `${vPad}px 4px`,
+        overflow: 'hidden',
+        width,
+        textAlign: 'center',
+      }}>
+        <span style={{ fontSize, fontWeight: 700, color: tc, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {name}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div
