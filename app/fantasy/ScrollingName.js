@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 const GAP = 8 // 2コピー間のスペース(px)
 const SPEED = 7.3 // px/秒
 
-export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13 }) {
+export default function ScrollingName({ name, color, tc, width = 94, fontSize = 13, vPad = 3 }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
   const [scrollAmount, setScrollAmount] = useState(0)
@@ -23,7 +23,7 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
       ref={outerRef}
       style={{
         backgroundColor: color,
-        padding: '3px 7px',
+        padding: `${vPad}px 6px`,
         overflow: 'hidden',
         width,
         textAlign: scrollAmount > 0 ? 'left' : 'center',
