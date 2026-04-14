@@ -26,8 +26,9 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
         overflow: 'hidden',
         width,
         textAlign: 'center',
+        lineHeight: 1,
       }}>
-        <span style={{ fontSize, fontWeight: 700, color: tc, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontSize, fontWeight: 700, color: tc, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
           {name}
         </span>
       </div>
@@ -43,24 +44,26 @@ export default function ScrollingName({ name, color, tc, width = 94, fontSize = 
         overflow: 'hidden',
         width,
         textAlign: scrollAmount > 0 ? 'left' : 'center',
+        lineHeight: 1,
       }}
     >
       {scrollAmount > 0 ? (
         <span style={{
           display: 'inline-flex',
           whiteSpace: 'nowrap',
+          lineHeight: 1,
           animation: `marquee ${duration}s linear infinite`,
           '--marquee-amount': `-${scrollAmount}px`,
         }}>
-          <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', paddingRight: GAP }}>
+          <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', paddingRight: GAP, lineHeight: 1 }}>
             {name}
           </span>
-          <span style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em' }}>
+          <span style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', lineHeight: 1 }}>
             {name}
           </span>
         </span>
       ) : (
-        <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', display: 'inline-block', whiteSpace: 'nowrap' }}>
+        <span ref={innerRef} style={{ fontSize, fontWeight: 700, color: tc, letterSpacing: '0.04em', display: 'inline-block', whiteSpace: 'nowrap', lineHeight: 1 }}>
           {name}
         </span>
       )}
