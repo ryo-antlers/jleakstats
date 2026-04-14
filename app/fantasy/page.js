@@ -1055,9 +1055,9 @@ export default function FantasyPage() {
                   </div>}
 
                   {/* 右カラム: フォーメーション */}
-                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: isMobile ? 300 : 420 }}>
+                  <div ref={formationRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', minHeight: isMobile ? 200 : 420 }}>
                     {/* 選手行: 縦方向に均等配置、上下にパディング */}
-                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: isMobile ? '24px 4px 4px' : '38px 16px 8px' }}>
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: isMobile ? '18px 2px 2px' : '38px 16px 8px' }}>
                       {formationRow(fwPlayers)}
                       {formationRow(mfPlayers)}
                       {formationRow(dfPlayers)}
@@ -1143,7 +1143,7 @@ export default function FantasyPage() {
               </div>
               <button onClick={() => { setRankingModalUser(null); setRankingModalGwNum(null); setRankingModalGwPlayers(null); setGwModalExpandedId(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
-            <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: 420, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ backgroundImage: 'url(/pitch.png)', backgroundSize: '100% 100%', minHeight: isMobile ? 200 : 420, position: 'relative', overflow: 'hidden' }}>
               {isLoading ? (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ width: 28, height: 28, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -1153,40 +1153,42 @@ export default function FantasyPage() {
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>スタメン未登録</p>
                 </div>
               ) : (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '38px 16px 8px' }}>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: isMobile ? '18px 2px 2px' : '38px 16px 8px' }}>
                   {['FW','MF','DF','GK'].map(pos => {
                     const players = isGwMode
                       ? modalPlayers.filter(p => p.position === pos)
                       : modalPlayers.filter(p => p.position === pos && p.is_starter)
                     if (players.length === 0) return null
                     return (
-                      <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: 40, alignItems: 'flex-start' }}>
+                      <div key={pos} style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? 6 : 40, alignItems: 'flex-start' }}>
                         {players.map(p => {
                           const color = p.team_color ?? '#555'
                           const tc = textColor(color)
-                          const offX = p.pos_offset_x ?? 0
-                          const offY = p.pos_offset_y ?? 0
+                          const offX = isMobile ? 0 : (p.pos_offset_x ?? 0)
+                          const offY = isMobile ? 0 : (p.pos_offset_y ?? 0)
                           const gwPtsRaw = isGwMode ? (p.has_points ? Number(p.points) : null) : null
                           const gwPts = gwPtsRaw != null && p.is_captain ? gwPtsRaw * 2 : gwPtsRaw
                           const isExpanded = gwModalExpandedId === p.player_id
                           const fixtures = p.live_fixtures ?? []
+                          const badgeSize = isMobile ? 16 : 30
+                          const badgeTop = isMobile ? -7 : -14
                           return (
-                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: 14, zIndex: isExpanded ? 20 : 'auto' }}>
-                              <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', width: 30, height: 30, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
+                            <div key={p.player_id} style={{ flex: '0 0 auto', transform: `translate(${offX}px, ${offY}px)`, position: 'relative', paddingTop: isMobile ? 6 : 14, zIndex: isExpanded ? 20 : 'auto' }}>
+                              <div style={{ position: 'absolute', top: badgeTop, left: '50%', transform: 'translateX(-50%)', width: badgeSize, height: badgeSize, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 7 : 13, fontWeight: 900, color: tc, boxShadow: 'rgba(0,0,0,0.6) 0px 2px 2px', zIndex: 1 }}>
                                 {p.no ?? '?'}
                               </div>
                               <div style={{ display: 'inline-flex', flexDirection: 'column', whiteSpace: 'nowrap', boxShadow: 'rgba(0,0,0,0.5) 0px 2px 1px', position: 'relative', zIndex: 2 }}>
                                 <div style={{ display: 'flex' }}>
-                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} />
+                                  <ScrollingName name={p.name_ja ?? p.name_en} color={color} tc={tc} width={isMobile ? 44 : 94} fontSize={isMobile ? 9 : 13} />
                                   {isGwMode && (
                                     <div
                                       onClick={() => gwPts != null && setGwModalExpandedId(isExpanded ? null : p.player_id)}
-                                      style={{ width: 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? 'rgb(255, 237, 29)' : 'var(--accent)', flexShrink: 0, cursor: gwPts != null ? 'pointer' : 'default' }}>
+                                      style={{ width: isMobile ? 18 : 26, backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 8 : 10, fontWeight: 700, color: gwPts == null ? '#555' : p.is_captain ? 'rgb(255, 237, 29)' : 'var(--accent)', flexShrink: 0, cursor: gwPts != null ? 'pointer' : 'default' }}>
                                       {gwPts == null ? '-' : gwPts}
                                     </div>
                                   )}
                                   {isGwMode && isExpanded && fixtures.length > 0 && (
-                                    <div style={{ position: 'absolute', left: '100%', top: 0, backgroundColor: '#111', padding: '6px 8px', zIndex: 20, minWidth: 140 }}>
+                                    <div style={{ position: 'absolute', left: isMobile ? 0 : '100%', top: '100%', backgroundColor: '#111', padding: '6px 8px', zIndex: 20, minWidth: 130 }}>
                                       {fixtures.flatMap((fx, fi) => [
                                         <div key={`hd-${fi}`} style={{ fontSize: 9, color: '#888', marginBottom: 3, marginTop: fi > 0 ? 6 : 0 }}>{fx.date} vs {fx.opponent}</div>,
                                         ...fx.events.sort((a, b) => b.pts - a.pts).map((ev, j) => (
@@ -1199,17 +1201,8 @@ export default function FantasyPage() {
                                     </div>
                                   )}
                                 </div>
-                                <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 13, padding: '0 5px', gap: 6 }}>
-                                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.1em' }}>{p.position}</span>
-                                  {!isGwMode && (nextOpponents[p.team_id] ? (
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 2, lineHeight: 1 }}>
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>vs</span>
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: '#e7e7e7', whiteSpace: 'nowrap' }}>{nextOpponents[p.team_id].abbr}</span>
-                                      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: nextOpponents[p.team_id].color ?? '#888', flexShrink: 0, display: 'inline-block' }} />
-                                    </span>
-                                  ) : hasNextGw && (
-                                    <span style={{ fontSize: 7, fontWeight: 700, color: '#ff6b6b', whiteSpace: 'nowrap' }}>×試合なし</span>
-                                  ))}
+                                <div style={{ backgroundColor: '#262626', display: 'flex', alignItems: 'center', height: isMobile ? 9 : 13, padding: '0 4px' }}>
+                                  <span style={{ fontSize: isMobile ? 6 : 9, fontWeight: 700, color: '#e7e7e7', letterSpacing: '0.05em' }}>{p.position}</span>
                                 </div>
                               </div>
                             </div>
