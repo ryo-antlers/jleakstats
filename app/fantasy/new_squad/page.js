@@ -63,6 +63,7 @@ export default function NewSquadPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null) // player_id or 'remove_xxx'
   const [message, setMessage] = useState(null)
+  const [rowError, setRowError] = useState(null) // { playerId, text }
   const [showGuide, setShowGuide] = useState(true)
 
   useEffect(() => {
@@ -562,13 +563,26 @@ export default function NewSquadPage() {
                       <span style={{ fontSize: 12, color: 'var(--accent)', width: 34, textAlign: 'center' }}>✓</span>
                     ) : (
                       <button
-                        onClick={() => addPlayer(p)}
-                        disabled={!canAdd || actionLoading !== null}
+                        onClick={() => {
+                          if (!canAdd) {
+                            let text = ''
+                            if (clubOver) text = `${p.team_abbr}の選手を既に3人選んでいます`
+                            else if (budgetOver) text = '資金が不足しています'
+                            else if (posOver) text = `${p.position}の上限に達しています`
+                            else if (squadFull) text = 'スカッドが上限（20人）に達しています'
+                            setRowError({ playerId: p.id, text })
+                            setTimeout(() => setRowError(null), 3000)
+                            return
+                          }
+                          setRowError(null)
+                          addPlayer(p)
+                        }}
+                        disabled={actionLoading !== null}
                         style={{
                           width: 34, padding: '4px 0', borderRadius: 40, fontSize: 16, fontWeight: 700,
                           backgroundColor: canAdd && actionLoading === null ? (p.team_color ?? '#555') : 'var(--bg-tertiary)',
                           color: canAdd && actionLoading === null ? textColor(p.team_color) : 'var(--text-secondary)',
-                          cursor: canAdd && actionLoading === null ? 'pointer' : 'not-allowed', border: 'none',
+                          cursor: actionLoading === null ? 'pointer' : 'not-allowed', border: 'none',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           opacity: actionLoading !== null ? 0.4 : 1,
                         }}
@@ -577,6 +591,11 @@ export default function NewSquadPage() {
                       </button>
                     )}
                   </div>
+                  {rowError?.playerId === p.id && (
+                    <div style={{ fontSize: 11, color: '#e55', padding: '4px 12px 6px', backgroundColor: '#3a1a1a' }}>
+                      {rowError.text}
+                    </div>
+                  )}
                 </div>
               )
             })}
