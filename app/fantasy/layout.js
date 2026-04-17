@@ -1,8 +1,8 @@
 import FantasyHeader from './FantasyHeader'
 
 export const metadata = {
-  title: 'ファンタジーサッカー',
-  description: 'オリジナルクラブを作ってポイントを競おう',
+  title: 'Fantasy J.League',
+  description: 'クラブを作って選手を集めて試合を観る',
 }
 
 export default function FantasyLayout({ children }) {
