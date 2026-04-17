@@ -26,9 +26,13 @@ const clerkHandler = clerkMiddleware(async (auth, request) => {
     })
   }
 
-  // /fantasy はClerk認証
+  // /fantasy はClerk認証（OGPクローラーは除外）
   if (isFantasyRoute(request)) {
-    await auth.protect()
+    const ua = request.headers.get('user-agent') ?? ''
+    const isBot = /Slackbot|Twitterbot|facebookexternalhit|LinkedInBot|Googlebot|Discordbot|TelegramBot|WhatsApp|LINE/i.test(ua)
+    if (!isBot) {
+      await auth.protect()
+    }
   }
 
   return NextResponse.next()
