@@ -26,11 +26,33 @@ const clerkHandler = clerkMiddleware(async (auth, request) => {
     })
   }
 
-  // /fantasy はClerk認証（OGPクローラーは除外）
+  // /fantasy はBasic Auth (β合言葉) + Clerk認証（OGPクローラーは除外）
   if (isFantasyRoute(request)) {
     const ua = request.headers.get('user-agent') ?? ''
     const isBot = /Slackbot|Twitterbot|facebookexternalhit|LinkedInBot|Googlebot|Discordbot|TelegramBot|WhatsApp|LINE/i.test(ua)
     if (!isBot) {
+      // 1. Basic Auth (Fantasy β アクセスパスワード)
+      const authHeader = request.headers.get('authorization')
+      let basicOk = false
+      if (authHeader) {
+        const [scheme, encoded] = authHeader.split(' ')
+        if (scheme === 'Basic' && encoded) {
+          const decoded = atob(encoded)
+          const colonIndex = decoded.indexOf(':')
+          const password = decoded.slice(colonIndex + 1)
+          if (password === process.env.SITE_PASSWORD) {
+            basicOk = true
+          }
+        }
+      }
+      if (!basicOk) {
+        return new Response('Fantasy β：合言葉が必要です', {
+          status: 401,
+          headers: { 'WWW-Authenticate': 'Basic realm="jleakstats-fantasy"' },
+        })
+      }
+
+      // 2. Clerk 認証
       await auth.protect()
     }
   }
