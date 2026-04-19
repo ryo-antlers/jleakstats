@@ -81,7 +81,7 @@ function UnregisteredPlayersCheck() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {players.map((p, i) => (
                   <span key={i} style={{ fontSize: 12, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 4, backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
-                    [{p.source}] {p.player_id ?? 'ID無し'} {p.player_name_en ?? ''}
+                    [{p.source}] {p.player_id ?? 'ID無し'} {p.player_name_en ?? ''}{p.team_name ? ` / ${p.team_name}` : p.team_id ? ` / team#${p.team_id}` : ''}
                   </span>
                 ))}
               </div>
