@@ -11,7 +11,7 @@ import {
   Cloud, CloudRain, CloudSnow, Sun, Home as HomeIcon,
   Thermometer, Droplets,
   Building2, Users, Flag,
-  ArrowUpDown, Radio,
+  ArrowUpDown, Radio, User,
 } from 'lucide-react'
 
 function WeatherIcon({ weather, size = 18, color = '#fff' }) {
@@ -679,55 +679,83 @@ export default async function FixturePage({ params }) {
         )
       })()}
 
-      {/* チーム名（スコアの上） */}
-      <div style={{ display: 'flex', marginBottom: 20, alignItems: 'center' }}>
+      {/* チーム名（日本語、1行、小さめ） */}
+      <div style={{ display: 'flex', marginBottom: 12, alignItems: 'center', maxWidth: 560, margin: '0 auto 12px' }}>
         <div style={{ flex: 1, textAlign: 'center' }}>
           <Link href={`/team/${fixture.home_team_id}`} style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '0.05em', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {(fixture.home_name_en ?? fixture.home_name ?? '').replace(/ /g, '\n')}
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+              {fixture.home_name ?? fixture.home_name_en}
             </span>
           </Link>
         </div>
         <div style={{ flex: 1, textAlign: 'center' }}>
           <Link href={`/team/${fixture.away_team_id}`} style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '0.05em', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {(fixture.away_name_en ?? fixture.away_name ?? '').replace(/ /g, '\n')}
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+              {fixture.away_name ?? fixture.away_name_en}
             </span>
           </Link>
         </div>
       </div>
 
-      {/* スコアタイル */}
-      <div style={{ display: 'flex', marginBottom: 4 }}>
-        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: homeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      {/* スコアタイル（中央寄せ、幅を抑える） */}
+      <div style={{ display: 'flex', maxWidth: 560, margin: '0 auto' }}>
+        <div style={{ flex: 1, height: hasStarted ? 56 : 32, backgroundColor: homeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {hasStarted && (
             <>
-              <span style={{ fontSize: 60, fontWeight: 900, color: textColor(homeColor), lineHeight: 1 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: textColor(homeColor), lineHeight: 1 }}>
                 {fixture.home_score ?? 0}
               </span>
               {fixture.status === 'PEN' && fixture.home_penalty != null && (
-                <span style={{ fontSize: 28, fontWeight: 900, color: textColor(homeColor), opacity: 0.7, lineHeight: 1 }}>
+                <span style={{ fontSize: 16, fontWeight: 900, color: textColor(homeColor), opacity: 0.7, lineHeight: 1 }}>
                   ({fixture.home_penalty})
                 </span>
               )}
             </>
           )}
         </div>
-        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: awayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <div style={{ flex: 1, height: hasStarted ? 56 : 32, backgroundColor: awayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {hasStarted && (
             <>
               {fixture.status === 'PEN' && fixture.away_penalty != null && (
-                <span style={{ fontSize: 28, fontWeight: 900, color: textColor(awayColor), opacity: 0.7, lineHeight: 1 }}>
+                <span style={{ fontSize: 16, fontWeight: 900, color: textColor(awayColor), opacity: 0.7, lineHeight: 1 }}>
                   ({fixture.away_penalty})
                 </span>
               )}
-              <span style={{ fontSize: 60, fontWeight: 900, color: textColor(awayColor), lineHeight: 1 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: textColor(awayColor), lineHeight: 1 }}>
                 {fixture.away_score ?? 0}
               </span>
             </>
           )}
         </div>
       </div>
+
+      {/* 監督（スコア箱と同じ幅で両端配置、MANAGERラベル付き） */}
+      {(fixture.home_coach_ja || fixture.away_coach_ja) && (
+        <div style={{ display: 'flex', maxWidth: 560, margin: '8px auto 4px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, paddingLeft: 4, color: '#fff' }}>
+            {fixture.home_coach_ja && (
+              <>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.45)' }}>MANAGER</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <User size={13} strokeWidth={1.6} />
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em' }}>{fixture.home_coach_ja}</span>
+                </span>
+              </>
+            )}
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingRight: 4, color: '#fff' }}>
+            {fixture.away_coach_ja && (
+              <>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.45)' }}>MANAGER</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em' }}>{fixture.away_coach_ja}</span>
+                  <User size={13} strokeWidth={1.6} />
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {!hasStarted && (
         <div style={{ textAlign: 'center', marginTop: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em' }}>
