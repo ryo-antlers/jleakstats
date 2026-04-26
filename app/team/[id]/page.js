@@ -1,6 +1,7 @@
 import sql from '@/lib/db'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import TeamTabs from './team-tabs'
 
 async function getTeam(id) {
   const rows = await sql`
@@ -114,6 +115,228 @@ async function getLeagueTeamStatAggregates() {
     JOIN fixture_statistics opp ON opp.fixture_id = f.id AND opp.team_id != fs.team_id
     WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
     GROUP BY fs.team_id
+  `.catch(() => [])
+}
+
+// 歴代成績: シーズン × 大会単位で W/D/L/GF/GA + 最終順位を集計
+//   順位は同シーズン同リーグの全チームの勝点(W*3+D+PKW*2+PKL*1)、得失点差、得点で計算
+//   ※ J.League公式の点数剥奪等の特殊調整は反映されない（フィクスチャから計算する）
+// チャンピオンシップ結果: シーズンごとにこのチームが CS で勝ったか負けたか
+// チャンピオンシップ結果: シーズンごとにこのチームが CS で勝ったか負けたか
+async function getTeamCSResults(teamId) {
+  return await sql`
+    WITH cs_my_matches AS (
+      SELECT f.season,
+        CASE WHEN f.home_team_id = ${teamId} THEN COALESCE(f.home_score, 0) ELSE COALESCE(f.away_score, 0) END AS gf,
+        CASE WHEN f.home_team_id = ${teamId} THEN COALESCE(f.away_score, 0) ELSE COALESCE(f.home_score, 0) END AS ga,
+        CASE WHEN f.status = 'PEN' AND f.home_team_id = ${teamId} AND f.home_penalty > f.away_penalty THEN 1
+             WHEN f.status = 'PEN' AND f.away_team_id = ${teamId} AND f.away_penalty > f.home_penalty THEN 1
+             ELSE 0 END AS pk_won,
+        CASE WHEN f.status = 'PEN' AND f.home_team_id = ${teamId} AND f.home_penalty < f.away_penalty THEN 1
+             WHEN f.status = 'PEN' AND f.away_team_id = ${teamId} AND f.away_penalty < f.home_penalty THEN 1
+             ELSE 0 END AS pk_lost
+      FROM fixtures f
+      WHERE f.stage_ja ILIKE '%チャンピオンシップ%'
+        AND f.status IN ('FT','AET','PEN')
+        AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
+    )
+    SELECT season,
+      SUM(gf)::int AS total_gf,
+      SUM(ga)::int AS total_ga,
+      MAX(pk_won)::int AS pk_won,
+      MAX(pk_lost)::int AS pk_lost
+    FROM cs_my_matches
+    GROUP BY season
+  `.catch(() => [])
+}
+
+// 全試合 (全シーズン)
+// 歴代選手 (このクラブで出場経験のある全選手)
+// 歴代成績: シーズン × 大会単位で W/D/L/GF/GA + 最終順位を集計
+//   順位は同シーズン同リーグの全チームの勝点(W*3+D+PKW*2+PKL*1)、得失点差、得点で計算
+//   ※ J.League公式の点数剥奪等の特殊調整は反映されない（フィクスチャから計算する）
+async function getTeamHistory(teamId) {
+  return await sql`
+    WITH team_match AS (
+      -- 年間順位はリーグ戦（2ステージ含む）のみで計算。チャンピオンシップは除外。
+      SELECT f.season, f.league_id, f.home_team_id AS team_id,
+        CASE WHEN f.home_score > f.away_score THEN 3
+             WHEN f.status IN ('FT','AET') AND f.home_score = f.away_score THEN 1
+             WHEN f.status = 'PEN' AND f.home_penalty > f.away_penalty THEN 2
+             WHEN f.status = 'PEN' AND f.home_penalty < f.away_penalty THEN 1
+             ELSE 0 END AS pts,
+        f.home_score AS gf, f.away_score AS ga
+      FROM fixtures f
+      WHERE f.status IN ('FT','AET','PEN')
+        AND (f.stage_ja IS NULL OR f.stage_ja NOT ILIKE '%チャンピオンシップ%')
+      UNION ALL
+      SELECT f.season, f.league_id, f.away_team_id AS team_id,
+        CASE WHEN f.away_score > f.home_score THEN 3
+             WHEN f.status IN ('FT','AET') AND f.home_score = f.away_score THEN 1
+             WHEN f.status = 'PEN' AND f.away_penalty > f.home_penalty THEN 2
+             WHEN f.status = 'PEN' AND f.away_penalty < f.home_penalty THEN 1
+             ELSE 0 END AS pts,
+        f.away_score AS gf, f.home_score AS ga
+      FROM fixtures f
+      WHERE f.status IN ('FT','AET','PEN')
+        AND (f.stage_ja IS NULL OR f.stage_ja NOT ILIKE '%チャンピオンシップ%')
+    ),
+    team_agg AS (
+      SELECT season, league_id, team_id,
+        COUNT(*)::int AS games,
+        SUM(pts)::int AS total_pts,
+        SUM(COALESCE(gf,0))::int AS gf,
+        SUM(COALESCE(ga,0))::int AS ga,
+        SUM(COALESCE(gf,0) - COALESCE(ga,0))::int AS gd
+      FROM team_match
+      GROUP BY season, league_id, team_id
+    ),
+    ranked AS (
+      SELECT *,
+        RANK() OVER (PARTITION BY season, league_id ORDER BY total_pts DESC, gd DESC, gf DESC)::int AS league_rank,
+        COUNT(*) OVER (PARTITION BY season, league_id)::int AS num_teams
+      FROM team_agg
+    ),
+    -- CS試合の集計（合計得失点 + PK勝敗）
+    cs_team_match AS (
+      SELECT f.season, f.home_team_id AS team_id,
+        f.home_score AS gf, f.away_score AS ga,
+        CASE WHEN f.status = 'PEN' AND f.home_penalty > f.away_penalty THEN 1 ELSE 0 END AS pk_won,
+        CASE WHEN f.status = 'PEN' AND f.home_penalty < f.away_penalty THEN 1 ELSE 0 END AS pk_lost
+      FROM fixtures f
+      WHERE f.stage_ja ILIKE '%チャンピオンシップ%' AND f.status IN ('FT','AET','PEN')
+      UNION ALL
+      SELECT f.season, f.away_team_id, f.away_score, f.home_score,
+        CASE WHEN f.status = 'PEN' AND f.away_penalty > f.home_penalty THEN 1 ELSE 0 END,
+        CASE WHEN f.status = 'PEN' AND f.away_penalty < f.home_penalty THEN 1 ELSE 0 END
+      FROM fixtures f
+      WHERE f.stage_ja ILIKE '%チャンピオンシップ%' AND f.status IN ('FT','AET','PEN')
+    ),
+    cs_team_agg AS (
+      SELECT season, team_id,
+        SUM(COALESCE(gf,0))::int AS total_gf,
+        SUM(COALESCE(ga,0))::int AS total_ga,
+        MAX(pk_won)::int AS pk_won,
+        MAX(pk_lost)::int AS pk_lost
+      FROM cs_team_match
+      GROUP BY season, team_id
+    ),
+    cs_decided AS (
+      SELECT season, team_id,
+        CASE
+          WHEN total_gf > total_ga THEN 'W'
+          WHEN total_gf < total_ga THEN 'L'
+          WHEN pk_won = 1 THEN 'W'
+          WHEN pk_lost = 1 THEN 'L'
+        END AS cs_result
+      FROM cs_team_agg
+    ),
+    -- 各シーズンの CS優勝/準優勝チームのリーグ順位
+    cs_per_season AS (
+      SELECT cd.season,
+        MAX(CASE WHEN cd.cs_result = 'W' THEN cd.team_id END) AS cs_winner_id,
+        MAX(CASE WHEN cd.cs_result = 'W' THEN r.league_rank END) AS cs_winner_rank,
+        MAX(CASE WHEN cd.cs_result = 'L' THEN cd.team_id END) AS cs_loser_id,
+        MAX(CASE WHEN cd.cs_result = 'L' THEN r.league_rank END) AS cs_loser_rank
+      FROM cs_decided cd
+      JOIN ranked r ON r.season = cd.season AND r.league_id = 1 AND r.team_id = cd.team_id
+      GROUP BY cd.season
+    ),
+    -- CS反映後の年間最終順位
+    ranked_official AS (
+      SELECT r.*,
+        cs.cs_winner_id, cs.cs_loser_id,
+        CASE
+          WHEN r.league_id = 1 AND cs.cs_winner_id = r.team_id THEN 1
+          WHEN r.league_id = 1 AND cs.cs_loser_id = r.team_id THEN 2
+          WHEN r.league_id = 1 AND cs.cs_winner_id IS NOT NULL THEN
+            r.league_rank + 2
+            - (CASE WHEN cs.cs_winner_rank < r.league_rank THEN 1 ELSE 0 END)
+            - (CASE WHEN cs.cs_loser_rank  < r.league_rank THEN 1 ELSE 0 END)
+          ELSE r.league_rank
+        END AS official_rank
+      FROM ranked r
+      LEFT JOIN cs_per_season cs ON cs.season = r.season AND r.league_id = 1
+    ),
+    team_focus AS (
+      SELECT
+        f.season, f.league_id,
+        SUM(CASE
+          WHEN f.home_team_id = ${teamId} AND f.home_score > f.away_score THEN 1
+          WHEN f.away_team_id = ${teamId} AND f.away_score > f.home_score THEN 1
+          ELSE 0 END)::int AS wins,
+        SUM(CASE
+          WHEN f.home_score = f.away_score AND f.status IN ('FT','AET') THEN 1
+          ELSE 0 END)::int AS draws,
+        SUM(CASE
+          WHEN f.home_team_id = ${teamId} AND f.home_score < f.away_score THEN 1
+          WHEN f.away_team_id = ${teamId} AND f.away_score < f.home_score THEN 1
+          ELSE 0 END)::int AS losses,
+        SUM(CASE WHEN f.status = 'PEN' AND
+                  ((f.home_team_id = ${teamId} AND f.home_penalty > f.away_penalty) OR
+                   (f.away_team_id = ${teamId} AND f.away_penalty > f.home_penalty))
+                THEN 1 ELSE 0 END)::int AS pk_wins,
+        SUM(CASE WHEN f.status = 'PEN' AND
+                  ((f.home_team_id = ${teamId} AND f.home_penalty < f.away_penalty) OR
+                   (f.away_team_id = ${teamId} AND f.away_penalty < f.home_penalty))
+                THEN 1 ELSE 0 END)::int AS pk_losses
+      FROM fixtures f
+      WHERE (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
+        AND f.status IN ('FT','AET','PEN')
+        AND (f.stage_ja IS NULL OR f.stage_ja NOT ILIKE '%チャンピオンシップ%')
+      GROUP BY f.season, f.league_id
+    )
+    SELECT
+      r.season, r.league_id, r.games,
+      tf.wins, tf.draws, tf.losses, tf.pk_wins, tf.pk_losses,
+      r.gf, r.ga, r.gd,
+      r.total_pts AS points, r.league_rank, r.official_rank AS rank, r.num_teams
+    FROM ranked_official r
+    JOIN team_focus tf ON tf.season = r.season AND tf.league_id = r.league_id
+    WHERE r.team_id = ${teamId}
+    ORDER BY r.season DESC, r.league_id
+  `.catch(() => [])
+}
+
+// 全試合 (全シーズン)
+async function getTeamAllMatches(teamId) {
+  return await sql`
+    SELECT f.id, f.date, f.season, f.league_id, f.round_number, f.stage_ja,
+      f.home_team_id, f.away_team_id, f.home_score, f.away_score,
+      f.home_penalty, f.away_penalty, f.status,
+      ht.name_ja AS home, ht.abbr AS home_abbr, ht.color_primary AS home_color,
+      at.name_ja AS away, at.abbr AS away_abbr, at.color_primary AS away_color
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
+    ORDER BY f.date DESC
+  `.catch(() => [])
+}
+
+// 歴代選手 (このクラブで出場経験のある全選手)
+async function getTeamAllPlayers(teamId) {
+  return await sql`
+    SELECT
+      fl.player_id,
+      COALESCE(pm.name_ja, pm.name_en) AS name,
+      COUNT(*)::int AS apps,
+      COUNT(*) FILTER (WHERE fl.is_starter)::int AS starts,
+      MIN(f.season)::int AS first_season,
+      MAX(f.season)::int AS last_season,
+      (
+        SELECT COUNT(*)::int FROM fixture_events fe
+        WHERE fe.player_id = fl.player_id
+          AND fe.team_id = ${teamId}
+          AND fe.type = 'Goal'
+          AND fe.detail <> 'Own Goal'
+      ) AS goals
+    FROM fixture_lineups fl
+    JOIN fixtures f ON fl.fixture_id = f.id
+    LEFT JOIN players_master pm ON fl.player_id = pm.id
+    WHERE fl.team_id = ${teamId}
+    GROUP BY fl.player_id, pm.name_ja, pm.name_en
+    ORDER BY apps DESC
   `.catch(() => [])
 }
 
@@ -304,7 +527,7 @@ export default async function TeamPage({ params }) {
   const team = await getTeam(teamId)
   if (!team) notFound()
 
-  const [fixtures, groupFixtures, groupTeams, leagueGoals, leaguePlayerStats, leagueStatAggs, playerRankings] = await Promise.all([
+  const [fixtures, groupFixtures, groupTeams, leagueGoals, leaguePlayerStats, leagueStatAggs, playerRankings, seasonHistory, csResults, allMatches, allPlayers] = await Promise.all([
     getTeamFixtures(teamId),
     team.group_name ? getGroupFixtures(team.group_name) : Promise.resolve([]),
     team.group_name ? getGroupTeams(team.group_name) : Promise.resolve([]),
@@ -312,7 +535,21 @@ export default async function TeamPage({ params }) {
     getLeaguePlayerStats(),
     getLeagueTeamStatAggregates(),
     getTeamPlayerRankings(teamId),
+    getTeamHistory(teamId),
+    getTeamCSResults(teamId),
+    getTeamAllMatches(teamId),
+    getTeamAllPlayers(teamId),
   ])
+
+  // CS結果を season → 'W'/'L' のマップに
+  const csByYear = new Map()
+  for (const r of csResults) {
+    const result = r.total_gf > r.total_ga ? 'W'
+      : r.total_gf < r.total_ga ? 'L'
+      : r.pk_won ? 'W'
+      : r.pk_lost ? 'L' : null
+    if (result) csByYear.set(r.season, result)
+  }
 
   const color = team.color_primary ?? '#444'
   const finished = fixtures.filter(f => ['FT','AET','PEN'].includes(f.status))
@@ -357,16 +594,9 @@ export default async function TeamPage({ params }) {
 
   const hasTeamStats = leagueGoals.length > 0
 
-  return (
-    <div>
-      {/* ① クラブ名 → カラー箱 */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 0, letterSpacing: '0.03em' }}>
-          {team.name_en ?? team.name_ja}
-        </h1>
-        <div style={{ backgroundColor: color, height: 6, borderRadius: 2 }} />
-      </div>
-
+  // === 今季タブ (2026): 既存ダッシュボードを丸ごと中身に ===
+  const current2026Jsx = (
+    <>
       {/* ② スタッツ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 36, flexWrap: 'wrap' }}>
         {[
@@ -537,6 +767,195 @@ export default async function TeamPage({ params }) {
           </div>
         )
       })()}
+    </>
+  )
+
+  // === 歴代成績タブ ===
+  const leagueLabel = (id) => id === 1 ? 'J1' : id === 2 ? 'J2' : id === 3 ? 'J3' : id === 98 ? 'J1特別' : id === 100 ? 'カップ' : `L${id}`
+  const historyJsx = seasonHistory.length > 0 ? (
+    <div style={{ overflowX: 'auto', marginBottom: 40 }}>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: 12 }}>SEASON HISTORY</p>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', whiteSpace: 'nowrap' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'left' }}>SEASON</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'left' }}>LEAGUE</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>RANK</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>PTS</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>P</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>W</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>D</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>L</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>PK-W</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>PK-L</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>GF</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>GA</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>GD</th>
+            <th style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>WIN%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {seasonHistory.map((h, i) => {
+            const gd = h.gf - h.ga
+            const winPct = h.games > 0 ? Math.round((h.wins + h.pk_wins) / h.games * 100) : 0
+            // h.rank は CS反映後の年間最終順位、h.league_rank はリーグ戦のみの順位
+            // 順位の色: 1位ゴールド、2位銀、3位は白、最下位赤
+            const rankColor = h.rank === 1 ? '#ffd86b'
+              : h.rank === 2 ? '#dadada'
+              : h.rank <= 3 ? '#fff'
+              : h.rank === h.num_teams ? '#e87979'
+              : 'rgba(255,255,255,0.85)'
+            return (
+              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <td style={{ padding: '8px', color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{h.season}</td>
+                <td style={{ padding: '8px', color: 'rgba(255,255,255,0.55)' }}>{leagueLabel(h.league_id)}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: rankColor, fontWeight: 900, fontSize: 13 }}>
+                  {h.rank}<span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>/{h.num_teams}</span>
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: '#fff', fontWeight: 700 }}>{h.points}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{h.games}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: '#3d9e50', fontWeight: 700 }}>{h.wins}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.55)' }}>{h.draws}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: '#e87979', fontWeight: 700 }}>{h.losses}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: h.pk_wins > 0 ? '#3d9e50' : 'rgba(255,255,255,0.3)' }}>{h.pk_wins || '-'}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: h.pk_losses > 0 ? '#e87979' : 'rgba(255,255,255,0.3)' }}>{h.pk_losses || '-'}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>{h.gf}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>{h.ga}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: gd > 0 ? '#3d9e50' : gd < 0 ? '#e87979' : 'rgba(255,255,255,0.5)' }}>{gd > 0 ? '+' + gd : gd}</td>
+                <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.55)' }}>{winPct}%</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  ) : null
+
+  // === 全試合タブ ===
+  const allMatchesJsx = allMatches.length > 0 ? (
+    <div style={{ marginBottom: 40 }}>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: 12 }}>
+        ALL MATCHES ({allMatches.length})
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%', whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'left' }}>DATE</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>LG</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>R</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>H/A</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'left' }}>OPP</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>SCORE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allMatches.map((m, i) => {
+              const isHome = Number(m.home_team_id) === teamId
+              const myScore = isHome ? Number(m.home_score) : Number(m.away_score)
+              const oppScore = isHome ? Number(m.away_score) : Number(m.home_score)
+              const isPK = m.status === 'PEN' && m.home_penalty != null
+              const myPK = isPK ? (isHome ? Number(m.home_penalty) : Number(m.away_penalty)) : null
+              const oppPK = isPK ? (isHome ? Number(m.away_penalty) : Number(m.home_penalty)) : null
+              const result = myScore > oppScore ? 'W' : myScore < oppScore ? 'L'
+                : isPK ? (myPK > oppPK ? 'W' : 'L') : 'D'
+              const resultColor = result === 'W' ? '#3d9e50' : result === 'L' ? '#e87979' : 'rgba(255,255,255,0.55)'
+              const oppName = isHome ? m.away : m.home
+              const oppColor = isHome ? m.away_color : m.home_color
+              const oppId = isHome ? m.away_team_id : m.home_team_id
+              const d = new Date(m.date)
+              const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`
+              const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
+              return (
+                <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: rowBg }}>
+                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>{dateStr}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>{leagueLabel(m.league_id)}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>{m.round_number ?? '-'}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>{isHome ? 'H' : 'A'}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <Link href={`/team/${oppId}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: oppColor ?? '#555', flexShrink: 0 }} />
+                      <span style={{ color: '#fff' }}>{oppName ?? `Team#${oppId}`}</span>
+                    </Link>
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                    <Link href={`/fixture/${m.id}`} style={{ textDecoration: 'none', color: resultColor, fontWeight: 700 }}>
+                      {myScore != null ? `${myScore}-${oppScore}` : '-'}
+                      {isPK ? ` (PK ${myPK}-${oppPK})` : ''}
+                    </Link>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ) : null
+
+  // === 歴代選手タブ ===
+  const allPlayersJsx = allPlayers.length > 0 ? (
+    <div style={{ marginBottom: 40 }}>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: 12 }}>
+        ALL PLAYERS ({allPlayers.length})
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%', whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'left' }}>PLAYER</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>SEASONS</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>APPS</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>START</th>
+              <th style={{ padding: '4px 8px', color: 'rgba(255,255,255,0.3)', fontWeight: 400, fontSize: 10, textAlign: 'center' }}>G</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allPlayers.map((p, i) => {
+              const seasons = p.first_season === p.last_season ? `${p.first_season}` : `${p.first_season}-${p.last_season}`
+              const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
+              return (
+                <tr key={p.player_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: rowBg }}>
+                  <td style={{ padding: '6px 8px' }}>
+                    <Link href={`/player/${p.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{p.name ?? `#${p.player_id}`}</Link>
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.55)' }}>{seasons}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{p.apps}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>{p.starts}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', color: p.goals > 0 ? '#3d9e50' : 'rgba(255,255,255,0.3)', fontWeight: p.goals > 0 ? 700 : 400 }}>
+                    {p.goals > 0 ? p.goals : '-'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ) : null
+
+  // === 2026今季の判定 (試合があるか or グループに所属しているか) ===
+  const has2026 = fixtures.length > 0 || (team.group_name && groupTeams.length > 0)
+
+  return (
+    <div>
+      {/* ① クラブ名 → カラー箱 */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 0, letterSpacing: '0.03em' }}>
+          {team.name_en ?? team.name_ja}
+        </h1>
+        <div style={{ backgroundColor: color, height: 6, borderRadius: 2 }} />
+      </div>
+
+      <TeamTabs
+        tabs={[
+          { key: 'current',  label: '今季',     content: has2026 ? current2026Jsx : null },
+          { key: 'history',  label: '歴代成績', content: historyJsx },
+          { key: 'matches',  label: '全試合',   content: allMatchesJsx },
+          { key: 'players',  label: '歴代選手', content: allPlayersJsx },
+        ]}
+        defaultKey={has2026 ? 'current' : 'history'}
+      />
     </div>
   )
 }
