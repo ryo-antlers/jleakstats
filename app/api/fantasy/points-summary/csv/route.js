@@ -31,6 +31,7 @@ export async function GET(request) {
     WHERE tm.category = 'J1'
       AND pm.position IN ('GK', 'DF', 'MF', 'FW')
       AND pm.canonical_id IS NULL
+      AND pm.is_active = true
     GROUP BY pm.id, pm.name_ja, pm.position, tm.abbr, pm.price
     ORDER BY total_points DESC
   `

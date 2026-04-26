@@ -62,6 +62,7 @@ export async function POST(request) {
         AND pm.position IN ('GK', 'DF', 'MF', 'FW')
         AND pm.price IS NOT NULL
         AND pm.canonical_id IS NULL
+        AND pm.is_active = true
     `
 
     const changes = []
