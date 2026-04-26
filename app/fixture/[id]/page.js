@@ -7,12 +7,11 @@ import ScorePopup from '@/app/components/ScorePopup'
 import RatingsSection from './ratings-section'
 import PostsSection from './posts-section'
 import MatchTabs from './match-tabs'
-import ParallaxBackground from './parallax-bg'
 import {
   Cloud, CloudRain, CloudSnow, Sun, Home as HomeIcon,
   Thermometer, Droplets,
   Building2, Users, Flag,
-  Radio,
+  ArrowUpDown, Radio,
 } from 'lucide-react'
 
 function WeatherIcon({ weather, size = 18, color = '#fff' }) {
@@ -563,12 +562,14 @@ export default async function FixturePage({ params }) {
 
   // 交代イベント: player_id=退いた選手, assist_id=入った選手
   const substEvents = events.filter(e => e.type === 'subst')
-  // player_id → {inPlayer, elapsed} のmap
+  // API-football: subst の player_id = 入った選手, assist_id = 退いた選手
+  // subOutMap[退いた player_id] = { name: 入った選手名, elapsed }
+  // subInMap[入った player_id]  = { name: 退いた選手名, elapsed }
   const subOutMap = {}
   const subInMap = {}
   for (const e of substEvents) {
-    if (e.player_id) subOutMap[e.player_id] = { name: e.assist_name_ja ?? e.assist_name_en, elapsed: e.elapsed }
-    if (e.assist_id) subInMap[e.assist_id] = { name: e.player_name_ja ?? e.player_name_en, elapsed: e.elapsed }
+    if (e.assist_id) subOutMap[e.assist_id] = { name: e.player_name_ja ?? e.player_name_en, elapsed: e.elapsed }
+    if (e.player_id) subInMap[e.player_id] = { name: e.assist_name_ja ?? e.assist_name_en, elapsed: e.elapsed }
   }
 
   // カードmap: player_id → { yellow, red, redElapsed }
@@ -615,7 +616,6 @@ export default async function FixturePage({ params }) {
 
   return (
     <>
-    <ParallaxBackground homeColor={homeColor} awayColor={awayColor} />
     <header style={{
       position: 'fixed', top: 0, left: 0, right: 0, height: 48,
       backgroundColor: '#111', borderBottom: '1px solid #222',
@@ -626,6 +626,58 @@ export default async function FixturePage({ params }) {
       </a>
     </header>
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 64 }}>
+
+      {/* カテゴリ・節ラベル（例: J1リーグ 第4節 / 2026.3.7 SAT / 16:03 KO） */}
+      {(() => {
+        const s = fixture.stage_ja
+        let compLabel = null
+        if (s === 'J1') compLabel = 'J1リーグ'
+        else if (s?.startsWith('J1 ')) compLabel = `J1リーグ ${s.slice(3)}`
+        else if (s) compLabel = s
+        else if (fixture.league_id === 100) compLabel = 'リーグカップ'
+        else if (fixture.league_id === 98) compLabel = '明治安田Ｊ１百年構想'
+        else if (fixture.league_id === 1) compLabel = 'J1リーグ'
+
+        const roundLabel = fixture.round_number != null
+          ? `第${fixture.round_number}節`
+          : (fixture.round && !fixture.round.startsWith('Regular Season') ? fixture.round : null)
+
+        const ko = fixture.date
+          ? new Date(fixture.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
+          : null
+        const hasKO = ko && ko !== '00:00'
+
+        if (!compLabel && !roundLabel && !hasKO) return null
+
+        const d = new Date(fixture.date)
+        const jst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+        const y = jst.getFullYear()
+        const m = jst.getMonth() + 1
+        const day = jst.getDate()
+        const dowEn = ['SUN','MON','TUE','WED','THU','FRI','SAT'][jst.getDay()]
+        const dateLabel = `${y}.${m}.${day} ${dowEn}`
+
+        const compRoundLine = [compLabel, roundLabel].filter(Boolean).join(' ')
+
+        return (
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            {compRoundLine && (
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '0.06em', marginBottom: 10 }}>
+                {compRoundLine}
+              </div>
+            )}
+            <div style={{ width: 60, height: 1, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 auto 10px' }} />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em', marginBottom: 4 }}>
+              {dateLabel}
+            </div>
+            {hasKO && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em' }}>
+                {ko} KO
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* チーム名（スコアの上） */}
       <div style={{ display: 'flex', marginBottom: 20, alignItems: 'center' }}>
@@ -683,27 +735,6 @@ export default async function FixturePage({ params }) {
           </span>
         </div>
       )}
-
-      {/* 得点者（スコアの下） */}
-      <div style={{ display: 'flex', marginBottom: 24, position: 'relative' }}>
-        {/* 主審はメタブロックに移動 */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, paddingTop: 8 }}>
-          {homeGoalEvents.map((e, i) => (
-            <span key={i} style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {e.elapsed}' {e.player_id ? <Link href={`/player/${e.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{e.player_name_ja ?? e.player_name_en}</Link> : (e.player_name_ja ?? e.player_name_en)}
-              {e.detail === 'Own Goal' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}> OG</span> : e.detail === 'Penalty' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}> PK</span> : ''}
-            </span>
-          ))}
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 8 }}>
-          {awayGoalEvents.map((e, i) => (
-            <span key={i} style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {e.detail === 'Own Goal' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>OG </span> : e.detail === 'Penalty' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>PK </span> : ''}
-              {e.player_id ? <Link href={`/player/${e.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{e.player_name_ja ?? e.player_name_en}</Link> : (e.player_name_ja ?? e.player_name_en)} {e.elapsed}'
-            </span>
-          ))}
-        </div>
-      </div>
 
       {/* メタ情報: 1段目 主審/会場/観客, 2段目 天候/気温/湿度, 放送あれば下に */}
       {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en
@@ -771,6 +802,138 @@ export default async function FixturePage({ params }) {
         )
       })()}
 
+      {/* 試合イベントタイムライン (Goal/Yellow/Red/Sub、時系列) + KO/HT/FT マーカー */}
+      {(() => {
+        const tlEvents = events
+          .filter(e => e.type === 'Goal'
+            || (e.type === 'Card' && (e.detail === 'Yellow Card' || e.detail === 'Red Card' || e.detail === 'Yellow Red Card'))
+            || e.type === 'subst')
+          .sort((a, b) => (a.elapsed ?? 0) - (b.elapsed ?? 0))
+
+        if (tlEvents.length === 0 && !hasStarted) return null
+
+        const items = []
+        items.push({ type: 'marker', label: 'KICK OFF' })
+        let htInserted = false
+        for (const e of tlEvents) {
+          if (!htInserted && (e.elapsed ?? 0) >= 46) {
+            items.push({ type: 'marker', label: 'HALF TIME' })
+            htInserted = true
+          }
+          items.push({ type: 'event', e })
+        }
+        if (!htInserted) items.push({ type: 'marker', label: 'HALF TIME' })
+        if (isFinished) items.push({ type: 'marker', label: 'FULL TIME' })
+
+        const Marker = ({ label }) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 6 }}>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.55)' }}>{label}</span>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          </div>
+        )
+
+        return (
+          <section style={{ marginBottom: 32 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {items.map((it, i) => {
+                if (it.type === 'marker') return <Marker key={i} label={it.label} />
+                const e = it.e
+                const isHome = Number(e.team_id) === Number(fixture.home_team_id)
+                const sideColor = isHome ? homeColor : awayColor
+                const isGoal = e.type === 'Goal'
+                const isSubst = e.type === 'subst'
+                const isYellow = e.type === 'Card' && e.detail === 'Yellow Card'
+                const isYellowRed = e.type === 'Card' && e.detail === 'Yellow Red Card'
+                const isRed = e.type === 'Card' && e.detail === 'Red Card'
+                const isOG = isGoal && e.detail === 'Own Goal'
+                const isPK = isGoal && e.detail === 'Penalty'
+
+                const playerName = e.player_name_ja ?? e.player_name_en
+                const subOutName = e.assist_name_ja ?? e.assist_name_en
+                const nameNode = e.player_id
+                  ? <Link href={`/player/${e.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{playerName}</Link>
+                  : <span>{playerName}</span>
+                const subOutNode = e.assist_id
+                  ? <Link href={`/player/${e.assist_id}`} style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>{subOutName}</Link>
+                  : <span style={{ color: 'rgba(255,255,255,0.55)' }}>{subOutName}</span>
+
+                const goalStyle = isGoal ? { fontSize: 14, fontWeight: 800 } : { fontSize: 12, fontWeight: 600 }
+
+                const badge = isGoal ? (
+                  <span style={{
+                    display: 'inline-block', padding: '2px 6px',
+                    backgroundColor: sideColor, color: textColor(sideColor),
+                    fontSize: 9, fontWeight: 900, letterSpacing: '0.06em',
+                    lineHeight: 1.2, borderRadius: 2,
+                    marginRight: isHome ? 6 : 0, marginLeft: isHome ? 0 : 6,
+                  }}>GOAL</span>
+                ) : isYellow ? (
+                  <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e9b938', borderRadius: 1, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0 }} />
+                ) : isYellowRed ? (
+                  <span style={{ display: 'inline-flex', gap: 1, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0 }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e9b938', borderRadius: 1 }} />
+                    <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 1 }} />
+                  </span>
+                ) : isRed ? (
+                  <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 1, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0 }} />
+                ) : isSubst ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: isHome ? 0 : 6, marginLeft: isHome ? 6 : 0 }}>
+                    <ArrowUpDown size={13} strokeWidth={1.6} color="rgba(255,255,255,0.6)" />
+                  </span>
+                ) : null
+
+                const tag = isOG ? <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>OG</span>
+                          : isPK ? <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>PK</span>
+                          : null
+
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', minHeight: 22 }}>
+                    <div style={{ flex: 1, textAlign: 'right', paddingRight: 16, color: '#fff' }}>
+                      {isHome && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          {isGoal && badge}
+                          {isSubst ? (
+                            <span style={goalStyle}>
+                              {subOutNode}
+                              <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px' }}>→</span>
+                              {nameNode}
+                            </span>
+                          ) : (
+                            <span style={goalStyle}>{nameNode}{tag}</span>
+                          )}
+                          {!isGoal && badge}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ width: 38, textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontVariantNumeric: 'tabular-nums' }}>
+                      {e.elapsed}'
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'left', paddingLeft: 16, color: '#fff' }}>
+                      {!isHome && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          {!isGoal && badge}
+                          {isSubst ? (
+                            <span style={goalStyle}>
+                              {nameNode}
+                              <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px' }}>←</span>
+                              {subOutNode}
+                            </span>
+                          ) : (
+                            <span style={goalStyle}>{nameNode}{tag}</span>
+                          )}
+                          {isGoal && badge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })()}
+
 
       {(() => {
         // 5タブに振り分け（useTabs: 2026シーズン以降）。!useTabs では従来通り縦並びで表示。
@@ -824,12 +987,17 @@ export default async function FixturePage({ params }) {
                   </div>
                   {homeSubs.slice(0, 9).map((p, i) => {
                     const subIn = subInMap[p.player_id]
+                    const subOut = subOutMap[p.player_id]
+                    const card = cardMap[p.player_id]
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20, textAlign: 'right' }}>{p.position}</span>
                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16, textAlign: 'right' }}>{p.number}</span>
                         <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginLeft: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
-                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginLeft: 8 }}>▲{subIn.elapsed}'</span>}
+                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginLeft: 6 }}>▲{subIn.elapsed}'</span>}
+                        {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px', marginLeft: 4 }}>YR</span>}
+                        {card?.red > 0 && <><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2, marginLeft: 4 }} /><span style={{ fontSize: 9, color: '#e53', marginLeft: 2 }}>▼{card.redElapsed}'</span></>}
+                        {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginLeft: 4 }}>▼{subOut.elapsed}'</span>}
                       </div>
                     )
                   })}
@@ -864,9 +1032,14 @@ export default async function FixturePage({ params }) {
                   </div>
                   {awaySubs.slice(0, 9).map((p, i) => {
                     const subIn = subInMap[p.player_id]
+                    const subOut = subOutMap[p.player_id]
+                    const card = cardMap[p.player_id]
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
-                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginRight: 8 }}>▲{subIn.elapsed}'</span>}
+                        {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginRight: 4 }}>▼{subOut.elapsed}'</span>}
+                        {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px' }}>YR</span>}
+                        {card?.red > 0 && <><span style={{ fontSize: 9, color: '#e53', marginRight: 2 }}>▼{card.redElapsed}'</span><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2 }} /></>}
+                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginRight: 6 }}>▲{subIn.elapsed}'</span>}
                         <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginRight: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16 }}>{p.number}</span>
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20 }}>{p.position}</span>
