@@ -87,7 +87,8 @@ export async function POST(request) {
         AND pm.canonical_id IS NULL
     `
 
-    const updatePromises = []
+    const updateIds = []
+    const updatePrices = []
     let overseasEvent = null
     for (const player of allPlayers) {
       if (!gwTeamSet.has(player.team_id)) continue
@@ -129,12 +130,21 @@ export async function POST(request) {
       if (delta === 0 && !thisPlayerOverseas) continue
 
       if (newPrice !== currentPrice) {
-        updatePromises.push(sql`UPDATE players_master SET price = ${newPrice} WHERE id = ${player.id}`)
+        updateIds.push(player.id)
+        updatePrices.push(newPrice)
       }
     }
 
-    await Promise.all(updatePromises)
-    const updated = updatePromises.length
+    // バルクUPDATE (unnest) で1リクエストにまとめる
+    if (updateIds.length > 0) {
+      await sql`
+        UPDATE players_master pm
+        SET price = u.new_price
+        FROM unnest(${updateIds}::int[], ${updatePrices}::int[]) AS u(id, new_price)
+        WHERE pm.id = u.id
+      `
+    }
+    const updated = updateIds.length
 
     return Response.json({ ok: true, gameweek_id, updated, overseas_event: overseasEvent })
   } catch (err) {
