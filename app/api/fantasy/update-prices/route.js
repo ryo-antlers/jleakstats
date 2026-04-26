@@ -87,7 +87,7 @@ export async function POST(request) {
         AND pm.canonical_id IS NULL
     `
 
-    let updated = 0
+    const updatePromises = []
     let overseasEvent = null
     for (const player of allPlayers) {
       if (!gwTeamSet.has(player.team_id)) continue
@@ -112,6 +112,7 @@ export async function POST(request) {
       }
 
       let newPrice = Math.max(1000, currentPrice + delta)
+      let thisPlayerOverseas = false
 
       // 「海外に見つかる」: 23歳以下 かつ 20pt以上 → 通常計算後の価格にさらに30%加算
       const pts = playedMap.get(player.id) ?? 0
@@ -121,16 +122,19 @@ export async function POST(request) {
           const bonus = Math.round(newPrice * 0.3)
           newPrice = newPrice + bonus
           overseasEvent = { player_id: player.id, pts, bonus }
+          thisPlayerOverseas = true
         }
       }
 
-      if (delta === 0 && !overseasEvent) continue
+      if (delta === 0 && !thisPlayerOverseas) continue
 
       if (newPrice !== currentPrice) {
-        await sql`UPDATE players_master SET price = ${newPrice} WHERE id = ${player.id}`
-        updated++
+        updatePromises.push(sql`UPDATE players_master SET price = ${newPrice} WHERE id = ${player.id}`)
       }
     }
+
+    await Promise.all(updatePromises)
+    const updated = updatePromises.length
 
     return Response.json({ ok: true, gameweek_id, updated, overseas_event: overseasEvent })
   } catch (err) {
