@@ -775,7 +775,7 @@ export default async function FixturePage({ params }) {
       {(() => {
         // 5タブに振り分け（useTabs: 2026シーズン以降）。!useTabs では従来通り縦並びで表示。
         const gameStatsJsx = isFinished && homeStats && awayStats && (
-          <section style={{ marginBottom: 32, paddingTop: 24 }}>
+          <section style={{ marginBottom: 32, paddingTop: 8 }}>
             <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
             <StatBar label="スコア" homeVal={fixture.home_score ?? 0} awayVal={fixture.away_score ?? 0} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="枠内シュート" homeVal={homeStats.shots_on} awayVal={awayStats.shots_on} homeColor={homeColor} awayColor={awayColor} />
@@ -791,8 +791,8 @@ export default async function FixturePage({ params }) {
           </section>
         )
 
-        const lineupJsx = (homeStarters.length > 0 || awayStarters.length > 0) && (
-        <section style={{ marginBottom: 24, paddingTop: 24 }}>
+        const lineupJsx = (homeStarters.length > 0 || awayStarters.length > 0) ? (
+        <section style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', position: 'relative' }}>
             {/* 中央区切り線 */}
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
@@ -800,8 +800,8 @@ export default async function FixturePage({ params }) {
             {/* ホーム */}
             <div style={{ flex: 1, paddingRight: 16 }}>
               {/* LINE UP ヘッダー */}
-              <div style={{ backgroundColor: homeColor, padding: '4px 8px', marginBottom: 10 }}>
-                <span style={{ fontSize: 14, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.1em' }}>LINE UP</span>
+              <div style={{ backgroundColor: homeColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
               {homeStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
@@ -819,8 +819,8 @@ export default async function FixturePage({ params }) {
               })}
               {homeSubs.length > 0 && (
                 <>
-                  <div style={{ backgroundColor: homeColor, padding: '4px 8px', marginTop: 12, marginBottom: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.1em' }}>BENCH</span>
+                  <div style={{ backgroundColor: homeColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.12em', lineHeight: 1 }}>BENCH</span>
                   </div>
                   {homeSubs.slice(0, 9).map((p, i) => {
                     const subIn = subInMap[p.player_id]
@@ -840,8 +840,8 @@ export default async function FixturePage({ params }) {
             {/* アウェイ */}
             <div style={{ flex: 1, paddingLeft: 16 }}>
               {/* LINE UP ヘッダー */}
-              <div style={{ backgroundColor: awayColor, padding: '4px 8px', marginBottom: 10, textAlign: 'right' }}>
-                <span style={{ fontSize: 14, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.1em' }}>LINE UP</span>
+              <div style={{ backgroundColor: awayColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
               {awayStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
@@ -859,8 +859,8 @@ export default async function FixturePage({ params }) {
               })}
               {awaySubs.length > 0 && (
                 <>
-                  <div style={{ backgroundColor: awayColor, padding: '4px 8px', marginTop: 12, marginBottom: 10, textAlign: 'right' }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.1em' }}>BENCH</span>
+                  <div style={{ backgroundColor: awayColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>BENCH</span>
                   </div>
                   {awaySubs.slice(0, 9).map((p, i) => {
                     const subIn = subInMap[p.player_id]
@@ -878,9 +878,9 @@ export default async function FixturePage({ params }) {
             </div>
           </div>
         </section>
-        )
+        ) : null
 
-        const playerChartsJsx = isFinished && playerStats.length > 0 && (
+        const ratingsChartsJsx = (isFinished && playerStats.length > 0) ? (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
             <div style={{ width: '85%' }}>
               <RatingMinutesScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} homeShort={fixture.home_short} awayShort={fixture.away_short} />
@@ -892,12 +892,12 @@ export default async function FixturePage({ params }) {
               <PassAccuracyBar playerStats={playerStats} homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
             </div>
           </section>
-        )
+        ) : null
 
-        const refereeHistoryJsx = (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
+        const refereeHistoryJsx = (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) ? (
         <section style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 15, color: '#fff', marginBottom: 12 }}>
-            {`主審：${refereeJa ?? fixture.referee_en} 直近担当5試合`}
+            {`主審：${fixture.referee_ja_official ?? refereeJa ?? fixture.referee_en} 直近担当5試合`}
           </p>
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>
@@ -918,7 +918,7 @@ export default async function FixturePage({ params }) {
             </div>
           </div>
         </section>
-        )
+        ) : null
 
         const preMatchGraphsJsx = !hasStarted && seasonFixtures.length > 0 && (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 32, alignItems: 'center' }}>
@@ -1084,36 +1084,30 @@ export default async function FixturePage({ params }) {
         const statsJsx = (
           <>
             {gameStatsJsx}
-            {playerChartsJsx}
             {preMatchGraphsJsx}
             {oddsJsx}
             {fallbackJsx}
           </>
         )
 
-        if (useTabs) {
-          return (
-            <MatchTabs
-              members={lineupJsx || null}
-              stats={statsJsx}
-              ratings={<RatingsSection fixtureId={parseInt(id)} />}
-              posts={<PostsSection fixtureId={parseInt(id)} />}
-              referee={refereeHistoryJsx || null}
-            />
-          )
-        }
-
-        return (
+        const ratingsJsx = (
           <>
-            {gameStatsJsx}
-            {lineupJsx}
-            {playerChartsJsx}
-            {refereeHistoryJsx}
-            {preMatchGraphsJsx}
-            {oddsJsx}
-            {fallbackJsx}
+            {ratingsChartsJsx}
+            <RatingsSection fixtureId={parseInt(id)} />
           </>
         )
+
+        const postsJsx = <PostsSection fixtureId={parseInt(id)} />
+
+        return useTabs ? (
+          <MatchTabs
+            members={lineupJsx}
+            ratings={ratingsJsx}
+            stats={statsJsx}
+            posts={postsJsx}
+            referee={refereeHistoryJsx}
+          />
+        ) : lineupJsx
       })()}
     </div>
     </>
