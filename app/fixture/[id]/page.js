@@ -4,6 +4,27 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { RatingMinutesScatter, DuelScatter, PassAccuracyBar, FixtureRankChart, SeasonAttackRadar, SeasonDefenseRadar, SeasonRatingScatter, SeasonDuelScatter, SeasonPassScatter, SeasonShotScatter } from '@/app/components/FixtureCharts'
 import ScorePopup from '@/app/components/ScorePopup'
+import RatingsSection from './ratings-section'
+import PostsSection from './posts-section'
+import MatchTabs from './match-tabs'
+import ParallaxBackground from './parallax-bg'
+import {
+  Cloud, CloudRain, CloudSnow, Sun, Home as HomeIcon,
+  Thermometer, Droplets,
+  Building2, Users, Flag,
+  Radio,
+} from 'lucide-react'
+
+function WeatherIcon({ weather, size = 18, color = '#fff' }) {
+  const w = weather ?? ''
+  const props = { size, strokeWidth: 1.6, color }
+  if (/雪/.test(w)) return <CloudSnow {...props} />
+  if (/雨/.test(w)) return <CloudRain {...props} />
+  if (/曇/.test(w)) return <Cloud {...props} />
+  if (/屋内/.test(w)) return <HomeIcon {...props} />
+  if (/晴/.test(w)) return <Sun {...props} />
+  return <Cloud {...props} />
+}
 
 async function getFixture(id) {
   const rows = await sql`
@@ -590,8 +611,11 @@ export default async function FixturePage({ params }) {
   const awayOdds = odds.filter(o => o.value === 'Away')
   const avg = (arr) => arr.length ? (arr.reduce((s, o) => s + parseFloat(o.odd), 0) / arr.length).toFixed(2) : '-'
 
+  const useTabs = (fixture.season ?? 0) >= 2026
+
   return (
     <>
+    <ParallaxBackground homeColor={homeColor} awayColor={awayColor} />
     <header style={{
       position: 'fixed', top: 0, left: 0, right: 0, height: 48,
       backgroundColor: '#111', borderBottom: '1px solid #222',
@@ -662,11 +686,7 @@ export default async function FixturePage({ params }) {
 
       {/* 得点者（スコアの下） */}
       <div style={{ display: 'flex', marginBottom: 24, position: 'relative' }}>
-        {fixture.referee_en && (
-          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 8, textAlign: 'center', whiteSpace: 'nowrap' }}>
-            <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.98)' }}>主審: {refereeJa ?? fixture.referee_ja ?? fixture.referee_en}</span>
-          </div>
-        )}
+        {/* 主審はメタブロックに移動 */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, paddingTop: 8 }}>
           {homeGoalEvents.map((e, i) => (
             <span key={i} style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
@@ -685,27 +705,93 @@ export default async function FixturePage({ params }) {
         </div>
       </div>
 
+      {/* メタ情報: 1段目 主審/会場/観客, 2段目 天候/気温/湿度, 放送あれば下に */}
+      {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en
+        || fixture.weather || fixture.temperature_c != null || fixture.humidity_pct != null || fixture.broadcast_ja) && (() => {
+        const iconColor = 'rgba(255,255,255,0.55)'
+        const cellStyle = {
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: 5, fontSize: 12, color: '#fff',
+        }
+        const rowStyle = {
+          display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px 36px',
+        }
+        return (
+          <div style={{ marginTop: 18, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* 1段目: 主審 / 会場 / 観客 */}
+            {((fixture.venue_name_ja || fixture.venue_name) || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en) && (
+              <div style={rowStyle}>
+                <span style={cellStyle}>
+                  <Flag size={16} strokeWidth={1.5} color={iconColor} />
+                  {fixture.referee_ja_official ? (
+                    <Link href={`/referee/${encodeURIComponent(fixture.referee_ja_official)}`} style={{ color: '#fff', textDecoration: 'none' }}>
+                      {fixture.referee_ja_official}
+                    </Link>
+                  ) : (
+                    <span>{refereeJa ?? fixture.referee_ja ?? fixture.referee_en ?? '—'}</span>
+                  )}
+                </span>
+                <span style={cellStyle}>
+                  <Building2 size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.venue_name_ja ?? fixture.venue_name ?? '—'}</span>
+                </span>
+                <span style={cellStyle}>
+                  <Users size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.attendance != null ? `${Number(fixture.attendance).toLocaleString()}人` : '—'}</span>
+                </span>
+              </div>
+            )}
+            {/* 2段目: 天候 / 気温 / 湿度 */}
+            {(fixture.weather || fixture.temperature_c != null || fixture.humidity_pct != null) && (
+              <div style={rowStyle}>
+                <span style={cellStyle}>
+                  <WeatherIcon weather={fixture.weather} size={16} color={iconColor} />
+                  <span>{fixture.weather ?? '—'}</span>
+                </span>
+                <span style={cellStyle}>
+                  <Thermometer size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.temperature_c != null ? `${fixture.temperature_c}℃` : '—'}</span>
+                </span>
+                <span style={cellStyle}>
+                  <Droplets size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.humidity_pct != null ? `${fixture.humidity_pct}%` : '—'}</span>
+                </span>
+              </div>
+            )}
+            {/* 放送（あれば） */}
+            {fixture.broadcast_ja && (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <span style={cellStyle}>
+                  <Radio size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.broadcast_ja}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
-      {/* 試合スタッツ */}
-      {isFinished && homeStats && awayStats && (
-        <section style={{ marginBottom: 32, paddingTop: 24 }}>
-          <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
-          <StatBar label="スコア" homeVal={fixture.home_score ?? 0} awayVal={fixture.away_score ?? 0} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="枠内シュート" homeVal={homeStats.shots_on} awayVal={awayStats.shots_on} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="枠外シュート" homeVal={homeStats.shots_off} awayVal={awayStats.shots_off} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="PA内シュート" homeVal={homeStats.shots_inside} awayVal={awayStats.shots_inside} homeColor={homeColor} awayColor={awayColor} />
-          {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
-          <StatBar label="パス" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="ボール支配率" homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="コーナー" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="イエローカード" homeVal={homeStats.yellow_cards} awayVal={awayStats.yellow_cards} homeColor={homeColor} awayColor={awayColor} />
-        </section>
-      )}
 
-      {/* スタメン＆ベンチ */}
-      {(homeStarters.length > 0 || awayStarters.length > 0) && (
+      {(() => {
+        // 5タブに振り分け（useTabs: 2026シーズン以降）。!useTabs では従来通り縦並びで表示。
+        const gameStatsJsx = isFinished && homeStats && awayStats && (
+          <section style={{ marginBottom: 32, paddingTop: 24 }}>
+            <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
+            <StatBar label="スコア" homeVal={fixture.home_score ?? 0} awayVal={fixture.away_score ?? 0} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="枠内シュート" homeVal={homeStats.shots_on} awayVal={awayStats.shots_on} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="枠外シュート" homeVal={homeStats.shots_off} awayVal={awayStats.shots_off} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="PA内シュート" homeVal={homeStats.shots_inside} awayVal={awayStats.shots_inside} homeColor={homeColor} awayColor={awayColor} />
+            {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
+            <StatBar label="パス" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="ボール支配率" homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="コーナー" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="イエローカード" homeVal={homeStats.yellow_cards} awayVal={awayStats.yellow_cards} homeColor={homeColor} awayColor={awayColor} />
+          </section>
+        )
+
+        const lineupJsx = (homeStarters.length > 0 || awayStarters.length > 0) && (
         <section style={{ marginBottom: 24, paddingTop: 24 }}>
           <div style={{ display: 'flex', position: 'relative' }}>
             {/* 中央区切り線 */}
@@ -792,11 +878,9 @@ export default async function FixturePage({ params }) {
             </div>
           </div>
         </section>
-      )}
+        )
 
-
-      {isFinished && playerStats.length > 0 && (
-        <>
+        const playerChartsJsx = isFinished && playerStats.length > 0 && (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
             <div style={{ width: '85%' }}>
               <RatingMinutesScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} homeShort={fixture.home_short} awayShort={fixture.away_short} />
@@ -808,11 +892,9 @@ export default async function FixturePage({ params }) {
               <PassAccuracyBar playerStats={playerStats} homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
             </div>
           </section>
-        </>
-      )}
+        )
 
-      {/* 審判担当履歴 */}
-      {(homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
+        const refereeHistoryJsx = (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
         <section style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 15, color: '#fff', marginBottom: 12 }}>
             {`主審：${refereeJa ?? fixture.referee_en} 直近担当5試合`}
@@ -836,11 +918,10 @@ export default async function FixturePage({ params }) {
             </div>
           </div>
         </section>
-      )}
+        )
 
-      {/* 試合前グラフ */}
-      {!hasStarted && seasonFixtures.length > 0 && (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 32, alignItems: 'center' }}>
+        const preMatchGraphsJsx = !hasStarted && seasonFixtures.length > 0 && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 32, alignItems: 'center' }}>
           {/* 順位推移 */}
           <div style={{ width: '100%' }}>
             <FixtureRankChart
@@ -903,10 +984,9 @@ export default async function FixturePage({ params }) {
             </>
           )}
         </section>
-      )}
+        )
 
-      {/* オッズ情報（試合前） */}
-      {!hasStarted && (odds.length > 0 || exactScoreOdds.length > 0) && (() => {
+        const oddsJsx = !hasStarted && (odds.length > 0 || exactScoreOdds.length > 0) && (() => {
         const homeOdds = odds.filter(o => o.value === 'Home')
         const drawOdds = odds.filter(o => o.value === 'Draw')
         const awayOdds = odds.filter(o => o.value === 'Away')
@@ -993,14 +1073,48 @@ export default async function FixturePage({ params }) {
 
           </section>
         )
-      })()}
+        })()
 
-      {/* 試合前 */}
-      {!hasStarted && odds.length === 0 && seasonFixtures.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
-          試合前のため詳細データはありません
-        </p>
-      )}
+        const fallbackJsx = !hasStarted && odds.length === 0 && seasonFixtures.length === 0 && (
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
+            試合前のため詳細データはありません
+          </p>
+        )
+
+        const statsJsx = (
+          <>
+            {gameStatsJsx}
+            {playerChartsJsx}
+            {preMatchGraphsJsx}
+            {oddsJsx}
+            {fallbackJsx}
+          </>
+        )
+
+        if (useTabs) {
+          return (
+            <MatchTabs
+              members={lineupJsx || null}
+              stats={statsJsx}
+              ratings={<RatingsSection fixtureId={parseInt(id)} />}
+              posts={<PostsSection fixtureId={parseInt(id)} />}
+              referee={refereeHistoryJsx || null}
+            />
+          )
+        }
+
+        return (
+          <>
+            {gameStatsJsx}
+            {lineupJsx}
+            {playerChartsJsx}
+            {refereeHistoryJsx}
+            {preMatchGraphsJsx}
+            {oddsJsx}
+            {fallbackJsx}
+          </>
+        )
+      })()}
     </div>
     </>
   )
