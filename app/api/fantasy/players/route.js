@@ -78,6 +78,7 @@ export async function GET() {
     WHERE pm.position IN ('GK', 'DF', 'MF', 'FW')
       AND tm.category = 'J1'
       AND pm.canonical_id IS NULL
+      AND pm.is_active = true
     ORDER BY pm.position, pm.price DESC, pm.name_ja
   `
   return Response.json({ players }, {
