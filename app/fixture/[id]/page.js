@@ -478,47 +478,45 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   const size = 200
   const cx = size / 2
   const cy = size / 2
-  const r = 72
-  const stroke = 12
-  const c = 2 * Math.PI * r
-  const gapDeg = 6 // home/away間のすき間（度）
-  const gapLen = (gapDeg / 360) * c
-  const homeDash = Math.max(0, (homePct / 100) * c - gapLen)
-  const awayDash = Math.max(0, (awayPct / 100) * c - gapLen)
-  const homeId = `possHome-${Math.abs(homeNum * 1000) | 0}`
-  const awayId = `possAway-${Math.abs(awayNum * 1000) | 0}`
+  const R = 80      // 外径
+  const r = 66      // 内径 (= 厚み 14px)
+  const skewDeg = 5 // 斜めカット角度: StatBarのpolygon skewと同じ感覚
+  // 接合部の slant 方向: 外側は前進・内側は後退 → StatBarと同じ「上が前、下が後ろ」
+
+  function polar(deg, radius) {
+    const rad = (deg - 90) * Math.PI / 180
+    return [cx + radius * Math.cos(rad), cy + radius * Math.sin(rad)]
+  }
+
+  function wedge(startDeg, endDeg) {
+    // 各セグメントの両端を skew させる:
+    //   外側エッジは startDeg/endDeg 通り、内側エッジは -skewDeg ずらす
+    //   結果として接合線が「径方向」ではなく斜めになる（StatBarと同じ視覚）
+    const innerStartDeg = startDeg - skewDeg
+    const innerEndDeg = endDeg - skewDeg
+    const [oxs, oys] = polar(startDeg, R)
+    const [oxe, oye] = polar(endDeg, R)
+    const [ixe, iye] = polar(innerEndDeg, r)
+    const [ixs, iys] = polar(innerStartDeg, r)
+    const largeArc = (endDeg - startDeg) > 180 ? 1 : 0
+    const innerLargeArc = (innerEndDeg - innerStartDeg) > 180 ? 1 : 0
+    return `M ${oxs} ${oys} ` +
+           `A ${R} ${R} 0 ${largeArc} 1 ${oxe} ${oye} ` +
+           `L ${ixe} ${iye} ` +
+           `A ${r} ${r} 0 ${innerLargeArc} 0 ${ixs} ${iys} Z`
+  }
+
+  const homeEndDeg = (homePct / 100) * 360
+  const homePath = wedge(0, homeEndDeg)
+  const awayPath = wedge(homeEndDeg, 360)
 
   return (
     <div style={{ marginBottom: 24, padding: '8px 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <defs>
-            <linearGradient id={homeId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={homeColor || '#888'} stopOpacity="0.85" />
-              <stop offset="100%" stopColor={homeColor || '#888'} stopOpacity="1" />
-            </linearGradient>
-            <linearGradient id={awayId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={awayColor || '#555'} stopOpacity="1" />
-              <stop offset="100%" stopColor={awayColor || '#555'} stopOpacity="0.85" />
-            </linearGradient>
-          </defs>
-          {/* 背景トラック */}
-          <circle cx={cx} cy={cy} r={r} fill="none"
-            stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
-          {/* ホーム弧 (上から開始、時計回り) */}
-          <circle cx={cx} cy={cy} r={r} fill="none"
-            stroke={`url(#${homeId})`} strokeWidth={stroke} strokeLinecap="round"
-            strokeDasharray={`${homeDash} ${c - homeDash}`}
-            transform={`rotate(${-90 + gapDeg / 2} ${cx} ${cy})`}
-          />
-          {/* アウェイ弧 (ホームの後ろから開始) */}
-          <circle cx={cx} cy={cy} r={r} fill="none"
-            stroke={`url(#${awayId})`} strokeWidth={stroke} strokeLinecap="round"
-            strokeDasharray={`${awayDash} ${c - awayDash}`}
-            transform={`rotate(${-90 + (homePct / 100) * 360 + gapDeg / 2} ${cx} ${cy})`}
-          />
+          <path d={homePath} fill={homeColor || '#888'} />
+          <path d={awayPath} fill={awayColor || '#555'} />
         </svg>
-        {/* 中央: 大きな割合と小さなラベル */}
         <div style={{
           position: 'absolute', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
