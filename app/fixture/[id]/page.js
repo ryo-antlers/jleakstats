@@ -548,40 +548,42 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   )
 }
 
-function StatFrame({ label, homeVal, awayVal, homeColor, awayColor }) {
+// 枠 = ゴール枠の比喩。枠の中=枠内シュート、枠の外=枠外シュート
+function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) {
+  const bw = 3 // 枠線の太さ
   return (
     <div>
-      {/* 上段: 数字を左右に小さく、ラベル中央 */}
+      {/* 枠外シュート (枠の "外") */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        fontSize: 13, marginBottom: 4, padding: '0 6px',
+        fontSize: 14, marginBottom: 6, padding: '0 4px',
       }}>
-        <span style={{ fontWeight: 900, color: homeColor || '#fff', minWidth: 24 }}>{homeVal ?? '-'}</span>
-        <span style={{ color: '#fff', fontSize: 11, textAlign: 'center' }}>{label}</span>
-        <span style={{ fontWeight: 900, color: awayColor || '#fff', minWidth: 24, textAlign: 'right' }}>{awayVal ?? '-'}</span>
+        <span style={{ fontWeight: 900, color: homeColor || '#fff', minWidth: 24 }}>{offHome ?? '-'}</span>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>シュート</span>
+        <span style={{ fontWeight: 900, color: awayColor || '#fff', minWidth: 24, textAlign: 'right' }}>{offAway ?? '-'}</span>
       </div>
-      {/* 枠: 左右半分でクラブカラーの細い枠線、中に大きな数字 */}
-      <div style={{ display: 'flex', height: 52 }}>
+      {/* 枠内シュート (枠の "中"): 太い枠線 + 大きな数字 */}
+      <div style={{ display: 'flex', height: 130 }}>
         <div style={{
           flex: 1,
-          borderTop: `1px solid ${homeColor || '#888'}`,
-          borderBottom: `1px solid ${homeColor || '#888'}`,
-          borderLeft: `1px solid ${homeColor || '#888'}`,
+          borderTop: `${bw}px solid ${homeColor || '#888'}`,
+          borderBottom: `${bw}px solid ${homeColor || '#888'}`,
+          borderLeft: `${bw}px solid ${homeColor || '#888'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 26, fontWeight: 900, color: homeColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            {homeVal ?? '-'}
+          <span style={{ fontSize: 56, fontWeight: 900, color: homeColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {onHome ?? '-'}
           </span>
         </div>
         <div style={{
           flex: 1,
-          borderTop: `1px solid ${awayColor || '#555'}`,
-          borderBottom: `1px solid ${awayColor || '#555'}`,
-          borderRight: `1px solid ${awayColor || '#555'}`,
+          borderTop: `${bw}px solid ${awayColor || '#555'}`,
+          borderBottom: `${bw}px solid ${awayColor || '#555'}`,
+          borderRight: `${bw}px solid ${awayColor || '#555'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 26, fontWeight: 900, color: awayColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            {awayVal ?? '-'}
+          <span style={{ fontSize: 56, fontWeight: 900, color: awayColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {onAway ?? '-'}
           </span>
         </div>
       </div>
@@ -1106,9 +1108,12 @@ export default async function FixturePage({ params }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <PossessionDonut homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
               </div>
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <StatFrame label="枠内シュート" homeVal={homeStats.shots_on} awayVal={awayStats.shots_on} homeColor={homeColor} awayColor={awayColor} />
-                <StatFrame label="枠外シュート" homeVal={homeStats.shots_off} awayVal={awayStats.shots_off} homeColor={homeColor} awayColor={awayColor} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <ShotsFrame
+                  onHome={homeStats.shots_on} onAway={awayStats.shots_on}
+                  offHome={homeStats.shots_off} offAway={awayStats.shots_off}
+                  homeColor={homeColor} awayColor={awayColor}
+                />
               </div>
             </div>
             <StatBar label="PA内シュート" homeVal={homeStats.shots_inside} awayVal={awayStats.shots_inside} homeColor={homeColor} awayColor={awayColor} />
