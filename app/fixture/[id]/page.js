@@ -553,12 +553,23 @@ export default async function FixturePage({ params }) {
   const posMap = { G: 'GK', D: 'DF', M: 'MF', F: 'FW' }
   lineups.forEach(p => { p.position = posMap[p.position] ?? p.position })
 
+  // ポジション (GK→DF→MF→FW) → 背番号 順
+  const posOrder = { GK: 1, DF: 2, MF: 3, FW: 4 }
+  const sortByPosNum = (a, b) => {
+    const pa = posOrder[a.position] ?? 5
+    const pb = posOrder[b.position] ?? 5
+    if (pa !== pb) return pa - pb
+    const na = a.number == null ? 999 : Number(a.number)
+    const nb = b.number == null ? 999 : Number(b.number)
+    return na - nb
+  }
+
   const homeLineup = lineups.filter(p => p.team_id === fixture.home_team_id)
   const awayLineup = lineups.filter(p => p.team_id === fixture.away_team_id)
-  const homeStarters = homeLineup.filter(p => p.is_starter)
-  const homeSubs = homeLineup.filter(p => !p.is_starter)
-  const awayStarters = awayLineup.filter(p => p.is_starter)
-  const awaySubs = awayLineup.filter(p => !p.is_starter)
+  const homeStarters = homeLineup.filter(p => p.is_starter).sort(sortByPosNum)
+  const homeSubs = homeLineup.filter(p => !p.is_starter).sort(sortByPosNum)
+  const awayStarters = awayLineup.filter(p => p.is_starter).sort(sortByPosNum)
+  const awaySubs = awayLineup.filter(p => !p.is_starter).sort(sortByPosNum)
 
   // 交代イベント: player_id=退いた選手, assist_id=入った選手
   const substEvents = events.filter(e => e.type === 'subst')
