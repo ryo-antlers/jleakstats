@@ -507,9 +507,11 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
            `A ${r} ${r} 0 ${innerLargeArc} 0 ${ixs} ${iys} Z`
   }
 
-  const homeEndDeg = (homePct / 100) * 360
-  const homePath = wedge(0 + gapDeg / 2, homeEndDeg - gapDeg / 2)
-  const awayPath = wedge(homeEndDeg + gapDeg / 2, 360 - gapDeg / 2)
+  // ホームを左回り (上→左→下) に配置するため、アウェイを右(0°→awayEndDeg)、
+  // ホームをその後 (awayEndDeg→360°) として描画
+  const awayEndDeg = (awayPct / 100) * 360
+  const awayPath = wedge(0 + gapDeg / 2, awayEndDeg - gapDeg / 2)
+  const homePath = wedge(awayEndDeg + gapDeg / 2, 360 - gapDeg / 2)
 
   return (
     <div style={{ marginBottom: 24, padding: '8px 0' }}>
@@ -528,12 +530,12 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
             color: 'rgba(255,255,255,0.35)', marginBottom: 6,
           }}>POSSESSION</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1 }}>
-            <span style={{ fontSize: 30, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
-              {Math.round(awayPct)}
-            </span>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
             <span style={{ fontSize: 30, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
               {Math.round(homePct)}
+            </span>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
+            <span style={{ fontSize: 30, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
+              {Math.round(awayPct)}
             </span>
           </div>
           <div style={{
