@@ -1220,13 +1220,13 @@ export default async function FixturePage({ params }) {
 
         const ratingsChartsJsx = (isFinished && playerStats.length > 0) ? (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
-            <div style={{ width: '85%' }}>
+            <div style={{ width: '100%' }}>
               <RatingMinutesScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} homeShort={fixture.home_short} awayShort={fixture.away_short} />
             </div>
-            <div style={{ width: '85%' }}>
+            <div style={{ width: '100%' }}>
               <DuelScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} />
             </div>
-            <div style={{ width: '85%' }}>
+            <div style={{ width: '100%' }}>
               <PassAccuracyBar playerStats={playerStats} homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
             </div>
           </section>
@@ -1428,12 +1428,7 @@ export default async function FixturePage({ params }) {
           </>
         )
 
-        const ratingsJsx = (
-          <>
-            {ratingsChartsJsx}
-            <RatingsSection fixtureId={parseInt(id)} />
-          </>
-        )
+        const ratingsJsx = ratingsChartsJsx
 
         const postsJsx = <PostsSection fixtureId={parseInt(id)} />
 

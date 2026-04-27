@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 
 const TABS = [
   { key: 'members',  label: 'メンバー' },
-  { key: 'stats',    label: 'スタッツ' },
-  { key: 'ratings',  label: '採点' },
+  { key: 'stats',    label: '試合スタッツ' },
+  { key: 'ratings',  label: '選手スタッツ' },
   { key: 'posts',    label: '掲示板' },
   { key: 'referee',  label: '審判' },
 ]
