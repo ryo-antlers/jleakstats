@@ -467,22 +467,22 @@ function RefereeMatchRow({ f, teamId, align, clubColor }) {
   )
 }
 
-function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
-  // homeVal / awayVal は "55%" のような文字列で渡ってくる前提
+// ホーム/アウェイの比率をドーナツで表示。中央にラベル＋数値
+//   mode='percent': 中央表示は homePct/awayPct (% を四捨五入)
+//   mode='raw':     中央表示は homeVal/awayVal をそのまま (xG=1.30 等)
+function RatioDonut({ label, homeVal, awayVal, homeColor, awayColor, mode = 'percent', size = 200 }) {
   const homeNum = parseFloat(homeVal) || 0
   const awayNum = parseFloat(awayVal) || 0
   const total = homeNum + awayNum
   const homePct = total > 0 ? (homeNum / total) * 100 : 50
   const awayPct = 100 - homePct
 
-  const size = 200
   const cx = size / 2
   const cy = size / 2
-  const R = 80      // 外径
-  const r = 66      // 内径 (= 厚み 14px)
-  const skewDeg = 5 // 斜めカット角度: StatBarのpolygon skewと同じ感覚
-  const gapDeg = 3  // ホーム/アウェイ間のすき間
-  // 接合部の slant 方向: 外側は前進・内側は後退 → StatBarと同じ「上が前、下が後ろ」
+  const R = size * 0.40       // 外径
+  const r = R - size * 0.07   // 内径 (厚み = size * 7%)
+  const skewDeg = 5
+  const gapDeg = 3
 
   function polar(deg, radius) {
     const rad = (deg - 90) * Math.PI / 180
@@ -490,9 +490,6 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   }
 
   function wedge(startDeg, endDeg) {
-    // 各セグメントの両端を skew させる:
-    //   外側エッジは startDeg/endDeg 通り、内側エッジは -skewDeg ずらす
-    //   結果として接合線が「径方向」ではなく斜めになる（StatBarと同じ視覚）
     const innerStartDeg = startDeg - skewDeg
     const innerEndDeg = endDeg - skewDeg
     const [oxs, oys] = polar(startDeg, R)
@@ -507,11 +504,13 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
            `A ${r} ${r} 0 ${innerLargeArc} 0 ${ixs} ${iys} Z`
   }
 
-  // ホームを左回り (上→左→下) に配置するため、アウェイを右(0°→awayEndDeg)、
-  // ホームをその後 (awayEndDeg→360°) として描画
   const awayEndDeg = (awayPct / 100) * 360
   const awayPath = wedge(0 + gapDeg / 2, awayEndDeg - gapDeg / 2)
   const homePath = wedge(awayEndDeg + gapDeg / 2, 360 - gapDeg / 2)
+
+  const centerHome = mode === 'percent' ? Math.round(homePct) : (homeVal ?? '-')
+  const centerAway = mode === 'percent' ? Math.round(awayPct) : (awayVal ?? '-')
+  const valFontSize = Math.round(size * 0.15)
 
   return (
     <div>
@@ -527,17 +526,56 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
         }}>
           <div style={{
             fontSize: 11, fontWeight: 700, color: '#fff', marginBottom: 6,
-          }}>ボール支配率</div>
+          }}>{label}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1 }}>
-            <span style={{ fontSize: 30, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
-              {Math.round(homePct)}
+            <span style={{ fontSize: valFontSize, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
+              {centerHome}
             </span>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
-            <span style={{ fontSize: 30, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
-              {Math.round(awayPct)}
+            <span style={{ fontSize: valFontSize, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
+              {centerAway}
             </span>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// 両チームそれぞれの % を 2つのミニゲージで並べて表示 (パス成功率向け)
+function DualPercentGauge({ label, homeVal, awayVal, homeColor, awayColor }) {
+  const renderGauge = (val, color) => {
+    const pct = parseFloat(val) || 0
+    const size = 96
+    const cx = size / 2
+    const cy = size / 2
+    const r = 38
+    const stroke = 7
+    const c = 2 * Math.PI * r
+    const dash = (pct / 100) * c
+    return (
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
+          <circle cx={cx} cy={cy} r={r} fill="none"
+            stroke={color || '#888'} strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={`${dash} ${c - dash}`}
+            transform={`rotate(-90 ${cx} ${cy})`}
+          />
+        </svg>
+        <span style={{
+          position: 'absolute', fontSize: 18, fontWeight: 900,
+          color: color || '#fff', letterSpacing: '-0.02em',
+        }}>{Math.round(pct)}%</span>
+      </div>
+    )
+  }
+  return (
+    <div>
+      <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#fff', marginBottom: 8 }}>{label}</div>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 36 }}>
+        {renderGauge(homeVal, homeColor)}
+        {renderGauge(awayVal, awayColor)}
       </div>
     </div>
   )
@@ -1098,10 +1136,12 @@ export default async function FixturePage({ params }) {
         const gameStatsJsx = isFinished && homeStats && awayStats && (
           <section style={{ marginBottom: 32, paddingTop: 8 }}>
             <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
-            {/* 上段 2カラム: 左にボール支配率ドーナツ / 右に枠内・枠外シュートのフレーム */}
-            <div style={{ display: 'flex', gap: 36, marginBottom: 20, alignItems: 'center', maxWidth: 480, margin: '0 auto 20px' }}>
+            {/* Row 1: ボール支配率 / シュート */}
+            <div style={{ display: 'flex', gap: 36, alignItems: 'center', maxWidth: 480, margin: '0 auto 20px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <PossessionDonut homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
+                <RatioDonut label="ボール支配率" mode="percent"
+                  homeVal={homeStats.possession} awayVal={awayStats.possession}
+                  homeColor={homeColor} awayColor={awayColor} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <ShotsFrame
@@ -1111,9 +1151,27 @@ export default async function FixturePage({ params }) {
                 />
               </div>
             </div>
-            {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
-            <StatBar label="パス本数" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
-            <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
+            {/* Row 2: ゴール期待値 / パス本数 (ドーナツ) */}
+            <div style={{ display: 'flex', gap: 36, alignItems: 'center', maxWidth: 480, margin: '0 auto 20px' }}>
+              {homeStats.expected_goals && (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <RatioDonut label="ゴール期待値" mode="raw" size={170}
+                    homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals}
+                    homeColor={homeColor} awayColor={awayColor} />
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <RatioDonut label="パス本数" mode="raw" size={170}
+                  homeVal={homeStats.passes_total} awayVal={awayStats.passes_total}
+                  homeColor={homeColor} awayColor={awayColor} />
+              </div>
+            </div>
+            {/* Row 3: パス成功率 (各チームの%を独立ゲージで) */}
+            <div style={{ marginBottom: 24, maxWidth: 480, margin: '0 auto 24px' }}>
+              <DualPercentGauge label="パス成功率"
+                homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct}
+                homeColor={homeColor} awayColor={awayColor} />
+            </div>
             <StatBar label="コーナーキック" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
           </section>
