@@ -475,41 +475,72 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   const homePct = total > 0 ? (homeNum / total) * 100 : 50
   const awayPct = 100 - homePct
 
-  const size = 140
-  const r = 56
-  const stroke = 18
+  const size = 200
+  const cx = size / 2
+  const cy = size / 2
+  const r = 72
+  const stroke = 12
   const c = 2 * Math.PI * r
-  const homeDash = (homePct / 100) * c
-  const awayDash = c - homeDash
+  const gapDeg = 6 // home/away間のすき間（度）
+  const gapLen = (gapDeg / 360) * c
+  const homeDash = Math.max(0, (homePct / 100) * c - gapLen)
+  const awayDash = Math.max(0, (awayPct / 100) * c - gapLen)
+  const homeId = `possHome-${Math.abs(homeNum * 1000) | 0}`
+  const awayId = `possAway-${Math.abs(awayNum * 1000) | 0}`
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, marginBottom: 8 }}>
-        <span style={{ fontWeight: 900, color: '#fff', minWidth: 40 }}>{homeVal ?? '-'}</span>
-        <span style={{ color: '#fff', fontSize: 11, textAlign: 'center' }}>ボール支配率</span>
-        <span style={{ fontWeight: 900, color: '#fff', minWidth: 40, textAlign: 'right' }}>{awayVal ?? '-'}</span>
-      </div>
+    <div style={{ marginBottom: 24, padding: '8px 0' }}>
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
-          <circle
-            cx={size / 2} cy={size / 2} r={r}
-            fill="none" stroke={homeColor || '#888'} strokeWidth={stroke}
-            strokeDasharray={`${homeDash} ${c}`}
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <defs>
+            <linearGradient id={homeId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={homeColor || '#888'} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={homeColor || '#888'} stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id={awayId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={awayColor || '#555'} stopOpacity="1" />
+              <stop offset="100%" stopColor={awayColor || '#555'} stopOpacity="0.85" />
+            </linearGradient>
+          </defs>
+          {/* 背景トラック */}
+          <circle cx={cx} cy={cy} r={r} fill="none"
+            stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
+          {/* ホーム弧 (上から開始、時計回り) */}
+          <circle cx={cx} cy={cy} r={r} fill="none"
+            stroke={`url(#${homeId})`} strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={`${homeDash} ${c - homeDash}`}
+            transform={`rotate(${-90 + gapDeg / 2} ${cx} ${cy})`}
           />
-          <circle
-            cx={size / 2} cy={size / 2} r={r}
-            fill="none" stroke={awayColor || '#555'} strokeWidth={stroke}
-            strokeDasharray={`${awayDash} ${c}`}
-            strokeDashoffset={-homeDash}
+          {/* アウェイ弧 (ホームの後ろから開始) */}
+          <circle cx={cx} cy={cy} r={r} fill="none"
+            stroke={`url(#${awayId})`} strokeWidth={stroke} strokeLinecap="round"
+            strokeDasharray={`${awayDash} ${c - awayDash}`}
+            transform={`rotate(${-90 + (homePct / 100) * 360 + gapDeg / 2} ${cx} ${cy})`}
           />
         </svg>
+        {/* 中央: 大きな割合と小さなラベル */}
         <div style={{
-          position: 'absolute', display: 'flex', alignItems: 'baseline', gap: 4,
-          color: '#fff', fontWeight: 900,
+          position: 'absolute', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          color: '#fff', pointerEvents: 'none',
         }}>
-          <span style={{ fontSize: 22, color: homeColor }}>{Math.round(homePct)}</span>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>:</span>
-          <span style={{ fontSize: 22, color: awayColor }}>{Math.round(awayPct)}</span>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.2em',
+            color: 'rgba(255,255,255,0.35)', marginBottom: 6,
+          }}>POSSESSION</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1 }}>
+            <span style={{ fontSize: 30, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
+              {Math.round(homePct)}
+            </span>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
+            <span style={{ fontSize: 30, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
+              {Math.round(awayPct)}
+            </span>
+          </div>
+          <div style={{
+            fontSize: 8, fontWeight: 600, letterSpacing: '0.15em',
+            color: 'rgba(255,255,255,0.3)', marginTop: 6,
+          }}>ボール支配率</div>
         </div>
       </div>
     </div>
