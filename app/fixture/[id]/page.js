@@ -480,9 +480,8 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   const cy = size / 2
   const R = 80      // 外径
   const r = 74      // 内径 (= 厚み 6px、シュート枠の borderWidth と同じ)
-  const skewDeg = 5 // 斜めカット角度: StatBarのpolygon skewと同じ感覚
-  const gapDeg = 3  // ホーム/アウェイ間のすき間
-  // 接合部の slant 方向: 外側は前進・内側は後退 → StatBarと同じ「上が前、下が後ろ」
+  const skewDeg = 0 // 斜めカット無し (普通の接合)
+  const gapDeg = 0  // すき間無し
 
   function polar(deg, radius) {
     const rad = (deg - 90) * Math.PI / 180
