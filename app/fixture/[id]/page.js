@@ -548,28 +548,23 @@ function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) 
   const bw = 6 // 枠線の太さ
   return (
     <div>
-      {/* 枠外シュート (枠の "外") */}
+      {/* シュート数 ラベル + 枠外シュートの数字 */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        marginBottom: 6, padding: '0 4px',
+        marginBottom: 16, padding: '0 4px',
       }}>
         <span style={{ fontSize: 28, fontWeight: 900, color: homeColor || '#fff', minWidth: 28, lineHeight: 1 }}>{offHome ?? '-'}</span>
-        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>枠外シュート</span>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>シュート数</span>
         <span style={{ fontSize: 28, fontWeight: 900, color: awayColor || '#fff', minWidth: 28, textAlign: 'right', lineHeight: 1 }}>{offAway ?? '-'}</span>
       </div>
-      {/* 枠内シュート (枠の "中"): 太い枠線 + 少しだけ大きい数字 */}
-      <div style={{ position: 'relative', display: 'flex', height: 100 }}>
-        {/* 枠内シュート ラベル: 枠の中・上部中央 */}
-        <span style={{
-          position: 'absolute', top: 10, left: 0, right: 0, textAlign: 'center',
-          color: '#fff', fontSize: 11, fontWeight: 700, zIndex: 1, pointerEvents: 'none',
-        }}>枠内シュート</span>
+      {/* 枠内シュート (枠の "中"): 太い枠線 + 大きな数字 */}
+      <div style={{ display: 'flex', height: 100 }}>
         <div style={{
           flex: 1,
           borderTop: `${bw}px solid ${homeColor || '#888'}`,
           borderBottom: `${bw}px solid ${homeColor || '#888'}`,
           borderLeft: `${bw}px solid ${homeColor || '#888'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontSize: 30, fontWeight: 900, color: homeColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {onHome ?? '-'}
@@ -580,7 +575,7 @@ function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) 
           borderTop: `${bw}px solid ${awayColor || '#555'}`,
           borderBottom: `${bw}px solid ${awayColor || '#555'}`,
           borderRight: `${bw}px solid ${awayColor || '#555'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontSize: 30, fontWeight: 900, color: awayColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {onAway ?? '-'}
@@ -1117,11 +1112,10 @@ export default async function FixturePage({ params }) {
               </div>
             </div>
             {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
-            <StatBar label="パス" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="パス本数" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
-            <StatBar label="コーナー" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="コーナーキック" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
-            <StatBar label="イエローカード" homeVal={homeStats.yellow_cards} awayVal={awayStats.yellow_cards} homeColor={homeColor} awayColor={awayColor} />
           </section>
         )
 
