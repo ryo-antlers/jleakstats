@@ -479,7 +479,7 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   const cx = size / 2
   const cy = size / 2
   const R = 80      // 外径
-  const r = 66      // 内径 (= 厚み 14px)
+  const r = 74      // 内径 (= 厚み 6px、シュート枠の borderWidth と同じ)
   const skewDeg = 5 // 斜めカット角度: StatBarのpolygon skewと同じ感覚
   const gapDeg = 3  // ホーム/アウェイ間のすき間
   // 接合部の slant 方向: 外側は前進・内側は後退 → StatBarと同じ「上が前、下が後ろ」
