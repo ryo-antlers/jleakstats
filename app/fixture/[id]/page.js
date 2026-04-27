@@ -481,6 +481,7 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   const R = 80      // 外径
   const r = 66      // 内径 (= 厚み 14px)
   const skewDeg = 5 // 斜めカット角度: StatBarのpolygon skewと同じ感覚
+  const gapDeg = 3  // ホーム/アウェイ間のすき間
   // 接合部の slant 方向: 外側は前進・内側は後退 → StatBarと同じ「上が前、下が後ろ」
 
   function polar(deg, radius) {
@@ -507,8 +508,8 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
   }
 
   const homeEndDeg = (homePct / 100) * 360
-  const homePath = wedge(0, homeEndDeg)
-  const awayPath = wedge(homeEndDeg, 360)
+  const homePath = wedge(0 + gapDeg / 2, homeEndDeg - gapDeg / 2)
+  const awayPath = wedge(homeEndDeg + gapDeg / 2, 360 - gapDeg / 2)
 
   return (
     <div style={{ marginBottom: 24, padding: '8px 0' }}>
@@ -527,12 +528,12 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
             color: 'rgba(255,255,255,0.35)', marginBottom: 6,
           }}>POSSESSION</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1 }}>
-            <span style={{ fontSize: 30, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
-              {Math.round(homePct)}
-            </span>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
             <span style={{ fontSize: 30, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
               {Math.round(awayPct)}
+            </span>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
+            <span style={{ fontSize: 30, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
+              {Math.round(homePct)}
             </span>
           </div>
           <div style={{
