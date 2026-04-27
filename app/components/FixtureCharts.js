@@ -523,7 +523,7 @@ export function PlayerRankingBar({ title, subtitle, data, homeTeamId, homeColor,
           <g key={i}>
             {i % 2 === 0 && <rect x={0} y={y} width={W} height={rowH} fill="rgba(255,255,255,0.02)" />}
             <text x={14} y={y + rowH / 2 + 4} style={{ fontSize: 8, fill: 'rgba(255,255,255,0.2)', fontFamily: 'inherit' }}>
-              {i + 1}
+              {p._showRank === false ? '' : (p._rank ?? (i + 1))}
             </text>
             <rect x={26} y={y + rowH / 2 - 6} width={3} height={12} fill={color} opacity="0.7" />
 

@@ -1218,52 +1218,80 @@ export default async function FixturePage({ params }) {
         ) : null
 
         // 各種ランキング用データ準備
-        const ratingTop5 = playerStats
+        // 同値は同順位、TOP5位タイは全員含める (6位7位になってもOK)
+        const topNWithTies = (sorted, n, getVal) => {
+          if (sorted.length <= n) return sorted
+          const cutoff = getVal(sorted[n - 1])
+          let end = n
+          while (end < sorted.length && getVal(sorted[end]) === cutoff) end++
+          return sorted.slice(0, end)
+        }
+        const withRanks = (items, getVal) => {
+          let prevVal = null
+          let prevRank = 0
+          return items.map((p, i) => {
+            const v = getVal(p)
+            if (i > 0 && v === prevVal) {
+              return { ...p, _rank: prevRank, _showRank: false }
+            }
+            prevVal = v
+            prevRank = i + 1
+            return { ...p, _rank: prevRank, _showRank: true }
+          })
+        }
+
+        const ratingSorted = playerStats
           .filter(p => p.rating != null && Number(p.rating) > 0)
           .sort((a, b) => Number(b.rating) - Number(a.rating))
-          .slice(0, 5)
-          .map(p => ({
-            ...p,
-            _bar: Math.max(0, Math.min(1, (Number(p.rating) - 5) / 5)),  // 5〜10 → 0〜1
-            _main: Number(p.rating).toFixed(2),
-            _sub: `${p.minutes}'`,
-          }))
+        const ratingTop5 = withRanks(
+          topNWithTies(ratingSorted, 5, p => Number(p.rating)),
+          p => Number(p.rating),
+        ).map(p => ({
+          ...p,
+          _bar: Math.max(0, Math.min(1, (Number(p.rating) - 5) / 5)),  // 5〜10 → 0〜1
+          _main: Number(p.rating).toFixed(2),
+          _sub: `${p.minutes}'`,
+        }))
 
-        const shotsTop5 = playerStats
+        const shotsSorted = playerStats
           .filter(p => Number(p.shots_total) > 0)
           .sort((a, b) => Number(b.shots_total) - Number(a.shots_total))
-          .slice(0, 5)
-        const maxShots = shotsTop5[0] ? Number(shotsTop5[0].shots_total) : 1
-        const shotsTop5Data = shotsTop5.map(p => ({
+        const shotsTop5Raw = topNWithTies(shotsSorted, 5, p => Number(p.shots_total))
+        const maxShots = shotsTop5Raw[0] ? Number(shotsTop5Raw[0].shots_total) : 1
+        const shotsTop5 = withRanks(shotsTop5Raw, p => Number(p.shots_total)).map(p => ({
           ...p,
           _bar: Number(p.shots_total) / maxShots,
           _main: `${p.shots_total}本`,
           _sub: `枠内 ${p.shots_on ?? 0}`,
         }))
 
-        const passAccTop5 = playerStats
+        const passAccSorted = playerStats
           .filter(p => Number(p.passes_total) >= 30 && p.passes_accuracy != null)
           .map(p => ({ ...p, _acc: Number(p.passes_accuracy) / Number(p.passes_total) * 100 }))
           .sort((a, b) => b._acc - a._acc)
-          .slice(0, 5)
-          .map(p => ({
-            ...p,
-            _bar: p._acc / 100,
-            _main: `${p._acc.toFixed(1)}%`,
-            _sub: `${p.passes_total}本`,
-          }))
+        const passAccTop5 = withRanks(
+          topNWithTies(passAccSorted, 5, p => p._acc),
+          p => p._acc,
+        ).map(p => ({
+          ...p,
+          _bar: p._acc / 100,
+          _main: `${p._acc.toFixed(1)}%`,
+          _sub: `${p.passes_total}本`,
+        }))
 
-        const duelWinTop5 = playerStats
+        const duelWinSorted = playerStats
           .filter(p => Number(p.duels_total) >= 5)
           .map(p => ({ ...p, _rate: Number(p.duels_won) / Number(p.duels_total) * 100 }))
           .sort((a, b) => b._rate - a._rate)
-          .slice(0, 5)
-          .map(p => ({
-            ...p,
-            _bar: p._rate / 100,
-            _main: `${p._rate.toFixed(1)}%`,
-            _sub: `${p.duels_won}/${p.duels_total}`,
-          }))
+        const duelWinTop5 = withRanks(
+          topNWithTies(duelWinSorted, 5, p => p._rate),
+          p => p._rate,
+        ).map(p => ({
+          ...p,
+          _bar: p._rate / 100,
+          _main: `${p._rate.toFixed(1)}%`,
+          _sub: `${p.duels_won}/${p.duels_total}`,
+        }))
 
         const ratingsChartsJsx = (isFinished && playerStats.length > 0) ? (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
@@ -1272,7 +1300,7 @@ export default async function FixturePage({ params }) {
                 homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
             </div>
             <div style={{ width: '100%' }}>
-              <PlayerRankingBar title="シュート本数 TOP 5" data={shotsTop5Data}
+              <PlayerRankingBar title="シュート本数 TOP 5" data={shotsTop5}
                 homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
             </div>
             <div style={{ width: '100%' }}>
