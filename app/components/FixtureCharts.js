@@ -472,6 +472,98 @@ export function PassScatter({ playerStats, homeTeamId, awayTeamId, homeColor, aw
 }
 
 // パス成功率横棒グラフ
+// 汎用: 個人スタッツのランキングバー
+//   data: 既にフィルタ・ソート・slice 済みの配列
+//     各要素は通常の player stats に加え、以下を持つ:
+//       _bar  : 0..1 の数値（バーの長さ比）
+//       _main : メイン表示文字列 (例: "93.9%", "5本", "8.20")
+//       _sub  : 右端の小さな文字列 (任意、例: "49本", "5/8")
+export function PlayerRankingBar({ title, subtitle, data, homeTeamId, homeColor, awayColor }) {
+  if (!data?.length) return null
+
+  const estimateWidth = (str) => [...str].reduce((w, c) => w + (c.charCodeAt(0) > 255 ? 9 : 5), 0)
+  const nameAreaX = 32, nameAreaW = 100
+  const padL = nameAreaX + nameAreaW + 8
+  const barZone = 192, padR = 100
+  const W = padL + barZone + padR
+  const rowH = 26, padT = 32, padB = 4
+  const H = padT + rowH * data.length + padB
+  const idPrefix = `prb-${(title || 'r').replace(/[^a-zA-Z0-9]/g, '')}`
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
+      <defs>
+        {data.map((p, i) => (
+          <clipPath key={i} id={`${idPrefix}-clip-${i}`}>
+            <rect x={nameAreaX} y={padT + i * rowH} width={nameAreaW} height={rowH} />
+          </clipPath>
+        ))}
+      </defs>
+
+      <text x={0} y={13} style={{ fontSize: 9, fill: 'rgba(255,255,255,0.5)', fontFamily: 'inherit', letterSpacing: '0.12em' }}>
+        {title}
+      </text>
+      {subtitle && (
+        <text x={W} y={13} textAnchor="end" style={{ fontSize: 7.5, fill: 'rgba(255,255,255,0.25)', fontFamily: 'inherit' }}>
+          {subtitle}
+        </text>
+      )}
+      <line x1={0} y1={20} x2={W} y2={20} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+
+      {data.map((p, i) => {
+        const color = p.team_id === homeTeamId ? homeColor : awayColor
+        const frac = Math.max(0, Math.min(1, p._bar ?? 0))
+        const bw = frac * barZone
+        const y = padT + i * rowH
+        const name = p.name_ja ?? String(p.player_id)
+        const nameW = estimateWidth(name)
+        const overflow = Math.max(nameW - nameAreaW + 4, 0)
+
+        return (
+          <g key={i}>
+            {i % 2 === 0 && <rect x={0} y={y} width={W} height={rowH} fill="rgba(255,255,255,0.02)" />}
+            <text x={14} y={y + rowH / 2 + 4} style={{ fontSize: 8, fill: 'rgba(255,255,255,0.2)', fontFamily: 'inherit' }}>
+              {i + 1}
+            </text>
+            <rect x={26} y={y + rowH / 2 - 6} width={3} height={12} fill={color} opacity="0.7" />
+
+            <a href={`/player/${p.player_id}`}>
+              <g clipPath={`url(#${idPrefix}-clip-${i})`} style={{ cursor: 'pointer' }}>
+                <text x={nameAreaX + nameAreaW / 2} y={y + rowH / 2 + 4} textAnchor="middle"
+                  style={{ fontSize: 9, fill: '#fff', fontFamily: 'inherit' }}>
+                  {overflow > 0 && (
+                    <animateTransform
+                      attributeName="transform"
+                      type="translate"
+                      values={`0,0; ${-overflow},0; 0,0`}
+                      dur={`${2 + overflow * 0.02}s`}
+                      repeatCount="indefinite"
+                      calcMode="spline"
+                      keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"
+                    />
+                  )}
+                  {name}
+                </text>
+              </g>
+            </a>
+
+            <rect x={padL} y={y + 7} width={barZone} height={rowH - 14} fill="rgba(255,255,255,0.05)" rx="2" />
+            <rect x={padL} y={y + 7} width={bw} height={rowH - 14} fill={color} opacity="0.82" rx="2" />
+            <text x={padL + barZone + 8} y={y + rowH / 2 + 4} style={{ fontSize: 10, fontWeight: 700, fill: '#fff', fontFamily: 'inherit' }}>
+              {p._main}
+            </text>
+            {p._sub && (
+              <text x={W} y={y + rowH / 2 + 4} textAnchor="end" style={{ fontSize: 7.5, fill: 'rgba(255,255,255,0.3)', fontFamily: 'inherit' }}>
+                {p._sub}
+              </text>
+            )}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 export function PassAccuracyBar({ playerStats, homeTeamId, homeColor, awayColor }) {
   const data = playerStats
     .filter(p => Number(p.passes_total) >= 30 && p.passes_accuracy != null)

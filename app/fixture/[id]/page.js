@@ -2,7 +2,7 @@ import sql from '@/lib/db'
 import { getRoundNumber, statusMap, formatDateJa } from '@/lib/utils'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { RatingMinutesScatter, DuelScatter, PassAccuracyBar, FixtureRankChart, SeasonAttackRadar, SeasonDefenseRadar, SeasonRatingScatter, SeasonDuelScatter, SeasonPassScatter, SeasonShotScatter } from '@/app/components/FixtureCharts'
+import { RatingMinutesScatter, DuelScatter, PassAccuracyBar, PlayerRankingBar, FixtureRankChart, SeasonAttackRadar, SeasonDefenseRadar, SeasonRatingScatter, SeasonDuelScatter, SeasonPassScatter, SeasonShotScatter } from '@/app/components/FixtureCharts'
 import ScorePopup from '@/app/components/ScorePopup'
 import RatingsSection from './ratings-section'
 import PostsSection from './posts-section'
@@ -1217,16 +1217,74 @@ export default async function FixturePage({ params }) {
         </section>
         ) : null
 
+        // 各種ランキング用データ準備
+        const ratingTop5 = playerStats
+          .filter(p => p.rating != null && Number(p.rating) > 0)
+          .sort((a, b) => Number(b.rating) - Number(a.rating))
+          .slice(0, 5)
+          .map(p => ({
+            ...p,
+            _bar: Math.max(0, Math.min(1, (Number(p.rating) - 5) / 5)),  // 5〜10 → 0〜1
+            _main: Number(p.rating).toFixed(2),
+            _sub: `${p.minutes}'`,
+          }))
+
+        const shotsTop5 = playerStats
+          .filter(p => Number(p.shots_total) > 0)
+          .sort((a, b) => Number(b.shots_total) - Number(a.shots_total))
+          .slice(0, 5)
+        const maxShots = shotsTop5[0] ? Number(shotsTop5[0].shots_total) : 1
+        const shotsTop5Data = shotsTop5.map(p => ({
+          ...p,
+          _bar: Number(p.shots_total) / maxShots,
+          _main: `${p.shots_total}本`,
+          _sub: `枠内 ${p.shots_on ?? 0}`,
+        }))
+
+        const passAccTop5 = playerStats
+          .filter(p => Number(p.passes_total) >= 30 && p.passes_accuracy != null)
+          .map(p => ({ ...p, _acc: Number(p.passes_accuracy) / Number(p.passes_total) * 100 }))
+          .sort((a, b) => b._acc - a._acc)
+          .slice(0, 5)
+          .map(p => ({
+            ...p,
+            _bar: p._acc / 100,
+            _main: `${p._acc.toFixed(1)}%`,
+            _sub: `${p.passes_total}本`,
+          }))
+
+        const duelWinTop5 = playerStats
+          .filter(p => Number(p.duels_total) >= 5)
+          .map(p => ({ ...p, _rate: Number(p.duels_won) / Number(p.duels_total) * 100 }))
+          .sort((a, b) => b._rate - a._rate)
+          .slice(0, 5)
+          .map(p => ({
+            ...p,
+            _bar: p._rate / 100,
+            _main: `${p._rate.toFixed(1)}%`,
+            _sub: `${p.duels_won}/${p.duels_total}`,
+          }))
+
         const ratingsChartsJsx = (isFinished && playerStats.length > 0) ? (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
             <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="レーティング TOP 5" data={ratingTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="シュート本数 TOP 5" data={shotsTop5Data}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="パス成功率 TOP 5" subtitle="※ 30パス以上" data={passAccTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="デュエル勝率 TOP 5" subtitle="※ 5回以上" data={duelWinTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
               <RatingMinutesScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} homeShort={fixture.home_short} awayShort={fixture.away_short} />
-            </div>
-            <div style={{ width: '100%' }}>
-              <DuelScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} />
-            </div>
-            <div style={{ width: '100%' }}>
-              <PassAccuracyBar playerStats={playerStats} homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
             </div>
           </section>
         ) : null
