@@ -558,12 +558,12 @@ function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) 
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
         marginBottom: 6, padding: '0 4px',
       }}>
-        <span style={{ fontSize: 22, fontWeight: 900, color: homeColor || '#fff', minWidth: 28, lineHeight: 1 }}>{offHome ?? '-'}</span>
+        <span style={{ fontSize: 28, fontWeight: 900, color: homeColor || '#fff', minWidth: 28, lineHeight: 1 }}>{offHome ?? '-'}</span>
         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>シュート</span>
-        <span style={{ fontSize: 22, fontWeight: 900, color: awayColor || '#fff', minWidth: 28, textAlign: 'right', lineHeight: 1 }}>{offAway ?? '-'}</span>
+        <span style={{ fontSize: 28, fontWeight: 900, color: awayColor || '#fff', minWidth: 28, textAlign: 'right', lineHeight: 1 }}>{offAway ?? '-'}</span>
       </div>
       {/* 枠内シュート (枠の "中"): 太い枠線 + 少しだけ大きい数字 */}
-      <div style={{ display: 'flex', height: 80 }}>
+      <div style={{ display: 'flex', height: 100 }}>
         <div style={{
           flex: 1,
           borderTop: `${bw}px solid ${homeColor || '#888'}`,
@@ -1104,7 +1104,7 @@ export default async function FixturePage({ params }) {
           <section style={{ marginBottom: 32, paddingTop: 8 }}>
             <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
             {/* 上段 2カラム: 左にボール支配率ドーナツ / 右に枠内・枠外シュートのフレーム */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center', maxWidth: 480, margin: '0 auto 20px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <PossessionDonut homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
               </div>
