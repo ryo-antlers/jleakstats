@@ -550,20 +550,20 @@ function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
 
 // 枠 = ゴール枠の比喩。枠の中=枠内シュート、枠の外=枠外シュート
 function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) {
-  const bw = 3 // 枠線の太さ
+  const bw = 6 // 枠線の太さ
   return (
     <div>
       {/* 枠外シュート (枠の "外") */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        fontSize: 14, marginBottom: 6, padding: '0 4px',
+        marginBottom: 6, padding: '0 4px',
       }}>
-        <span style={{ fontWeight: 900, color: homeColor || '#fff', minWidth: 24 }}>{offHome ?? '-'}</span>
+        <span style={{ fontSize: 22, fontWeight: 900, color: homeColor || '#fff', minWidth: 28, lineHeight: 1 }}>{offHome ?? '-'}</span>
         <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>シュート</span>
-        <span style={{ fontWeight: 900, color: awayColor || '#fff', minWidth: 24, textAlign: 'right' }}>{offAway ?? '-'}</span>
+        <span style={{ fontSize: 22, fontWeight: 900, color: awayColor || '#fff', minWidth: 28, textAlign: 'right', lineHeight: 1 }}>{offAway ?? '-'}</span>
       </div>
-      {/* 枠内シュート (枠の "中"): 太い枠線 + 大きな数字 */}
-      <div style={{ display: 'flex', height: 130 }}>
+      {/* 枠内シュート (枠の "中"): 太い枠線 + 少しだけ大きい数字 */}
+      <div style={{ display: 'flex', height: 80 }}>
         <div style={{
           flex: 1,
           borderTop: `${bw}px solid ${homeColor || '#888'}`,
@@ -571,7 +571,7 @@ function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) 
           borderLeft: `${bw}px solid ${homeColor || '#888'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 56, fontWeight: 900, color: homeColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          <span style={{ fontSize: 30, fontWeight: 900, color: homeColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {onHome ?? '-'}
           </span>
         </div>
@@ -582,7 +582,7 @@ function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) 
           borderRight: `${bw}px solid ${awayColor || '#555'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 56, fontWeight: 900, color: awayColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          <span style={{ fontSize: 30, fontWeight: 900, color: awayColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
             {onAway ?? '-'}
           </span>
         </div>
