@@ -467,6 +467,55 @@ function RefereeMatchRow({ f, teamId, align, clubColor }) {
   )
 }
 
+function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
+  // homeVal / awayVal は "55%" のような文字列で渡ってくる前提
+  const homeNum = parseFloat(homeVal) || 0
+  const awayNum = parseFloat(awayVal) || 0
+  const total = homeNum + awayNum
+  const homePct = total > 0 ? (homeNum / total) * 100 : 50
+  const awayPct = 100 - homePct
+
+  const size = 140
+  const r = 56
+  const stroke = 18
+  const c = 2 * Math.PI * r
+  const homeDash = (homePct / 100) * c
+  const awayDash = c - homeDash
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, marginBottom: 8 }}>
+        <span style={{ fontWeight: 900, color: '#fff', minWidth: 40 }}>{homeVal ?? '-'}</span>
+        <span style={{ color: '#fff', fontSize: 11, textAlign: 'center' }}>ボール支配率</span>
+        <span style={{ fontWeight: 900, color: '#fff', minWidth: 40, textAlign: 'right' }}>{awayVal ?? '-'}</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+          <circle
+            cx={size / 2} cy={size / 2} r={r}
+            fill="none" stroke={homeColor || '#888'} strokeWidth={stroke}
+            strokeDasharray={`${homeDash} ${c}`}
+          />
+          <circle
+            cx={size / 2} cy={size / 2} r={r}
+            fill="none" stroke={awayColor || '#555'} strokeWidth={stroke}
+            strokeDasharray={`${awayDash} ${c}`}
+            strokeDashoffset={-homeDash}
+          />
+        </svg>
+        <div style={{
+          position: 'absolute', display: 'flex', alignItems: 'baseline', gap: 4,
+          color: '#fff', fontWeight: 900,
+        }}>
+          <span style={{ fontSize: 22, color: homeColor }}>{Math.round(homePct)}</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>:</span>
+          <span style={{ fontSize: 22, color: awayColor }}>{Math.round(awayPct)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StatBar({ label, homeVal, awayVal, homeColor, awayColor }) {
   const homeNum = parseFloat(homeVal) || 0
   const awayNum = parseFloat(awayVal) || 0
@@ -979,14 +1028,13 @@ export default async function FixturePage({ params }) {
         const gameStatsJsx = isFinished && homeStats && awayStats && (
           <section style={{ marginBottom: 32, paddingTop: 8 }}>
             <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
-            <StatBar label="スコア" homeVal={fixture.home_score ?? 0} awayVal={fixture.away_score ?? 0} homeColor={homeColor} awayColor={awayColor} />
+            <PossessionDonut homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="枠内シュート" homeVal={homeStats.shots_on} awayVal={awayStats.shots_on} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="枠外シュート" homeVal={homeStats.shots_off} awayVal={awayStats.shots_off} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="PA内シュート" homeVal={homeStats.shots_inside} awayVal={awayStats.shots_inside} homeColor={homeColor} awayColor={awayColor} />
             {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
             <StatBar label="パス" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
-            <StatBar label="ボール支配率" homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="コーナー" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
             <StatBar label="イエローカード" homeVal={homeStats.yellow_cards} awayVal={awayStats.yellow_cards} homeColor={homeColor} awayColor={awayColor} />
