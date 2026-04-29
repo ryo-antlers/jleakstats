@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 
-export default function ScorePopup({ oppName, scoreStr, scorers, align = 'left', clubColor = '#555' }) {
+export default function ScorePopup({ oppName, scoreStr, scorers, align = 'left', clubColor = '#555', afterScore = null }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const scorerList = scorers ? scorers.split(', ').filter(Boolean) : []
@@ -20,24 +20,38 @@ export default function ScorePopup({ oppName, scoreStr, scorers, align = 'left',
     }
   }, [open])
 
+  const showOpp = oppName != null && oppName !== ''
+
   return (
     <span
       ref={ref}
       style={{
-        position: 'relative', display: 'flex', flex: 1, alignItems: 'center',
+        position: 'relative', display: showOpp ? 'flex' : 'inline-flex',
+        flex: showOpp ? 1 : 'none', alignItems: 'center',
         gap: 16, cursor: hasScorers ? 'pointer' : 'default', minWidth: 0,
       }}
       onClick={hasScorers ? () => setOpen(v => !v) : undefined}
     >
       {align === 'left' ? (
-        <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
-          <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>{oppName}</span>
+        <span style={{
+          flex: showOpp ? 1 : 'none',
+          display: showOpp ? 'flex' : 'inline-flex',
+          alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden',
+        }}>
+          {showOpp && <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>{oppName}</span>}
           <span style={{ color: 'rgba(255,255,255,0.8)', flexShrink: 0 }}>{scoreStr}</span>
+          {afterScore}
         </span>
       ) : (
-        <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0, overflow: 'hidden' }}>
+        <span style={{
+          flex: showOpp ? 1 : 'none',
+          display: showOpp ? 'flex' : 'inline-flex',
+          alignItems: 'center', justifyContent: 'flex-end',
+          gap: 8, minWidth: 0, overflow: 'hidden',
+        }}>
+          {afterScore}
           <span style={{ color: 'rgba(255,255,255,0.8)', flexShrink: 0 }}>{scoreStr}</span>
-          <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>{oppName}</span>
+          {showOpp && <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1 }}>{oppName}</span>}
         </span>
       )}
       {open && hasScorers && (

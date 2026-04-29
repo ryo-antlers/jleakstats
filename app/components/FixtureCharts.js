@@ -482,7 +482,13 @@ export function PlayerRankingBar({ title, subtitle, data, homeTeamId, homeColor,
   if (!data?.length) return null
 
   const estimateWidth = (str) => [...str].reduce((w, c) => w + (c.charCodeAt(0) > 255 ? 9 : 5), 0)
-  const nameAreaX = 32, nameAreaW = 100
+  // 左から: 順位 / 色バー / ポジション / 背番号 / 名前 / 棒グラフ / 値 / sub
+  const rankX = 6
+  const colorBarX = 18
+  const posX = 26       // ポジション (text-anchor: start)
+  const numX = 44       // 背番号 (text-anchor: start)
+  const nameAreaX = 60
+  const nameAreaW = 96
   const padL = nameAreaX + nameAreaW + 8
   const barZone = 192, padR = 100
   const W = padL + barZone + padR
@@ -522,14 +528,20 @@ export function PlayerRankingBar({ title, subtitle, data, homeTeamId, homeColor,
         return (
           <g key={i}>
             {i % 2 === 0 && <rect x={0} y={y} width={W} height={rowH} fill="rgba(255,255,255,0.02)" />}
-            <text x={14} y={y + rowH / 2 + 4} style={{ fontSize: 8, fill: 'rgba(255,255,255,0.2)', fontFamily: 'inherit' }}>
+            <text x={rankX} y={y + rowH / 2 + 4} style={{ fontSize: 8, fill: 'rgba(255,255,255,0.2)', fontFamily: 'inherit' }}>
               {p._showRank === false ? '' : (p._rank ?? (i + 1))}
             </text>
-            <rect x={26} y={y + rowH / 2 - 6} width={3} height={12} fill={color} opacity="0.7" />
+            <rect x={colorBarX} y={y + rowH / 2 - 6} width={3} height={12} fill={color} opacity="0.7" />
+            <text x={posX} y={y + rowH / 2 + 4} style={{ fontSize: 7, fill: 'rgba(255,255,255,0.45)', fontFamily: 'inherit' }}>
+              {p.position ?? ''}
+            </text>
+            <text x={numX} y={y + rowH / 2 + 4} style={{ fontSize: 7, fill: 'rgba(255,255,255,0.55)', fontFamily: 'inherit' }}>
+              {p.number ?? ''}
+            </text>
 
             <a href={`/player/${p.player_id}`}>
               <g clipPath={`url(#${idPrefix}-clip-${i})`} style={{ cursor: 'pointer' }}>
-                <text x={nameAreaX + nameAreaW / 2} y={y + rowH / 2 + 4} textAnchor="middle"
+                <text x={nameAreaX} y={y + rowH / 2 + 4}
                   style={{ fontSize: 9, fill: '#fff', fontFamily: 'inherit' }}>
                   {overflow > 0 && (
                     <animateTransform

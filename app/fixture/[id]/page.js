@@ -3,10 +3,10 @@ import { getRoundNumber, statusMap, formatDateJa } from '@/lib/utils'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { RatingMinutesScatter, DuelScatter, PassAccuracyBar, PlayerRankingBar, FixtureRankChart, SeasonAttackRadar, SeasonDefenseRadar, SeasonRatingScatter, SeasonDuelScatter, SeasonPassScatter, SeasonShotScatter } from '@/app/components/FixtureCharts'
-import ScorePopup from '@/app/components/ScorePopup'
 import RatingsSection from './ratings-section'
 import PostsSection from './posts-section'
 import MatchTabs from './match-tabs'
+import RefereeSection from './referee-section'
 import {
   Cloud, CloudRain, CloudSnow, Sun, Home as HomeIcon,
   Thermometer, Droplets,
@@ -231,36 +231,104 @@ async function getRefereeAliases(refereeEn) {
   return rows.length > 0 ? rows.map(r => r.name_en) : [refereeEn]
 }
 
-async function getRefereeHistory(refereeEn, teamId, excludeId, limit = 5) {
-  if (!refereeEn) return []
-  const aliases = await getRefereeAliases(refereeEn)
+async function getRefereeHistory(refereeJaOfficial, teamId, excludeId, limit = 5) {
+  if (!refereeJaOfficial) return []
+  const rows = await sql`
+    SELECT f.id, f.date, f.league_id, f.home_team_id, f.away_team_id,
+           f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
+           COALESCE(ht.name_ja, ht.name_en, f.home_team_id::text) AS home_name,
+           COALESCE(at.name_ja, at.name_en, f.away_team_id::text) AS away_name,
+           (
+             SELECT JSON_AGG(g ORDER BY g.elapsed)
+             FROM (
+               SELECT
+                 COALESCE(fe.player_name_ja, pm.name_ja, pm.name_en, fe.player_name_en, '?') AS name,
+                 fe.elapsed,
+                 fl.position,
+                 fl.number
+               FROM fixture_events fe
+               LEFT JOIN players_master pm ON fe.player_id = pm.id
+               LEFT JOIN fixture_lineups fl ON fl.fixture_id = fe.fixture_id AND fl.player_id = fe.player_id
+               WHERE fe.fixture_id = f.id
+                 AND fe.team_id = ${teamId}
+                 AND fe.type = 'Goal'
+                 AND fe.detail != 'Own Goal'
+             ) g
+           ) AS scorers
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.referee_ja_official = ${refereeJaOfficial}
+      AND f.status IN ('FT', 'AET', 'PEN')
+      AND f.id != ${excludeId}
+      AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
+    ORDER BY f.date DESC
+    LIMIT ${limit}
+  `.catch(() => [])
+  return rows
+}
+
+async function getRefereeTeamRecord(refereeJaOfficial, teamId) {
+  if (!refereeJaOfficial) return { w: 0, d: 0, l: 0, total: 0 }
+  const rows = await sql`
+    SELECT
+      SUM(CASE
+        WHEN (home_team_id = ${teamId} AND home_score > away_score)
+          OR (away_team_id = ${teamId} AND away_score > home_score)
+          OR (status='PEN' AND home_team_id = ${teamId} AND home_penalty > away_penalty)
+          OR (status='PEN' AND away_team_id = ${teamId} AND away_penalty > home_penalty)
+        THEN 1 ELSE 0 END) AS w,
+      SUM(CASE WHEN home_score = away_score AND status != 'PEN' THEN 1 ELSE 0 END) AS d,
+      SUM(CASE
+        WHEN (home_team_id = ${teamId} AND home_score < away_score)
+          OR (away_team_id = ${teamId} AND away_score < home_score)
+          OR (status='PEN' AND home_team_id = ${teamId} AND home_penalty < away_penalty)
+          OR (status='PEN' AND away_team_id = ${teamId} AND away_penalty < home_penalty)
+        THEN 1 ELSE 0 END) AS l,
+      COUNT(*) AS total
+    FROM fixtures
+    WHERE referee_ja_official = ${refereeJaOfficial}
+      AND status IN ('FT','AET','PEN')
+      AND (home_team_id = ${teamId} OR away_team_id = ${teamId})
+  `.catch(() => [])
+  const r = rows[0] ?? {}
+  return { w: Number(r.w) || 0, d: Number(r.d) || 0, l: Number(r.l) || 0, total: Number(r.total) || 0 }
+}
+
+async function getRefereeTeamFirstMatch(refereeJaOfficial, teamId) {
+  if (!refereeJaOfficial) return null
   const rows = await sql`
     SELECT f.id, f.date, f.home_team_id, f.away_team_id,
            f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
            COALESCE(ht.name_ja, ht.name_en, f.home_team_id::text) AS home_name,
            COALESCE(at.name_ja, at.name_en, f.away_team_id::text) AS away_name,
            (
-             SELECT STRING_AGG(
-               COALESCE(pm.name_en, fe.player_name_en, '?'), ', '
-               ORDER BY fe.elapsed
-             )
-             FROM fixture_events fe
-             LEFT JOIN players_master pm ON fe.player_id = pm.id
-             WHERE fe.fixture_id = f.id
-               AND fe.team_id = ${teamId}
-               AND fe.type = 'Goal'
-               AND fe.detail != 'Own Goal'
+             SELECT JSON_AGG(g ORDER BY g.elapsed)
+             FROM (
+               SELECT
+                 COALESCE(fe.player_name_ja, pm.name_ja, pm.name_en, fe.player_name_en, '?') AS name,
+                 fe.elapsed,
+                 fl.position,
+                 fl.number
+               FROM fixture_events fe
+               LEFT JOIN players_master pm ON fe.player_id = pm.id
+               LEFT JOIN fixture_lineups fl ON fl.fixture_id = fe.fixture_id AND fl.player_id = fe.player_id
+               WHERE fe.fixture_id = f.id
+                 AND fe.team_id = ${teamId}
+                 AND fe.type = 'Goal'
+                 AND fe.detail != 'Own Goal'
+             ) g
            ) AS scorers
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.referee_en = ANY(${aliases})
-      AND f.status IN ('FT', 'AET', 'PEN')
-      AND f.id != ${excludeId}
+    WHERE f.referee_ja_official = ${refereeJaOfficial}
+      AND f.status IN ('FT','AET','PEN')
       AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
-    ORDER BY f.date DESC
+    ORDER BY f.date ASC
+    LIMIT 1
   `.catch(() => [])
-  return limit ? rows.slice(0, limit) : rows
+  return rows[0] ?? null
 }
 
 async function getRefereeJa(refereeEn) {
@@ -424,45 +492,6 @@ function RecentFormRow({ f, teamId, align, clubColor }) {
         {scoreEl}
       </div>
       {sub}
-    </div>
-  )
-}
-
-function RefereeMatchRow({ f, teamId, align, clubColor }) {
-  const isHome = Number(f.home_team_id) === Number(teamId)
-  const myScore = isHome ? Number(f.home_score) : Number(f.away_score)
-  const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
-  const isPK = f.status === 'PEN' && f.home_penalty != null && f.away_penalty != null
-  const myPK = isPK ? (isHome ? Number(f.home_penalty) : Number(f.away_penalty)) : null
-  const oppPK = isPK ? (isHome ? Number(f.away_penalty) : Number(f.home_penalty)) : null
-  const result = myScore > oppScore ? 'W' : myScore < oppScore ? 'L' : isPK ? (myPK > oppPK ? 'W' : 'L') : 'D'
-  const oppName = isHome ? f.away_name : f.home_name
-  const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
-  const dateStr = `${jst.getFullYear()}/${jst.getMonth() + 1}/${jst.getDate()}`
-  const badgeColor = result === 'W' ? clubColor : '#555'
-  const scoreStr = `${myScore}-${oppScore}${isPK ? ` (PK ${myPK}-${oppPK})` : ''}`
-  const badge = (
-    <span style={{
-      width: 18, height: 18, borderRadius: 3, backgroundColor: badgeColor,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0,
-    }}>{result}</span>
-  )
-
-  if (align === 'left') {
-    return (
-      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-        {badge}
-        <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap' }}>{dateStr}</span>
-        <ScorePopup oppName={oppName} scoreStr={scoreStr} scorers={f.scorers ?? null} align="left" clubColor={clubColor} />
-      </div>
-    )
-  }
-  return (
-    <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-      <ScorePopup oppName={oppName} scoreStr={scoreStr} scorers={f.scorers ?? null} align="right" clubColor={clubColor} />
-      <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right' }}>{dateStr}</span>
-      {badge}
     </div>
   )
 }
@@ -633,15 +662,20 @@ export default async function FixturePage({ params }) {
     !isFinished ? getExactScoreOdds(fixture.id) : Promise.resolve([]),
   ])
 
-  const hasReferee = !!fixture.referee_en
+  const refereeKey = fixture.referee_ja_official ?? null
+  const hasReferee = !!refereeKey
   const refereeLimit = 5
-  const [homeRefereeHistory, awayRefereeHistory, refereeJa] = hasReferee
+  const [homeRefereeHistory, awayRefereeHistory, homeRefereeRecord, awayRefereeRecord, homeRefereeFirst, awayRefereeFirst, refereeJa] = hasReferee
     ? await Promise.all([
-        getRefereeHistory(fixture.referee_en, fixture.home_team_id, fixture.id, refereeLimit),
-        getRefereeHistory(fixture.referee_en, fixture.away_team_id, fixture.id, refereeLimit),
-        getRefereeJa(fixture.referee_en),
+        getRefereeHistory(refereeKey, fixture.home_team_id, fixture.id, refereeLimit),
+        getRefereeHistory(refereeKey, fixture.away_team_id, fixture.id, refereeLimit),
+        getRefereeTeamRecord(refereeKey, fixture.home_team_id),
+        getRefereeTeamRecord(refereeKey, fixture.away_team_id),
+        getRefereeTeamFirstMatch(refereeKey, fixture.home_team_id),
+        getRefereeTeamFirstMatch(refereeKey, fixture.away_team_id),
+        fixture.referee_en ? getRefereeJa(fixture.referee_en) : Promise.resolve(null),
       ])
-    : [[], [], null]
+    : [[], [], { w:0, d:0, l:0, total:0 }, { w:0, d:0, l:0, total:0 }, null, null, null]
 
   const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows] = !hasStarted
     ? await Promise.all([
@@ -1240,14 +1274,33 @@ export default async function FixturePage({ params }) {
           })
         }
 
+        // 同値時のタイブレーク: ホーム優先 → ポジション順 → 背番号順
+        const homeIdNum = Number(fixture.home_team_id)
+        const posOrderRk = { G: 1, D: 2, M: 3, F: 4, GK: 1, DF: 2, MF: 3, FW: 4 }
+        const cmpTiebreak = (a, b) => {
+          const ah = Number(a.team_id) === homeIdNum ? 0 : 1
+          const bh = Number(b.team_id) === homeIdNum ? 0 : 1
+          if (ah !== bh) return ah - bh
+          const ap = posOrderRk[a.position] ?? 5
+          const bp = posOrderRk[b.position] ?? 5
+          if (ap !== bp) return ap - bp
+          return (Number(a.number) || 999) - (Number(b.number) || 999)
+        }
+        // ポジション表示用 (G/D/M/F → GK/DF/MF/FW)
+        const posLabel = { G: 'GK', D: 'DF', M: 'MF', F: 'FW' }
+        const withPosLabel = p => ({ ...p, position: posLabel[p.position] ?? p.position })
+
         const ratingSorted = playerStats
           .filter(p => p.rating != null && Number(p.rating) > 0)
-          .sort((a, b) => Number(b.rating) - Number(a.rating))
+          .sort((a, b) => {
+            const d = Number(b.rating) - Number(a.rating)
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
         const ratingTop5 = withRanks(
           topNWithTies(ratingSorted, 5, p => Number(p.rating)),
           p => Number(p.rating),
         ).map(p => ({
-          ...p,
+          ...withPosLabel(p),
           _bar: Math.max(0, Math.min(1, (Number(p.rating) - 5) / 5)),  // 5〜10 → 0〜1
           _main: Number(p.rating).toFixed(2),
           _sub: `${p.minutes}'`,
@@ -1255,25 +1308,31 @@ export default async function FixturePage({ params }) {
 
         const shotsSorted = playerStats
           .filter(p => Number(p.shots_total) > 0)
-          .sort((a, b) => Number(b.shots_total) - Number(a.shots_total))
+          .sort((a, b) => {
+            const d = Number(b.shots_total) - Number(a.shots_total)
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
         const shotsTop5Raw = topNWithTies(shotsSorted, 5, p => Number(p.shots_total))
         const maxShots = shotsTop5Raw[0] ? Number(shotsTop5Raw[0].shots_total) : 1
         const shotsTop5 = withRanks(shotsTop5Raw, p => Number(p.shots_total)).map(p => ({
-          ...p,
+          ...withPosLabel(p),
           _bar: Number(p.shots_total) / maxShots,
-          _main: `${p.shots_total}本`,
+          _main: String(p.shots_total),
           _sub: `枠内 ${p.shots_on ?? 0}`,
         }))
 
         const passAccSorted = playerStats
           .filter(p => Number(p.passes_total) >= 30 && p.passes_accuracy != null)
           .map(p => ({ ...p, _acc: Number(p.passes_accuracy) / Number(p.passes_total) * 100 }))
-          .sort((a, b) => b._acc - a._acc)
+          .sort((a, b) => {
+            const d = b._acc - a._acc
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
         const passAccTop5 = withRanks(
           topNWithTies(passAccSorted, 5, p => p._acc),
           p => p._acc,
         ).map(p => ({
-          ...p,
+          ...withPosLabel(p),
           _bar: p._acc / 100,
           _main: `${p._acc.toFixed(1)}%`,
           _sub: `${p.passes_total}本`,
@@ -1282,12 +1341,15 @@ export default async function FixturePage({ params }) {
         const duelWinSorted = playerStats
           .filter(p => Number(p.duels_total) >= 5)
           .map(p => ({ ...p, _rate: Number(p.duels_won) / Number(p.duels_total) * 100 }))
-          .sort((a, b) => b._rate - a._rate)
+          .sort((a, b) => {
+            const d = b._rate - a._rate
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
         const duelWinTop5 = withRanks(
           topNWithTies(duelWinSorted, 5, p => p._rate),
           p => p._rate,
         ).map(p => ({
-          ...p,
+          ...withPosLabel(p),
           _bar: p._rate / 100,
           _main: `${p._rate.toFixed(1)}%`,
           _sub: `${p.duels_won}/${p.duels_total}`,
@@ -1317,29 +1379,18 @@ export default async function FixturePage({ params }) {
           </section>
         ) : null
 
-        const refereeHistoryJsx = (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) ? (
+        const refereeHistoryJsx = (hasReferee && (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0 || homeRefereeRecord.total > 0 || awayRefereeRecord.total > 0)) ? (
         <section style={{ marginBottom: 32 }}>
-          <p style={{ fontSize: 15, color: '#fff', marginBottom: 12 }}>
-            {`主審：${fixture.referee_ja_official ?? refereeJa ?? fixture.referee_en} 直近担当5試合`}
+          <p style={{ fontSize: 15, color: '#fff', marginBottom: 12, textAlign: 'center' }}>
+            {`${(fixture.referee_ja_official ?? refereeJa ?? fixture.referee_en ?? '').replace(/\s+/g, '')} 担当試合成績`}
           </p>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>
-              {homeRefereeHistory.map((f, i) => (
-                <RefereeMatchRow key={i} f={f} teamId={fixture.home_team_id} align="left" clubColor={homeColor} />
-              ))}
-              {homeRefereeHistory.length === 0 && (
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>データなし</p>
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${awayColor}`, paddingTop: 10 }}>
-              {awayRefereeHistory.map((f, i) => (
-                <RefereeMatchRow key={i} f={f} teamId={fixture.away_team_id} align="right" clubColor={awayColor} />
-              ))}
-              {awayRefereeHistory.length === 0 && (
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'right' }}>データなし</p>
-              )}
-            </div>
-          </div>
+          <RefereeSection
+            homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id}
+            homeColor={homeColor} awayColor={awayColor}
+            homeRecord={homeRefereeRecord} awayRecord={awayRefereeRecord}
+            homeFirst={homeRefereeFirst} awayFirst={awayRefereeFirst}
+            homeHistory={homeRefereeHistory} awayHistory={awayRefereeHistory}
+          />
         </section>
         ) : null
 
