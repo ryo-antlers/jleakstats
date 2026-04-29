@@ -2,8 +2,28 @@ import sql from '@/lib/db'
 import { getRoundNumber, statusMap, formatDateJa } from '@/lib/utils'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { RatingMinutesScatter, DuelScatter, PassAccuracyBar, FixtureRankChart, SeasonAttackRadar, SeasonDefenseRadar, SeasonRatingScatter, SeasonDuelScatter, SeasonPassScatter, SeasonShotScatter } from '@/app/components/FixtureCharts'
-import ScorePopup from '@/app/components/ScorePopup'
+import { RatingMinutesScatter, DuelScatter, PassAccuracyBar, PlayerRankingBar, FixtureRankChart, SeasonAttackRadar, SeasonDefenseRadar, SeasonRatingScatter, SeasonDuelScatter, SeasonPassScatter, SeasonShotScatter } from '@/app/components/FixtureCharts'
+import RatingsSection from './ratings-section'
+import PostsSection from './posts-section'
+import MatchTabs from './match-tabs'
+import RefereeSection from './referee-section'
+import {
+  Cloud, CloudRain, CloudSnow, Sun, Home as HomeIcon,
+  Thermometer, Droplets,
+  Building2, Users, Flag,
+  ArrowUpDown, Radio, User,
+} from 'lucide-react'
+
+function WeatherIcon({ weather, size = 18, color = '#fff' }) {
+  const w = weather ?? ''
+  const props = { size, strokeWidth: 1.6, color }
+  if (/雪/.test(w)) return <CloudSnow {...props} />
+  if (/雨/.test(w)) return <CloudRain {...props} />
+  if (/曇/.test(w)) return <Cloud {...props} />
+  if (/屋内/.test(w)) return <HomeIcon {...props} />
+  if (/晴/.test(w)) return <Sun {...props} />
+  return <Cloud {...props} />
+}
 
 async function getFixture(id) {
   const rows = await sql`
@@ -211,36 +231,104 @@ async function getRefereeAliases(refereeEn) {
   return rows.length > 0 ? rows.map(r => r.name_en) : [refereeEn]
 }
 
-async function getRefereeHistory(refereeEn, teamId, excludeId, limit = 5) {
-  if (!refereeEn) return []
-  const aliases = await getRefereeAliases(refereeEn)
+async function getRefereeHistory(refereeJaOfficial, teamId, excludeId, limit = 5) {
+  if (!refereeJaOfficial) return []
+  const rows = await sql`
+    SELECT f.id, f.date, f.league_id, f.home_team_id, f.away_team_id,
+           f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
+           COALESCE(ht.name_ja, ht.name_en, f.home_team_id::text) AS home_name,
+           COALESCE(at.name_ja, at.name_en, f.away_team_id::text) AS away_name,
+           (
+             SELECT JSON_AGG(g ORDER BY g.elapsed)
+             FROM (
+               SELECT
+                 COALESCE(fe.player_name_ja, pm.name_ja, pm.name_en, fe.player_name_en, '?') AS name,
+                 fe.elapsed,
+                 fl.position,
+                 fl.number
+               FROM fixture_events fe
+               LEFT JOIN players_master pm ON fe.player_id = pm.id
+               LEFT JOIN fixture_lineups fl ON fl.fixture_id = fe.fixture_id AND fl.player_id = fe.player_id
+               WHERE fe.fixture_id = f.id
+                 AND fe.team_id = ${teamId}
+                 AND fe.type = 'Goal'
+                 AND fe.detail != 'Own Goal'
+             ) g
+           ) AS scorers
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.referee_ja_official = ${refereeJaOfficial}
+      AND f.status IN ('FT', 'AET', 'PEN')
+      AND f.id != ${excludeId}
+      AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
+    ORDER BY f.date DESC
+    LIMIT ${limit}
+  `.catch(() => [])
+  return rows
+}
+
+async function getRefereeTeamRecord(refereeJaOfficial, teamId) {
+  if (!refereeJaOfficial) return { w: 0, d: 0, l: 0, total: 0 }
+  const rows = await sql`
+    SELECT
+      SUM(CASE
+        WHEN (home_team_id = ${teamId} AND home_score > away_score)
+          OR (away_team_id = ${teamId} AND away_score > home_score)
+          OR (status='PEN' AND home_team_id = ${teamId} AND home_penalty > away_penalty)
+          OR (status='PEN' AND away_team_id = ${teamId} AND away_penalty > home_penalty)
+        THEN 1 ELSE 0 END) AS w,
+      SUM(CASE WHEN home_score = away_score AND status != 'PEN' THEN 1 ELSE 0 END) AS d,
+      SUM(CASE
+        WHEN (home_team_id = ${teamId} AND home_score < away_score)
+          OR (away_team_id = ${teamId} AND away_score < home_score)
+          OR (status='PEN' AND home_team_id = ${teamId} AND home_penalty < away_penalty)
+          OR (status='PEN' AND away_team_id = ${teamId} AND away_penalty < home_penalty)
+        THEN 1 ELSE 0 END) AS l,
+      COUNT(*) AS total
+    FROM fixtures
+    WHERE referee_ja_official = ${refereeJaOfficial}
+      AND status IN ('FT','AET','PEN')
+      AND (home_team_id = ${teamId} OR away_team_id = ${teamId})
+  `.catch(() => [])
+  const r = rows[0] ?? {}
+  return { w: Number(r.w) || 0, d: Number(r.d) || 0, l: Number(r.l) || 0, total: Number(r.total) || 0 }
+}
+
+async function getRefereeTeamFirstMatch(refereeJaOfficial, teamId) {
+  if (!refereeJaOfficial) return null
   const rows = await sql`
     SELECT f.id, f.date, f.home_team_id, f.away_team_id,
            f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
            COALESCE(ht.name_ja, ht.name_en, f.home_team_id::text) AS home_name,
            COALESCE(at.name_ja, at.name_en, f.away_team_id::text) AS away_name,
            (
-             SELECT STRING_AGG(
-               COALESCE(pm.name_en, fe.player_name_en, '?'), ', '
-               ORDER BY fe.elapsed
-             )
-             FROM fixture_events fe
-             LEFT JOIN players_master pm ON fe.player_id = pm.id
-             WHERE fe.fixture_id = f.id
-               AND fe.team_id = ${teamId}
-               AND fe.type = 'Goal'
-               AND fe.detail != 'Own Goal'
+             SELECT JSON_AGG(g ORDER BY g.elapsed)
+             FROM (
+               SELECT
+                 COALESCE(fe.player_name_ja, pm.name_ja, pm.name_en, fe.player_name_en, '?') AS name,
+                 fe.elapsed,
+                 fl.position,
+                 fl.number
+               FROM fixture_events fe
+               LEFT JOIN players_master pm ON fe.player_id = pm.id
+               LEFT JOIN fixture_lineups fl ON fl.fixture_id = fe.fixture_id AND fl.player_id = fe.player_id
+               WHERE fe.fixture_id = f.id
+                 AND fe.team_id = ${teamId}
+                 AND fe.type = 'Goal'
+                 AND fe.detail != 'Own Goal'
+             ) g
            ) AS scorers
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.referee_en = ANY(${aliases})
-      AND f.status IN ('FT', 'AET', 'PEN')
-      AND f.id != ${excludeId}
+    WHERE f.referee_ja_official = ${refereeJaOfficial}
+      AND f.status IN ('FT','AET','PEN')
       AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
-    ORDER BY f.date DESC
+    ORDER BY f.date ASC
+    LIMIT 1
   `.catch(() => [])
-  return limit ? rows.slice(0, limit) : rows
+  return rows[0] ?? null
 }
 
 async function getRefereeJa(refereeEn) {
@@ -408,41 +496,120 @@ function RecentFormRow({ f, teamId, align, clubColor }) {
   )
 }
 
-function RefereeMatchRow({ f, teamId, align, clubColor }) {
-  const isHome = Number(f.home_team_id) === Number(teamId)
-  const myScore = isHome ? Number(f.home_score) : Number(f.away_score)
-  const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
-  const isPK = f.status === 'PEN' && f.home_penalty != null && f.away_penalty != null
-  const myPK = isPK ? (isHome ? Number(f.home_penalty) : Number(f.away_penalty)) : null
-  const oppPK = isPK ? (isHome ? Number(f.away_penalty) : Number(f.home_penalty)) : null
-  const result = myScore > oppScore ? 'W' : myScore < oppScore ? 'L' : isPK ? (myPK > oppPK ? 'W' : 'L') : 'D'
-  const oppName = isHome ? f.away_name : f.home_name
-  const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
-  const dateStr = `${jst.getFullYear()}/${jst.getMonth() + 1}/${jst.getDate()}`
-  const badgeColor = result === 'W' ? clubColor : '#555'
-  const scoreStr = `${myScore}-${oppScore}${isPK ? ` (PK ${myPK}-${oppPK})` : ''}`
-  const badge = (
-    <span style={{
-      width: 18, height: 18, borderRadius: 3, backgroundColor: badgeColor,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0,
-    }}>{result}</span>
-  )
+function PossessionDonut({ homeVal, awayVal, homeColor, awayColor }) {
+  // homeVal / awayVal は "55%" のような文字列で渡ってくる前提
+  const homeNum = parseFloat(homeVal) || 0
+  const awayNum = parseFloat(awayVal) || 0
+  const total = homeNum + awayNum
+  const homePct = total > 0 ? (homeNum / total) * 100 : 50
+  const awayPct = 100 - homePct
 
-  if (align === 'left') {
-    return (
-      <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-        {badge}
-        <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap' }}>{dateStr}</span>
-        <ScorePopup oppName={oppName} scoreStr={scoreStr} scorers={f.scorers ?? null} align="left" clubColor={clubColor} />
-      </div>
-    )
+  const size = 200
+  const cx = size / 2
+  const cy = size / 2
+  const R = 80      // 外径
+  const r = 74      // 内径 (= 厚み 6px、シュート枠の borderWidth と同じ)
+  const skewDeg = 0 // 斜めカット無し (普通の接合)
+  const gapDeg = 0  // すき間無し
+
+  function polar(deg, radius) {
+    const rad = (deg - 90) * Math.PI / 180
+    return [cx + radius * Math.cos(rad), cy + radius * Math.sin(rad)]
   }
+
+  function wedge(startDeg, endDeg) {
+    // 各セグメントの両端を skew させる:
+    //   外側エッジは startDeg/endDeg 通り、内側エッジは -skewDeg ずらす
+    //   結果として接合線が「径方向」ではなく斜めになる（StatBarと同じ視覚）
+    const innerStartDeg = startDeg - skewDeg
+    const innerEndDeg = endDeg - skewDeg
+    const [oxs, oys] = polar(startDeg, R)
+    const [oxe, oye] = polar(endDeg, R)
+    const [ixe, iye] = polar(innerEndDeg, r)
+    const [ixs, iys] = polar(innerStartDeg, r)
+    const largeArc = (endDeg - startDeg) > 180 ? 1 : 0
+    const innerLargeArc = (innerEndDeg - innerStartDeg) > 180 ? 1 : 0
+    return `M ${oxs} ${oys} ` +
+           `A ${R} ${R} 0 ${largeArc} 1 ${oxe} ${oye} ` +
+           `L ${ixe} ${iye} ` +
+           `A ${r} ${r} 0 ${innerLargeArc} 0 ${ixs} ${iys} Z`
+  }
+
+  // ホームを左回り (上→左→下) に配置するため、アウェイを右(0°→awayEndDeg)、
+  // ホームをその後 (awayEndDeg→360°) として描画
+  const awayEndDeg = (awayPct / 100) * 360
+  const awayPath = wedge(0 + gapDeg / 2, awayEndDeg - gapDeg / 2)
+  const homePath = wedge(awayEndDeg + gapDeg / 2, 360 - gapDeg / 2)
+
   return (
-    <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-      <ScorePopup oppName={oppName} scoreStr={scoreStr} scorers={f.scorers ?? null} align="right" clubColor={clubColor} />
-      <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right' }}>{dateStr}</span>
-      {badge}
+    <div>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <path d={homePath} fill={homeColor || '#888'} />
+          <path d={awayPath} fill={awayColor || '#555'} />
+        </svg>
+        <div style={{
+          position: 'absolute', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          color: '#fff', pointerEvents: 'none',
+        }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: '#fff', marginBottom: 6,
+          }}>ボール支配率</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1 }}>
+            <span style={{ fontSize: 30, fontWeight: 900, color: homeColor, letterSpacing: '-0.02em' }}>
+              {Math.round(homePct)}
+            </span>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>:</span>
+            <span style={{ fontSize: 30, fontWeight: 900, color: awayColor, letterSpacing: '-0.02em' }}>
+              {Math.round(awayPct)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 枠 = ゴール枠の比喩。枠の中=枠内シュート、枠の外=枠外シュート
+function ShotsFrame({ onHome, onAway, offHome, offAway, homeColor, awayColor }) {
+  const bw = 6 // 枠線の太さ
+  return (
+    <div>
+      {/* シュート数 ラベル + 枠外シュートの数字 */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        marginBottom: 16, padding: '0 4px',
+      }}>
+        <span style={{ fontSize: 28, fontWeight: 900, color: homeColor || '#fff', minWidth: 28, lineHeight: 1 }}>{offHome ?? '-'}</span>
+        <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>シュート数</span>
+        <span style={{ fontSize: 28, fontWeight: 900, color: awayColor || '#fff', minWidth: 28, textAlign: 'right', lineHeight: 1 }}>{offAway ?? '-'}</span>
+      </div>
+      {/* 枠内シュート (枠の "中"): 太い枠線 + 大きな数字 */}
+      <div style={{ display: 'flex', height: 100 }}>
+        <div style={{
+          flex: 1,
+          borderTop: `${bw}px solid ${homeColor || '#888'}`,
+          borderBottom: `${bw}px solid ${homeColor || '#888'}`,
+          borderLeft: `${bw}px solid ${homeColor || '#888'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 30, fontWeight: 900, color: homeColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {onHome ?? '-'}
+          </span>
+        </div>
+        <div style={{
+          flex: 1,
+          borderTop: `${bw}px solid ${awayColor || '#555'}`,
+          borderBottom: `${bw}px solid ${awayColor || '#555'}`,
+          borderRight: `${bw}px solid ${awayColor || '#555'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 30, fontWeight: 900, color: awayColor || '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {onAway ?? '-'}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -495,15 +662,20 @@ export default async function FixturePage({ params }) {
     !isFinished ? getExactScoreOdds(fixture.id) : Promise.resolve([]),
   ])
 
-  const hasReferee = !!fixture.referee_en
+  const refereeKey = fixture.referee_ja_official ?? null
+  const hasReferee = !!refereeKey
   const refereeLimit = 5
-  const [homeRefereeHistory, awayRefereeHistory, refereeJa] = hasReferee
+  const [homeRefereeHistory, awayRefereeHistory, homeRefereeRecord, awayRefereeRecord, homeRefereeFirst, awayRefereeFirst, refereeJa] = hasReferee
     ? await Promise.all([
-        getRefereeHistory(fixture.referee_en, fixture.home_team_id, fixture.id, refereeLimit),
-        getRefereeHistory(fixture.referee_en, fixture.away_team_id, fixture.id, refereeLimit),
-        getRefereeJa(fixture.referee_en),
+        getRefereeHistory(refereeKey, fixture.home_team_id, fixture.id, refereeLimit),
+        getRefereeHistory(refereeKey, fixture.away_team_id, fixture.id, refereeLimit),
+        getRefereeTeamRecord(refereeKey, fixture.home_team_id),
+        getRefereeTeamRecord(refereeKey, fixture.away_team_id),
+        getRefereeTeamFirstMatch(refereeKey, fixture.home_team_id),
+        getRefereeTeamFirstMatch(refereeKey, fixture.away_team_id),
+        fixture.referee_en ? getRefereeJa(fixture.referee_en) : Promise.resolve(null),
       ])
-    : [[], [], null]
+    : [[], [], { w:0, d:0, l:0, total:0 }, { w:0, d:0, l:0, total:0 }, null, null, null]
 
   const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows] = !hasStarted
     ? await Promise.all([
@@ -533,21 +705,34 @@ export default async function FixturePage({ params }) {
   const posMap = { G: 'GK', D: 'DF', M: 'MF', F: 'FW' }
   lineups.forEach(p => { p.position = posMap[p.position] ?? p.position })
 
+  // ポジション (GK→DF→MF→FW) → 背番号 順
+  const posOrder = { GK: 1, DF: 2, MF: 3, FW: 4 }
+  const sortByPosNum = (a, b) => {
+    const pa = posOrder[a.position] ?? 5
+    const pb = posOrder[b.position] ?? 5
+    if (pa !== pb) return pa - pb
+    const na = a.number == null ? 999 : Number(a.number)
+    const nb = b.number == null ? 999 : Number(b.number)
+    return na - nb
+  }
+
   const homeLineup = lineups.filter(p => p.team_id === fixture.home_team_id)
   const awayLineup = lineups.filter(p => p.team_id === fixture.away_team_id)
-  const homeStarters = homeLineup.filter(p => p.is_starter)
-  const homeSubs = homeLineup.filter(p => !p.is_starter)
-  const awayStarters = awayLineup.filter(p => p.is_starter)
-  const awaySubs = awayLineup.filter(p => !p.is_starter)
+  const homeStarters = homeLineup.filter(p => p.is_starter).sort(sortByPosNum)
+  const homeSubs = homeLineup.filter(p => !p.is_starter).sort(sortByPosNum)
+  const awayStarters = awayLineup.filter(p => p.is_starter).sort(sortByPosNum)
+  const awaySubs = awayLineup.filter(p => !p.is_starter).sort(sortByPosNum)
 
   // 交代イベント: player_id=退いた選手, assist_id=入った選手
   const substEvents = events.filter(e => e.type === 'subst')
-  // player_id → {inPlayer, elapsed} のmap
+  // API-football: subst の player_id = 入った選手, assist_id = 退いた選手
+  // subOutMap[退いた player_id] = { name: 入った選手名, elapsed }
+  // subInMap[入った player_id]  = { name: 退いた選手名, elapsed }
   const subOutMap = {}
   const subInMap = {}
   for (const e of substEvents) {
-    if (e.player_id) subOutMap[e.player_id] = { name: e.assist_name_ja ?? e.assist_name_en, elapsed: e.elapsed }
-    if (e.assist_id) subInMap[e.assist_id] = { name: e.player_name_ja ?? e.player_name_en, elapsed: e.elapsed }
+    if (e.assist_id) subOutMap[e.assist_id] = { name: e.player_name_ja ?? e.player_name_en, elapsed: e.elapsed }
+    if (e.player_id) subInMap[e.player_id] = { name: e.assist_name_ja ?? e.assist_name_en, elapsed: e.elapsed }
   }
 
   // カードmap: player_id → { yellow, red, redElapsed }
@@ -590,6 +775,8 @@ export default async function FixturePage({ params }) {
   const awayOdds = odds.filter(o => o.value === 'Away')
   const avg = (arr) => arr.length ? (arr.reduce((s, o) => s + parseFloat(o.odd), 0) / arr.length).toFixed(2) : '-'
 
+  const useTabs = (fixture.season ?? 0) >= 2026
+
   return (
     <>
     <header style={{
@@ -603,55 +790,135 @@ export default async function FixturePage({ params }) {
     </header>
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 64 }}>
 
-      {/* チーム名（スコアの上） */}
-      <div style={{ display: 'flex', marginBottom: 20, alignItems: 'center' }}>
+      {/* カテゴリ・節ラベル（例: J1リーグ 第4節 / 2026.3.7 SAT / 16:03 KO） */}
+      {(() => {
+        const s = fixture.stage_ja
+        let compLabel = null
+        if (s === 'J1') compLabel = 'J1リーグ'
+        else if (s?.startsWith('J1 ')) compLabel = `J1リーグ ${s.slice(3)}`
+        else if (s) compLabel = s
+        else if (fixture.league_id === 100) compLabel = 'リーグカップ'
+        else if (fixture.league_id === 98) compLabel = '明治安田Ｊ１百年構想'
+        else if (fixture.league_id === 1) compLabel = 'J1リーグ'
+
+        const roundLabel = fixture.round_number != null
+          ? `第${fixture.round_number}節`
+          : (fixture.round && !fixture.round.startsWith('Regular Season') ? fixture.round : null)
+
+        const ko = fixture.date
+          ? new Date(fixture.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
+          : null
+        const hasKO = ko && ko !== '00:00'
+
+        if (!compLabel && !roundLabel && !hasKO) return null
+
+        const d = new Date(fixture.date)
+        const jst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+        const y = jst.getFullYear()
+        const m = jst.getMonth() + 1
+        const day = jst.getDate()
+        const dowEn = ['SUN','MON','TUE','WED','THU','FRI','SAT'][jst.getDay()]
+        const dateLabel = `${y}.${m}.${day} ${dowEn}`
+
+        const compRoundLine = [compLabel, roundLabel].filter(Boolean).join(' ')
+
+        return (
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            {compRoundLine && (
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '0.06em', marginBottom: 10 }}>
+                {compRoundLine}
+              </div>
+            )}
+            <div style={{ width: 60, height: 1, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 auto 10px' }} />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em', marginBottom: 4 }}>
+              {dateLabel}
+            </div>
+            {hasKO && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em' }}>
+                {ko} KO
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* チーム名（日本語、1行、小さめ） */}
+      <div style={{ display: 'flex', marginBottom: 12, alignItems: 'center', maxWidth: 560, margin: '0 auto 12px' }}>
         <div style={{ flex: 1, textAlign: 'center' }}>
           <Link href={`/team/${fixture.home_team_id}`} style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '0.05em', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {(fixture.home_name_en ?? fixture.home_name ?? '').replace(/ /g, '\n')}
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+              {fixture.home_name ?? fixture.home_name_en}
             </span>
           </Link>
         </div>
         <div style={{ flex: 1, textAlign: 'center' }}>
           <Link href={`/team/${fixture.away_team_id}`} style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '0.05em', lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {(fixture.away_name_en ?? fixture.away_name ?? '').replace(/ /g, '\n')}
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+              {fixture.away_name ?? fixture.away_name_en}
             </span>
           </Link>
         </div>
       </div>
 
-      {/* スコアタイル */}
-      <div style={{ display: 'flex', marginBottom: 4 }}>
-        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: homeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      {/* スコアタイル（中央寄せ、幅を抑える） */}
+      <div style={{ display: 'flex', maxWidth: 560, margin: '0 auto' }}>
+        <div style={{ flex: 1, height: hasStarted ? 56 : 32, backgroundColor: homeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {hasStarted && (
             <>
-              <span style={{ fontSize: 60, fontWeight: 900, color: textColor(homeColor), lineHeight: 1 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: textColor(homeColor), lineHeight: 1 }}>
                 {fixture.home_score ?? 0}
               </span>
               {fixture.status === 'PEN' && fixture.home_penalty != null && (
-                <span style={{ fontSize: 28, fontWeight: 900, color: textColor(homeColor), opacity: 0.7, lineHeight: 1 }}>
+                <span style={{ fontSize: 16, fontWeight: 900, color: textColor(homeColor), opacity: 0.7, lineHeight: 1 }}>
                   ({fixture.home_penalty})
                 </span>
               )}
             </>
           )}
         </div>
-        <div style={{ flex: 1, height: hasStarted ? 90 : 40, backgroundColor: awayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <div style={{ flex: 1, height: hasStarted ? 56 : 32, backgroundColor: awayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {hasStarted && (
             <>
               {fixture.status === 'PEN' && fixture.away_penalty != null && (
-                <span style={{ fontSize: 28, fontWeight: 900, color: textColor(awayColor), opacity: 0.7, lineHeight: 1 }}>
+                <span style={{ fontSize: 16, fontWeight: 900, color: textColor(awayColor), opacity: 0.7, lineHeight: 1 }}>
                   ({fixture.away_penalty})
                 </span>
               )}
-              <span style={{ fontSize: 60, fontWeight: 900, color: textColor(awayColor), lineHeight: 1 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: textColor(awayColor), lineHeight: 1 }}>
                 {fixture.away_score ?? 0}
               </span>
             </>
           )}
         </div>
       </div>
+
+      {/* 監督（スコア箱と同じ幅で両端配置、MANAGERラベル付き） */}
+      {(fixture.home_coach_ja || fixture.away_coach_ja) && (
+        <div style={{ display: 'flex', maxWidth: 560, margin: '8px auto 4px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, paddingLeft: 4, color: '#fff' }}>
+            {fixture.home_coach_ja && (
+              <>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.45)' }}>MANAGER</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <User size={13} strokeWidth={1.6} />
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em' }}>{fixture.home_coach_ja}</span>
+                </span>
+              </>
+            )}
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, paddingRight: 4, color: '#fff' }}>
+            {fixture.away_coach_ja && (
+              <>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.45)' }}>MANAGER</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em' }}>{fixture.away_coach_ja}</span>
+                  <User size={13} strokeWidth={1.6} />
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {!hasStarted && (
         <div style={{ textAlign: 'center', marginTop: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em' }}>
@@ -660,53 +927,233 @@ export default async function FixturePage({ params }) {
         </div>
       )}
 
-      {/* 得点者（スコアの下） */}
-      <div style={{ display: 'flex', marginBottom: 24, position: 'relative' }}>
-        {fixture.referee_en && (
-          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 8, textAlign: 'center', whiteSpace: 'nowrap' }}>
-            <span style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.98)' }}>主審: {refereeJa ?? fixture.referee_ja ?? fixture.referee_en}</span>
+      {/* メタ情報: 1段目 主審/会場/観客, 2段目 天候/気温/湿度, 放送あれば下に */}
+      {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en
+        || fixture.weather || fixture.temperature_c != null || fixture.humidity_pct != null || fixture.broadcast_ja) && (() => {
+        const iconColor = 'rgba(255,255,255,0.55)'
+        const cellStyle = {
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: 5, fontSize: 12, color: '#fff',
+        }
+        const rowStyle = {
+          display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px 36px',
+        }
+        return (
+          <div style={{ marginTop: 18, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* 1段目: 主審 / 会場 / 観客 */}
+            {((fixture.venue_name_ja || fixture.venue_name) || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en) && (
+              <div style={rowStyle}>
+                <span style={cellStyle}>
+                  <Flag size={16} strokeWidth={1.5} color={iconColor} />
+                  {fixture.referee_ja_official ? (
+                    <Link href={`/referee/${encodeURIComponent(fixture.referee_ja_official)}`} style={{ color: '#fff', textDecoration: 'none' }}>
+                      {fixture.referee_ja_official}
+                    </Link>
+                  ) : (
+                    <span>{refereeJa ?? fixture.referee_ja ?? fixture.referee_en ?? '—'}</span>
+                  )}
+                </span>
+                <span style={cellStyle}>
+                  <Building2 size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.venue_name_ja ?? fixture.venue_name ?? '—'}</span>
+                </span>
+                <span style={cellStyle}>
+                  <Users size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.attendance != null ? `${Number(fixture.attendance).toLocaleString()}人` : '—'}</span>
+                </span>
+              </div>
+            )}
+            {/* 2段目: 天候 / 気温 / 湿度 */}
+            {(fixture.weather || fixture.temperature_c != null || fixture.humidity_pct != null) && (
+              <div style={rowStyle}>
+                <span style={cellStyle}>
+                  <WeatherIcon weather={fixture.weather} size={16} color={iconColor} />
+                  <span>{fixture.weather ?? '—'}</span>
+                </span>
+                <span style={cellStyle}>
+                  <Thermometer size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.temperature_c != null ? `${fixture.temperature_c}℃` : '—'}</span>
+                </span>
+                <span style={cellStyle}>
+                  <Droplets size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.humidity_pct != null ? `${fixture.humidity_pct}%` : '—'}</span>
+                </span>
+              </div>
+            )}
+            {/* 放送（あれば） */}
+            {fixture.broadcast_ja && (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <span style={cellStyle}>
+                  <Radio size={16} strokeWidth={1.5} color={iconColor} />
+                  <span>{fixture.broadcast_ja}</span>
+                </span>
+              </div>
+            )}
           </div>
-        )}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, paddingTop: 8 }}>
-          {homeGoalEvents.map((e, i) => (
-            <span key={i} style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {e.elapsed}' {e.player_id ? <Link href={`/player/${e.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{e.player_name_ja ?? e.player_name_en}</Link> : (e.player_name_ja ?? e.player_name_en)}
-              {e.detail === 'Own Goal' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}> OG</span> : e.detail === 'Penalty' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}> PK</span> : ''}
-            </span>
-          ))}
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingTop: 8 }}>
-          {awayGoalEvents.map((e, i) => (
-            <span key={i} style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {e.detail === 'Own Goal' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>OG </span> : e.detail === 'Penalty' ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>PK </span> : ''}
-              {e.player_id ? <Link href={`/player/${e.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{e.player_name_ja ?? e.player_name_en}</Link> : (e.player_name_ja ?? e.player_name_en)} {e.elapsed}'
-            </span>
-          ))}
-        </div>
-      </div>
+        )
+      })()}
+
+      {/* 試合イベントタイムライン (Goal/Yellow/Red/Sub、時系列) + KO/HT/FT マーカー */}
+      {(() => {
+        const tlEvents = events
+          .filter(e => e.type === 'Goal'
+            || (e.type === 'Card' && (e.detail === 'Yellow Card' || e.detail === 'Red Card' || e.detail === 'Yellow Red Card'))
+            || e.type === 'subst')
+          .sort((a, b) => (a.elapsed ?? 0) - (b.elapsed ?? 0))
+
+        if (tlEvents.length === 0 && !hasStarted) return null
+
+        const items = []
+        items.push({ type: 'marker', label: 'KICK OFF' })
+        let htInserted = false
+        for (const e of tlEvents) {
+          if (!htInserted && (e.elapsed ?? 0) >= 46) {
+            items.push({ type: 'marker', label: 'HALF TIME' })
+            htInserted = true
+          }
+          items.push({ type: 'event', e })
+        }
+        if (!htInserted) items.push({ type: 'marker', label: 'HALF TIME' })
+        if (isFinished) items.push({ type: 'marker', label: 'FULL TIME' })
+
+        const Marker = ({ label }) => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 6 }}>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.55)' }}>{label}</span>
+            <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          </div>
+        )
+
+        return (
+          <section style={{ marginBottom: 32 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {items.map((it, i) => {
+                if (it.type === 'marker') return <Marker key={i} label={it.label} />
+                const e = it.e
+                const isHome = Number(e.team_id) === Number(fixture.home_team_id)
+                const sideColor = isHome ? homeColor : awayColor
+                const isGoal = e.type === 'Goal'
+                const isSubst = e.type === 'subst'
+                const isYellow = e.type === 'Card' && e.detail === 'Yellow Card'
+                const isYellowRed = e.type === 'Card' && e.detail === 'Yellow Red Card'
+                const isRed = e.type === 'Card' && e.detail === 'Red Card'
+                const isOG = isGoal && e.detail === 'Own Goal'
+                const isPK = isGoal && e.detail === 'Penalty'
+
+                const playerName = e.player_name_ja ?? e.player_name_en
+                const subOutName = e.assist_name_ja ?? e.assist_name_en
+                const nameNode = e.player_id
+                  ? <Link href={`/player/${e.player_id}`} style={{ color: '#fff', textDecoration: 'none' }}>{playerName}</Link>
+                  : <span>{playerName}</span>
+                const subOutNode = e.assist_id
+                  ? <Link href={`/player/${e.assist_id}`} style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>{subOutName}</Link>
+                  : <span style={{ color: 'rgba(255,255,255,0.55)' }}>{subOutName}</span>
+
+                const goalStyle = isGoal ? { fontSize: 14, fontWeight: 800 } : { fontSize: 12, fontWeight: 600 }
+
+                const badge = isGoal ? (
+                  <span style={{
+                    display: 'inline-block', padding: '2px 6px',
+                    backgroundColor: sideColor, color: textColor(sideColor),
+                    fontSize: 9, fontWeight: 900, letterSpacing: '0.06em',
+                    lineHeight: 1.2, borderRadius: 2,
+                    marginRight: isHome ? 6 : 0, marginLeft: isHome ? 0 : 6,
+                  }}>GOAL</span>
+                ) : isYellow ? (
+                  <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e9b938', borderRadius: 1, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0 }} />
+                ) : isYellowRed ? (
+                  <span style={{ display: 'inline-flex', gap: 1, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0 }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e9b938', borderRadius: 1 }} />
+                    <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 1 }} />
+                  </span>
+                ) : isRed ? (
+                  <span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 1, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0 }} />
+                ) : isSubst ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: isHome ? 0 : 6, marginLeft: isHome ? 6 : 0 }}>
+                    <ArrowUpDown size={13} strokeWidth={1.6} color="rgba(255,255,255,0.6)" />
+                  </span>
+                ) : null
+
+                const tag = isOG ? <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>OG</span>
+                          : isPK ? <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>PK</span>
+                          : null
+
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', minHeight: 22 }}>
+                    <div style={{ flex: 1, textAlign: 'right', paddingRight: 16, color: '#fff' }}>
+                      {isHome && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          {isGoal && badge}
+                          {isSubst ? (
+                            <span style={goalStyle}>
+                              {subOutNode}
+                              <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px' }}>→</span>
+                              {nameNode}
+                            </span>
+                          ) : (
+                            <span style={goalStyle}>{nameNode}{tag}</span>
+                          )}
+                          {!isGoal && badge}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ width: 38, textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontVariantNumeric: 'tabular-nums' }}>
+                      {e.elapsed}'
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'left', paddingLeft: 16, color: '#fff' }}>
+                      {!isHome && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          {!isGoal && badge}
+                          {isSubst ? (
+                            <span style={goalStyle}>
+                              {nameNode}
+                              <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px' }}>←</span>
+                              {subOutNode}
+                            </span>
+                          ) : (
+                            <span style={goalStyle}>{nameNode}{tag}</span>
+                          )}
+                          {isGoal && badge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })()}
 
 
-      {/* 試合スタッツ */}
-      {isFinished && homeStats && awayStats && (
-        <section style={{ marginBottom: 32, paddingTop: 24 }}>
-          <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
-          <StatBar label="スコア" homeVal={fixture.home_score ?? 0} awayVal={fixture.away_score ?? 0} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="枠内シュート" homeVal={homeStats.shots_on} awayVal={awayStats.shots_on} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="枠外シュート" homeVal={homeStats.shots_off} awayVal={awayStats.shots_off} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="PA内シュート" homeVal={homeStats.shots_inside} awayVal={awayStats.shots_inside} homeColor={homeColor} awayColor={awayColor} />
-          {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
-          <StatBar label="パス" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="ボール支配率" homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="コーナー" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
-          <StatBar label="イエローカード" homeVal={homeStats.yellow_cards} awayVal={awayStats.yellow_cards} homeColor={homeColor} awayColor={awayColor} />
-        </section>
-      )}
+      {(() => {
+        // 5タブに振り分け（useTabs: 2026シーズン以降）。!useTabs では従来通り縦並びで表示。
+        const gameStatsJsx = isFinished && homeStats && awayStats && (
+          <section style={{ marginBottom: 32, paddingTop: 8 }}>
+            <p style={{ fontSize: 18, fontWeight: 900, letterSpacing: '0.15em', color: '#fff', textAlign: 'center', marginBottom: 20 }}>GAME STATS</p>
+            {/* 上段 2カラム: 左にボール支配率ドーナツ / 右に枠内・枠外シュートのフレーム */}
+            <div style={{ display: 'flex', gap: 36, marginBottom: 20, alignItems: 'center', maxWidth: 480, margin: '0 auto 20px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <PossessionDonut homeVal={homeStats.possession} awayVal={awayStats.possession} homeColor={homeColor} awayColor={awayColor} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <ShotsFrame
+                  onHome={homeStats.shots_on} onAway={awayStats.shots_on}
+                  offHome={homeStats.shots_off} offAway={awayStats.shots_off}
+                  homeColor={homeColor} awayColor={awayColor}
+                />
+              </div>
+            </div>
+            {homeStats.expected_goals && <StatBar label="ゴール期待値" homeVal={homeStats.expected_goals} awayVal={awayStats.expected_goals} homeColor={homeColor} awayColor={awayColor} />}
+            <StatBar label="パス本数" homeVal={homeStats.passes_total} awayVal={awayStats.passes_total} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="パス成功率" homeVal={homeStats.passes_pct} awayVal={awayStats.passes_pct} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="コーナーキック" homeVal={homeStats.corners} awayVal={awayStats.corners} homeColor={homeColor} awayColor={awayColor} />
+            <StatBar label="ファウル" homeVal={homeStats.fouls} awayVal={awayStats.fouls} homeColor={homeColor} awayColor={awayColor} />
+          </section>
+        )
 
-      {/* スタメン＆ベンチ */}
-      {(homeStarters.length > 0 || awayStarters.length > 0) && (
-        <section style={{ marginBottom: 24, paddingTop: 24 }}>
+        const lineupJsx = (homeStarters.length > 0 || awayStarters.length > 0) ? (
+        <section style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', position: 'relative' }}>
             {/* 中央区切り線 */}
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
@@ -714,8 +1161,8 @@ export default async function FixturePage({ params }) {
             {/* ホーム */}
             <div style={{ flex: 1, paddingRight: 16 }}>
               {/* LINE UP ヘッダー */}
-              <div style={{ backgroundColor: homeColor, padding: '4px 8px', marginBottom: 10 }}>
-                <span style={{ fontSize: 14, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.1em' }}>LINE UP</span>
+              <div style={{ backgroundColor: homeColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
               {homeStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
@@ -733,17 +1180,22 @@ export default async function FixturePage({ params }) {
               })}
               {homeSubs.length > 0 && (
                 <>
-                  <div style={{ backgroundColor: homeColor, padding: '4px 8px', marginTop: 12, marginBottom: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.1em' }}>BENCH</span>
+                  <div style={{ backgroundColor: homeColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.12em', lineHeight: 1 }}>BENCH</span>
                   </div>
                   {homeSubs.slice(0, 9).map((p, i) => {
                     const subIn = subInMap[p.player_id]
+                    const subOut = subOutMap[p.player_id]
+                    const card = cardMap[p.player_id]
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20, textAlign: 'right' }}>{p.position}</span>
                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16, textAlign: 'right' }}>{p.number}</span>
                         <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginLeft: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
-                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginLeft: 8 }}>▲{subIn.elapsed}'</span>}
+                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginLeft: 6 }}>▲{subIn.elapsed}'</span>}
+                        {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px', marginLeft: 4 }}>YR</span>}
+                        {card?.red > 0 && <><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2, marginLeft: 4 }} /><span style={{ fontSize: 9, color: '#e53', marginLeft: 2 }}>▼{card.redElapsed}'</span></>}
+                        {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginLeft: 4 }}>▼{subOut.elapsed}'</span>}
                       </div>
                     )
                   })}
@@ -754,8 +1206,8 @@ export default async function FixturePage({ params }) {
             {/* アウェイ */}
             <div style={{ flex: 1, paddingLeft: 16 }}>
               {/* LINE UP ヘッダー */}
-              <div style={{ backgroundColor: awayColor, padding: '4px 8px', marginBottom: 10, textAlign: 'right' }}>
-                <span style={{ fontSize: 14, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.1em' }}>LINE UP</span>
+              <div style={{ backgroundColor: awayColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
               {awayStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
@@ -773,14 +1225,19 @@ export default async function FixturePage({ params }) {
               })}
               {awaySubs.length > 0 && (
                 <>
-                  <div style={{ backgroundColor: awayColor, padding: '4px 8px', marginTop: 12, marginBottom: 10, textAlign: 'right' }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.1em' }}>BENCH</span>
+                  <div style={{ backgroundColor: awayColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>BENCH</span>
                   </div>
                   {awaySubs.slice(0, 9).map((p, i) => {
                     const subIn = subInMap[p.player_id]
+                    const subOut = subOutMap[p.player_id]
+                    const card = cardMap[p.player_id]
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
-                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginRight: 8 }}>▲{subIn.elapsed}'</span>}
+                        {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginRight: 4 }}>▼{subOut.elapsed}'</span>}
+                        {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px' }}>YR</span>}
+                        {card?.red > 0 && <><span style={{ fontSize: 9, color: '#e53', marginRight: 2 }}>▼{card.redElapsed}'</span><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2 }} /></>}
+                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginRight: 6 }}>▲{subIn.elapsed}'</span>}
                         <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginRight: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16 }}>{p.number}</span>
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20 }}>{p.position}</span>
@@ -792,55 +1249,153 @@ export default async function FixturePage({ params }) {
             </div>
           </div>
         </section>
-      )}
+        ) : null
 
+        // 各種ランキング用データ準備
+        // 同値は同順位、TOP5位タイは全員含める (6位7位になってもOK)
+        const topNWithTies = (sorted, n, getVal) => {
+          if (sorted.length <= n) return sorted
+          const cutoff = getVal(sorted[n - 1])
+          let end = n
+          while (end < sorted.length && getVal(sorted[end]) === cutoff) end++
+          return sorted.slice(0, end)
+        }
+        const withRanks = (items, getVal) => {
+          let prevVal = null
+          let prevRank = 0
+          return items.map((p, i) => {
+            const v = getVal(p)
+            if (i > 0 && v === prevVal) {
+              return { ...p, _rank: prevRank, _showRank: false }
+            }
+            prevVal = v
+            prevRank = i + 1
+            return { ...p, _rank: prevRank, _showRank: true }
+          })
+        }
 
-      {isFinished && playerStats.length > 0 && (
-        <>
+        // 同値時のタイブレーク: ホーム優先 → ポジション順 → 背番号順
+        const homeIdNum = Number(fixture.home_team_id)
+        const posOrderRk = { G: 1, D: 2, M: 3, F: 4, GK: 1, DF: 2, MF: 3, FW: 4 }
+        const cmpTiebreak = (a, b) => {
+          const ah = Number(a.team_id) === homeIdNum ? 0 : 1
+          const bh = Number(b.team_id) === homeIdNum ? 0 : 1
+          if (ah !== bh) return ah - bh
+          const ap = posOrderRk[a.position] ?? 5
+          const bp = posOrderRk[b.position] ?? 5
+          if (ap !== bp) return ap - bp
+          return (Number(a.number) || 999) - (Number(b.number) || 999)
+        }
+        // ポジション表示用 (G/D/M/F → GK/DF/MF/FW)
+        const posLabel = { G: 'GK', D: 'DF', M: 'MF', F: 'FW' }
+        const withPosLabel = p => ({ ...p, position: posLabel[p.position] ?? p.position })
+
+        const ratingSorted = playerStats
+          .filter(p => p.rating != null && Number(p.rating) > 0)
+          .sort((a, b) => {
+            const d = Number(b.rating) - Number(a.rating)
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
+        const ratingTop5 = withRanks(
+          topNWithTies(ratingSorted, 5, p => Number(p.rating)),
+          p => Number(p.rating),
+        ).map(p => ({
+          ...withPosLabel(p),
+          _bar: Math.max(0, Math.min(1, (Number(p.rating) - 5) / 5)),  // 5〜10 → 0〜1
+          _main: Number(p.rating).toFixed(2),
+          _sub: `${p.minutes}'`,
+        }))
+
+        const shotsSorted = playerStats
+          .filter(p => Number(p.shots_total) > 0)
+          .sort((a, b) => {
+            const d = Number(b.shots_total) - Number(a.shots_total)
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
+        const shotsTop5Raw = topNWithTies(shotsSorted, 5, p => Number(p.shots_total))
+        const maxShots = shotsTop5Raw[0] ? Number(shotsTop5Raw[0].shots_total) : 1
+        const shotsTop5 = withRanks(shotsTop5Raw, p => Number(p.shots_total)).map(p => ({
+          ...withPosLabel(p),
+          _bar: Number(p.shots_total) / maxShots,
+          _main: String(p.shots_total),
+          _sub: `枠内 ${p.shots_on ?? 0}`,
+        }))
+
+        const passAccSorted = playerStats
+          .filter(p => Number(p.passes_total) >= 30 && p.passes_accuracy != null)
+          .map(p => ({ ...p, _acc: Number(p.passes_accuracy) / Number(p.passes_total) * 100 }))
+          .sort((a, b) => {
+            const d = b._acc - a._acc
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
+        const passAccTop5 = withRanks(
+          topNWithTies(passAccSorted, 5, p => p._acc),
+          p => p._acc,
+        ).map(p => ({
+          ...withPosLabel(p),
+          _bar: p._acc / 100,
+          _main: `${p._acc.toFixed(1)}%`,
+          _sub: `${p.passes_total}本`,
+        }))
+
+        const duelWinSorted = playerStats
+          .filter(p => Number(p.duels_total) >= 5)
+          .map(p => ({ ...p, _rate: Number(p.duels_won) / Number(p.duels_total) * 100 }))
+          .sort((a, b) => {
+            const d = b._rate - a._rate
+            return d !== 0 ? d : cmpTiebreak(a, b)
+          })
+        const duelWinTop5 = withRanks(
+          topNWithTies(duelWinSorted, 5, p => p._rate),
+          p => p._rate,
+        ).map(p => ({
+          ...withPosLabel(p),
+          _bar: p._rate / 100,
+          _main: `${p._rate.toFixed(1)}%`,
+          _sub: `${p.duels_won}/${p.duels_total}`,
+        }))
+
+        const ratingsChartsJsx = (isFinished && playerStats.length > 0) ? (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
-            <div style={{ width: '85%' }}>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="レーティング TOP 5" data={ratingTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="シュート本数 TOP 5" data={shotsTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="パス成功率 TOP 5" subtitle="※ 30パス以上" data={passAccTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <PlayerRankingBar title="デュエル勝率 TOP 5" subtitle="※ 5回以上" data={duelWinTop5}
+                homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
               <RatingMinutesScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} homeShort={fixture.home_short} awayShort={fixture.away_short} />
             </div>
-            <div style={{ width: '85%' }}>
-              <DuelScatter playerStats={playerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} homeScore={fixture.home_score ?? 0} awayScore={fixture.away_score ?? 0} />
-            </div>
-            <div style={{ width: '85%' }}>
-              <PassAccuracyBar playerStats={playerStats} homeTeamId={fixture.home_team_id} homeColor={homeColor} awayColor={awayColor} />
-            </div>
           </section>
-        </>
-      )}
+        ) : null
 
-      {/* 審判担当履歴 */}
-      {(homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0) && (
+        const refereeHistoryJsx = (hasReferee && (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0 || homeRefereeRecord.total > 0 || awayRefereeRecord.total > 0)) ? (
         <section style={{ marginBottom: 32 }}>
-          <p style={{ fontSize: 15, color: '#fff', marginBottom: 12 }}>
-            {`主審：${refereeJa ?? fixture.referee_en} 直近担当5試合`}
+          <p style={{ fontSize: 15, color: '#fff', marginBottom: 12, textAlign: 'center' }}>
+            {`${(fixture.referee_ja_official ?? refereeJa ?? fixture.referee_en ?? '').replace(/\s+/g, '')} 担当試合成績`}
           </p>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>
-              {homeRefereeHistory.map((f, i) => (
-                <RefereeMatchRow key={i} f={f} teamId={fixture.home_team_id} align="left" clubColor={homeColor} />
-              ))}
-              {homeRefereeHistory.length === 0 && (
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>データなし</p>
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${awayColor}`, paddingTop: 10 }}>
-              {awayRefereeHistory.map((f, i) => (
-                <RefereeMatchRow key={i} f={f} teamId={fixture.away_team_id} align="right" clubColor={awayColor} />
-              ))}
-              {awayRefereeHistory.length === 0 && (
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textAlign: 'right' }}>データなし</p>
-              )}
-            </div>
-          </div>
+          <RefereeSection
+            homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id}
+            homeColor={homeColor} awayColor={awayColor}
+            homeRecord={homeRefereeRecord} awayRecord={awayRefereeRecord}
+            homeFirst={homeRefereeFirst} awayFirst={awayRefereeFirst}
+            homeHistory={homeRefereeHistory} awayHistory={awayRefereeHistory}
+          />
         </section>
-      )}
+        ) : null
 
-      {/* 試合前グラフ */}
-      {!hasStarted && seasonFixtures.length > 0 && (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 32, alignItems: 'center' }}>
+        const preMatchGraphsJsx = !hasStarted && seasonFixtures.length > 0 && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 32, alignItems: 'center' }}>
           {/* 順位推移 */}
           <div style={{ width: '100%' }}>
             <FixtureRankChart
@@ -903,10 +1458,9 @@ export default async function FixturePage({ params }) {
             </>
           )}
         </section>
-      )}
+        )
 
-      {/* オッズ情報（試合前） */}
-      {!hasStarted && (odds.length > 0 || exactScoreOdds.length > 0) && (() => {
+        const oddsJsx = !hasStarted && (odds.length > 0 || exactScoreOdds.length > 0) && (() => {
         const homeOdds = odds.filter(o => o.value === 'Home')
         const drawOdds = odds.filter(o => o.value === 'Draw')
         const awayOdds = odds.filter(o => o.value === 'Away')
@@ -993,14 +1547,37 @@ export default async function FixturePage({ params }) {
 
           </section>
         )
-      })()}
+        })()
 
-      {/* 試合前 */}
-      {!hasStarted && odds.length === 0 && seasonFixtures.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
-          試合前のため詳細データはありません
-        </p>
-      )}
+        const fallbackJsx = !hasStarted && odds.length === 0 && seasonFixtures.length === 0 && (
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
+            試合前のため詳細データはありません
+          </p>
+        )
+
+        const statsJsx = (
+          <>
+            {gameStatsJsx}
+            {preMatchGraphsJsx}
+            {oddsJsx}
+            {fallbackJsx}
+          </>
+        )
+
+        const ratingsJsx = ratingsChartsJsx
+
+        const postsJsx = <PostsSection fixtureId={parseInt(id)} />
+
+        return useTabs ? (
+          <MatchTabs
+            members={lineupJsx}
+            ratings={ratingsJsx}
+            stats={statsJsx}
+            posts={postsJsx}
+            referee={refereeHistoryJsx}
+          />
+        ) : lineupJsx
+      })()}
     </div>
     </>
   )

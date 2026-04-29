@@ -1,6 +1,7 @@
 import sql from '@/lib/db'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import PlayerTabs from './player-tabs'
 
 async function getPlayer(id) {
   const rows = await sql`
@@ -48,6 +49,80 @@ async function getPlayerGwPoints(playerId) {
     WHERE fp.player_id = ${playerId}
     GROUP BY fg.gw_number, fp.breakdown
     ORDER BY fg.gw_number
+  `.catch(() => [])
+}
+
+// シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
+// 全出場試合リスト（全出場タブ用）
+// 全ゴールイベント（ゴールタブ用、OGは除外）
+// シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
+// 全出場試合リスト（全出場タブ用）
+// 全ゴールイベント（ゴールタブ用、OGは除外）
+// シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
+async function getPlayerCareer(playerId) {
+  return await sql`
+    SELECT
+      f.season,
+      fl.team_id,
+      tm.name_ja AS team_name,
+      tm.color_primary AS team_color,
+      tm.abbr AS team_abbr,
+      COUNT(*)::int AS apps,
+      COUNT(*) FILTER (WHERE fl.is_starter)::int AS starts,
+      (
+        SELECT COUNT(*)::int FROM fixture_events fe
+        WHERE fe.player_id = fl.player_id
+          AND fe.team_id = fl.team_id
+          AND fe.type = 'Goal'
+          AND fe.detail <> 'Own Goal'
+          AND fe.fixture_id IN (
+            SELECT f2.id FROM fixtures f2 WHERE f2.season = f.season
+          )
+      ) AS goals
+    FROM fixture_lineups fl
+    JOIN fixtures f ON fl.fixture_id = f.id
+    LEFT JOIN teams_master tm ON fl.team_id = tm.id
+    WHERE fl.player_id = ${playerId}
+    GROUP BY f.season, fl.team_id, tm.name_ja, tm.color_primary, tm.abbr, fl.player_id
+    ORDER BY f.season DESC, fl.team_id
+  `.catch(() => [])
+}
+
+// 全出場試合リスト（全出場タブ用）
+async function getPlayerAppearances(playerId) {
+  return await sql`
+    SELECT
+      fl.fixture_id, fl.team_id, fl.is_starter, fl.position, fl.number,
+      f.season, f.date, f.league_id, f.home_team_id, f.away_team_id,
+      f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
+      ht.name_ja AS home, ht.abbr AS home_abbr, ht.color_primary AS home_color,
+      at.name_ja AS away, at.abbr AS away_abbr, at.color_primary AS away_color
+    FROM fixture_lineups fl
+    JOIN fixtures f ON fl.fixture_id = f.id
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE fl.player_id = ${playerId}
+    ORDER BY f.date DESC
+  `.catch(() => [])
+}
+
+// 全ゴールイベント（ゴールタブ用、OGは除外）
+async function getPlayerGoals(playerId) {
+  return await sql`
+    SELECT
+      fe.fixture_id, fe.elapsed, fe.detail, fe.team_id,
+      f.season, f.date, f.home_team_id, f.away_team_id,
+      f.home_score, f.away_score,
+      ht.name_ja AS home, ht.abbr AS home_abbr, ht.color_primary AS home_color,
+      at.name_ja AS away, at.abbr AS away_abbr, at.color_primary AS away_color
+    FROM fixture_events fe
+    JOIN fixtures f ON fe.fixture_id = f.id
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE fe.player_id = ${playerId}
+      AND fe.type = 'Goal'
+      AND fe.detail <> 'Own Goal'
+    ORDER BY f.date DESC, fe.elapsed
   `.catch(() => [])
 }
 
@@ -154,10 +229,13 @@ export default async function PlayerPage({ params }) {
   const playerId = parseInt(id)
   const player = await getPlayer(playerId)
   if (!player) notFound()
-  const [matches, teamStats, gwPoints] = await Promise.all([
+  const [matches, teamStats, gwPoints, career, appearances, goals] = await Promise.all([
     getPlayerMatches(playerId),
     getTeamPlayersStats(player.team_id),
     getPlayerGwPoints(playerId),
+    getPlayerCareer(playerId),
+    getPlayerAppearances(playerId),
+    getPlayerGoals(playerId),
   ])
   const gwMap = new Map(gwPoints.map(g => [g.gw_number, Number(g.points)]))
 
@@ -186,16 +264,9 @@ export default async function PlayerPage({ params }) {
     <td style={{ width: 1, padding: 0, backgroundColor: 'rgba(255,255,255,0.08)' }} />
   )
 
-  return (
-    <div>
-      {/* ヘッダー */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', marginBottom: 0, letterSpacing: '0.03em' }}>
-          {player.name_en ?? player.name_ja}
-        </h1>
-        <div style={{ backgroundColor: color, height: 6, borderRadius: 2 }} />
-      </div>
-
+  // === 今季タブ (2026シーズン) 中身 ===
+  const current2026Jsx = (matches.length > 0 || gwPoints.length > 0 || teamStats.length > 0) ? (
+    <>
       {/* シーズンサマリー */}
       {matches.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 36, flexWrap: 'wrap' }}>
@@ -405,11 +476,173 @@ export default async function PlayerPage({ params }) {
         </div>
       )}
 
-      {matches.length === 0 && (
-        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', marginTop: 40 }}>
-          2026シーズンのデータがありません
-        </p>
-      )}
+    </>
+  ) : null
+
+  // === 経歴タブ: シーズン×チーム単位の集計 ===
+  const careerJsx = career.length > 0 ? (
+    <div style={{ overflowX: 'auto', marginBottom: 40 }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <th style={thStyle('left')}>SEASON</th>
+            <th style={thStyle('left')}>TEAM</th>
+            <th style={thStyle()}>GAMES</th>
+            <th style={thStyle()}>START</th>
+            <th style={thStyle()}>G</th>
+          </tr>
+        </thead>
+        <tbody>
+          {career.map((c, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <td style={{ padding: '8px', color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>{c.season}</td>
+              <td style={{ padding: '8px' }}>
+                <Link href={`/team/${c.team_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.team_color ?? '#555' }} />
+                  <span style={{ color: '#fff' }}>{c.team_name ?? `Team #${c.team_id}`}</span>
+                </Link>
+              </td>
+              <td style={tdStyle('rgba(255,255,255,0.8)')}>{c.apps}</td>
+              <td style={tdStyle()}>{c.starts}</td>
+              <td style={tdStyle(c.goals > 0 ? '#3d9e50' : undefined, c.goals > 0)}>{c.goals > 0 ? c.goals : '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ) : null
+
+  // === 全出場タブ ===
+  const appearancesJsx = appearances.length > 0 ? (
+    <div style={{ marginBottom: 40 }}>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: 12 }}>
+        ALL APPEARANCES ({appearances.length})
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%', whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <th style={thStyle('left')}>DATE</th>
+              <th style={thStyle()}>H/A</th>
+              <th style={thStyle('left')}>OPP</th>
+              <th style={thStyle()}>SCORE</th>
+              <th style={thStyle()}>START</th>
+              <th style={thStyle()}>POS</th>
+              <th style={thStyle()}>#</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appearances.map((m, i) => {
+              const isHome = Number(m.home_team_id) === Number(m.team_id)
+              const myScore = isHome ? Number(m.home_score) : Number(m.away_score)
+              const oppScore = isHome ? Number(m.away_score) : Number(m.home_score)
+              const isPK = m.status === 'PEN' && m.home_penalty != null
+              const result = myScore > oppScore ? 'W' : myScore < oppScore ? 'L'
+                : isPK ? ((isHome ? m.home_penalty : m.away_penalty) > (isHome ? m.away_penalty : m.home_penalty) ? 'W' : 'L') : 'D'
+              const oppName = isHome ? m.away : m.home
+              const oppColor = isHome ? m.away_color : m.home_color
+              const oppId = isHome ? m.away_team_id : m.home_team_id
+              const d = new Date(m.date)
+              const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`
+              const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
+              const resultColor = result === 'W' ? '#3d9e50' : result === 'L' ? '#666' : '#888'
+              return (
+                <tr key={m.fixture_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: rowBg }}>
+                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>{dateStr}</td>
+                  <td style={tdStyle()}>{isHome ? 'H' : 'A'}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <Link href={`/team/${oppId}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: oppColor ?? '#555', flexShrink: 0 }} />
+                      <span style={{ color: '#fff' }}>{oppName}</span>
+                    </Link>
+                  </td>
+                  <td style={tdStyle()}>
+                    <Link href={`/fixture/${m.fixture_id}`} style={{ textDecoration: 'none', color: resultColor, fontWeight: 700 }}>
+                      {myScore}-{oppScore}{isPK ? ' (PK)' : ''}
+                    </Link>
+                  </td>
+                  <td style={tdStyle()}>{m.is_starter ? '●' : '○'}</td>
+                  <td style={tdStyle()}>{m.position ?? '-'}</td>
+                  <td style={tdStyle()}>{m.number ?? '-'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ) : null
+
+  // === ゴールタブ ===
+  const goalsJsx = goals.length > 0 ? (
+    <div style={{ marginBottom: 40 }}>
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: 12 }}>
+        ALL GOALS ({goals.length})
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%', whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <th style={thStyle('left')}>DATE</th>
+              <th style={thStyle('left')}>OPP</th>
+              <th style={thStyle()}>SCORE</th>
+              <th style={thStyle()}>MIN</th>
+              <th style={thStyle()}>DETAIL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {goals.map((g, i) => {
+              const isHome = Number(g.home_team_id) === Number(g.team_id)
+              const oppName = isHome ? g.away : g.home
+              const oppColor = isHome ? g.away_color : g.home_color
+              const oppId = isHome ? g.away_team_id : g.home_team_id
+              const d = new Date(g.date)
+              const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`
+              const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
+              return (
+                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: rowBg }}>
+                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>{dateStr}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <Link href={`/team/${oppId}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: oppColor ?? '#555', flexShrink: 0 }} />
+                      <span style={{ color: '#fff' }}>{oppName}</span>
+                    </Link>
+                  </td>
+                  <td style={tdStyle()}>
+                    <Link href={`/fixture/${g.fixture_id}`} style={{ textDecoration: 'none', color: '#3d9e50', fontWeight: 700 }}>
+                      {g.home_score}-{g.away_score}
+                    </Link>
+                  </td>
+                  <td style={tdStyle('#3d9e50', true)}>{g.elapsed != null ? `${g.elapsed}'` : '-'}</td>
+                  <td style={tdStyle()}>{g.detail && g.detail !== 'Normal Goal' ? g.detail : ''}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ) : null
+
+  return (
+    <div>
+      {/* ヘッダー */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', marginBottom: 0, letterSpacing: '0.03em' }}>
+          {player.name_en ?? player.name_ja}
+        </h1>
+        <div style={{ backgroundColor: color, height: 6, borderRadius: 2 }} />
+      </div>
+
+      <PlayerTabs
+        tabs={[
+          { key: 'current',     label: '今季',   content: current2026Jsx },
+          { key: 'career',      label: '経歴',   content: careerJsx },
+          { key: 'appearances', label: '全出場', content: appearancesJsx },
+          { key: 'goals',       label: 'ゴール', content: goalsJsx },
+        ]}
+        defaultKey={matches.length > 0 ? 'current' : 'career'}
+      />
     </div>
   )
 }
