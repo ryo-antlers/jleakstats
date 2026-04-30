@@ -162,7 +162,7 @@ export default function TransferPage() {
   async function sellPlayer(player) {
     setActionLoading(true)
     setMessage(null)
-    const sellPrice = Math.floor((player.bought_price ?? 0) * (1 - SELL_FEE))
+    const sellPrice = Math.floor((player.price ?? 0) * (1 - SELL_FEE))
     const refund = sellPrice * 10
     setSquad(prev => prev.filter(s => s.player_id !== player.player_id))
     setUser(prev => ({ ...prev, budget: Number(prev.budget) + refund }))
@@ -183,8 +183,8 @@ export default function TransferPage() {
 
   if (loading) return <FantasyLoading />
 
-  const confirmSellPrice = confirmPlayer ? Math.floor((confirmPlayer.bought_price ?? 0) * (1 - SELL_FEE)) : 0
-  const confirmFee = confirmPlayer ? (confirmPlayer.bought_price ?? 0) - confirmSellPrice : 0
+  const confirmSellPrice = confirmPlayer ? Math.floor((confirmPlayer.price ?? 0) * (1 - SELL_FEE)) : 0
+  const confirmFee = confirmPlayer ? (confirmPlayer.price ?? 0) - confirmSellPrice : 0
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', minHeight: '100vh' }}>
@@ -213,8 +213,8 @@ export default function TransferPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>移籍金</span>
-                <span style={{ color: '#fff' }}>{formatPrice(confirmPlayer.bought_price)}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>現在の移籍金</span>
+                <span style={{ color: '#fff' }}>{formatPrice(confirmPlayer.price)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>手数料 (5%)</span>
@@ -640,7 +640,7 @@ export default function TransferPage() {
                       </div>
                       {posPlayers.map(p => {
                         const stats = playerMap.get(p.player_id) ?? {}
-                        const sellPrice = Math.floor((p.bought_price ?? 0) * (1 - SELL_FEE))
+                        const sellPrice = Math.floor((p.price ?? 0) * (1 - SELL_FEE))
                         const canSell = (posCounts[p.position] ?? 0) > (POS_MIN[p.position] ?? 0)
                         return (
                           <div key={p.player_id} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>

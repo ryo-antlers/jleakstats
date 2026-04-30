@@ -137,7 +137,9 @@ export async function DELETE(request) {
     }
 
     const [entry] = await sql`
-      SELECT fs.bought_price FROM fantasy_squads fs
+      SELECT fs.bought_price, pm.price AS current_price
+      FROM fantasy_squads fs
+      JOIN players_master pm ON pm.id = fs.player_id
       WHERE fs.clerk_user_id = ${userId} AND fs.player_id = ${player_id}
     `
     if (!entry) return Response.json({ error: '選手が見つかりません' }, { status: 404 })
@@ -159,7 +161,8 @@ export async function DELETE(request) {
       }
     }
 
-    const sellPrice = no_fee ? entry.bought_price : Math.floor(entry.bought_price * 0.95)
+    // no_fee=true（new_squad キャンセル時）は購入額を全額返金、通常売却は現在価格の95%
+    const sellPrice = no_fee ? entry.bought_price : Math.floor(entry.current_price * 0.95)
     const refund = sellPrice * 10
 
     await sql`DELETE FROM fantasy_squads WHERE clerk_user_id = ${userId} AND player_id = ${player_id}`
