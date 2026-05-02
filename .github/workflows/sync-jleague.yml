@@ -1,0 +1,42 @@
+name: Sync J-League Official Records
+
+# 15分ごとに j-league 公式から差分取込
+# - 試合終了 → 公式サイト掲載 → 30分以内にDB反映
+# - 試合のない時間帯は --skip-done が効いて10秒以内で終了 (サイト負荷ほぼ0)
+# - 未来試合の予定変更 (KO時刻、放送局等) も常時追従
+# 注: GitHub Actions cron は best-effort で 5-15分遅れることあり
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15分ごと
+  workflow_dispatch:           # 手動実行も可能
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+
+      - name: J1 (明治安田Ｊ１百年構想)
+        run: |
+          node scripts/scrape-jleague-full.mjs \
+            --comp-years 20261 --comp-frame 35 \
+            --all --apply --skip-done
+        continue-on-error: true
+
+      - name: J2J3 (明治安田Ｊ２・Ｊ３百年構想)
+        run: |
+          node scripts/scrape-jleague-full.mjs \
+            --comp-years 20261 --comp-frame 36 \
+            --all --apply --skip-done
+        continue-on-error: true

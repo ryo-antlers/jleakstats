@@ -40,11 +40,20 @@ const hasFlag = k => args.includes(k)
 
 const matchOnly    = getArg('--match', null)
 const season       = Number(getArg('--season', 2025))
-const leagueId     = Number(getArg('--league', 1))  // 1=J1, 2=J2, 3=J3
+const leagueArg    = getArg('--league', null)
 // 直接パラメータ指定（2026特別リーグなど、--season では足りないケース用）
 // 例: --comp-years 20261 --comp-frame 35 で 2026 J1特別リーグ
 const compYears    = getArg('--comp-years', String(season))
-const compFrameId  = getArg('--comp-frame', String(leagueId))
+const compFrameId  = getArg('--comp-frame', leagueArg ?? '1')
+
+// comp-frame から league_id を自動推定 (DB上のleague_id用、--league で明示指定可)
+//   frame 35 = J1百年構想 → league_id 98
+//   frame 36 = J2J3百年構想 → league_id 2
+//   frame 1/2/3 = 通常J1/J2/J3 → そのまま
+const FRAME_TO_LEAGUE_ID = { '35': 98, '36': 2, '1': 1, '2': 2, '3': 3, '11': 100, '30': 100 }
+const leagueId     = leagueArg
+  ? Number(leagueArg)
+  : (FRAME_TO_LEAGUE_ID[String(compFrameId)] ?? Number(compFrameId))
 const limit        = hasFlag('--all') ? Infinity : Number(getArg('--limit', 5))
 const apply        = hasFlag('--apply')
 const pastOnly     = hasFlag('--past-only')          // 完了試合のみ（未来スキップ）
@@ -123,6 +132,14 @@ function toIsoDate(dateStr, timeStr) {
   const d = dateStr.replace(/\//g, '-')
   const t = timeStr ? timeStr : '00:00'
   return `${d}T${t}:00+09:00`
+}
+// 一覧行の "26/05/02(土)" + "14:00" → ISO datetime
+function listDateToIso(listDate, kickoff) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{2})/.exec(listDate ?? '')
+  if (!m) return null
+  const yyyy = `20${m[1]}`
+  const t = (kickoff && /^\d{1,2}:\d{2}/.test(kickoff)) ? kickoff.padStart(5, '0').slice(0, 5) : '00:00'
+  return `${yyyy}-${m[2]}-${m[3]}T${t}:00+09:00`
 }
 
 async function fetchText(url) {
@@ -302,7 +319,7 @@ async function loadCustomPlayerCache() {
 const recentlyAllocatedPlayers = new Map()  // name_ja → id
 
 // ─── 試合データを準備（fetch + parse + クエリ構築、DB書き込みは行わない）────
-async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast }) {
+async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, isCompleted = true }) {
   // skip-done チェック (fetch 前)
   if (skipDone) {
     const already = await sql`
@@ -328,12 +345,14 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast })
   const dateIso = toIsoDate(parsed.meta.date, parsed.meta.kickoff_time)
   const isoSeason = dateIso ? Number(dateIso.slice(0, 4)) : null
   const isPK = parsed.penalty_shootout.home != null
-  const status = isPK ? 'PEN' : 'FT'
-  const winner =
-    parsed.teams.home_score > parsed.teams.away_score ? 'home' :
-    parsed.teams.home_score < parsed.teams.away_score ? 'away' :
-    isPK ? (parsed.penalty_shootout.home > parsed.penalty_shootout.away ? 'home' : 'away') :
-    'draw'
+  const status = isCompleted ? (isPK ? 'PEN' : 'FT') : 'NS'
+  const winner = !isCompleted
+    ? null
+    : (parsed.teams.home_score > parsed.teams.away_score ? 'home' :
+       parsed.teams.home_score < parsed.teams.away_score ? 'away' :
+       isPK ? (parsed.penalty_shootout.home > parsed.penalty_shootout.away ? 'home' : 'away') :
+       'draw')
+  const finishedAt = isCompleted ? dateIso : null
 
   // 重複チェック: 同じ日付+ホーム+アウェイの既存 fixture があればそのIDを使う
   const datePart = dateIso.slice(0, 10)  // JST基準の YYYY-MM-DD
@@ -422,7 +441,7 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast })
         referee_ja_official = ${parsed.referees.main},
         broadcast_ja        = COALESCE(${broadcast ?? null}, fixtures.broadcast_ja),
         data_source         = 'j-league',
-        finished_at         = ${dateIso},
+        finished_at         = ${finishedAt},
         updated_at          = NOW()
       WHERE id = ${fixtureId}
     `)
@@ -447,7 +466,7 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast })
         ${status}, ${winner},
         ${parsed.meta.weather}, ${parsed.meta.temperature_c}, ${parsed.meta.humidity_pct}, ${parsed.meta.attendance},
         ${parsed.coaches.home[0]?.name ?? null}, ${parsed.coaches.away[0]?.name ?? null}, ${parsed.meta.stadium},
-        ${parsed.referees.main}, ${broadcast ?? null}, 'j-league', ${dateIso},
+        ${parsed.referees.main}, ${broadcast ?? null}, 'j-league', ${finishedAt},
         NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -473,6 +492,10 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast })
         updated_at          = NOW()
     `)
   }
+
+  // 未開催 (NS) の場合は events/lineups の処理をスキップ
+  // (試合詳細ページに無いため、parse結果も空配列。既存データも消さない)
+  if (isCompleted) {
 
   // 3. 既存の events/lineups クリア
   queries.push(sql`DELETE FROM fixture_events  WHERE fixture_id = ${fixtureId}`)
@@ -574,6 +597,8 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast })
     }
   }
 
+  } // end if (isCompleted)
+
   // 新規選手 INSERT を先頭に挿入（他のINSERT/UPDATEが FK 参照する前にコミットされる必要あり）
   const playerInserts = newPlayerRows.map(p => sql`
     INSERT INTO players_master (id, name_ja, team_id, position, updated_at)
@@ -586,8 +611,86 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast })
 }
 
 // ─── 単一試合のコミット（全クエリを1トランザクションで送信）──
+// ─── 未開催試合準備 (詳細ページfetchせず、リスト行データだけで INSERT/UPDATE) ────
+async function prepareFutureMatch(target, { apply, league }) {
+  const teamMap = await loadTeamNameMap()
+  const homeId = resolveTeamId(target.home, teamMap)
+  const awayId = resolveTeamId(target.away, teamMap)
+  if (!homeId || !awayId) {
+    throw new Error(`チーム未解決 (未開催): home="${target.home}"(${homeId}), away="${target.away}"(${awayId})`)
+  }
+
+  const dateIso = listDateToIso(target.date, target.kickoff)
+  if (!dateIso) {
+    throw new Error(`日付parse失敗: date="${target.date}" kickoff="${target.kickoff}"`)
+  }
+  const [y, m, d] = dateIso.slice(0, 10).split('-').map(Number)
+
+  // 既存fixture (date+teams) を探す → あればそのIDをUPDATE、無ければsynthetic IDで新規INSERT
+  const datePart = dateIso.slice(0, 10)
+  const existing = await sql`
+    SELECT id, data_source, status FROM fixtures
+    WHERE (date AT TIME ZONE 'Asia/Tokyo')::date = ${datePart}
+      AND home_team_id = ${homeId}
+      AND away_team_id = ${awayId}
+    LIMIT 1
+  `
+  const isUpdate = existing.length > 0
+  const fixtureId = isUpdate ? existing[0].id : syntheticFutureId(y, m, d, homeId)
+
+  const queries = []
+  if (isUpdate) {
+    queries.push(sql`
+      UPDATE fixtures SET
+        date          = ${dateIso},
+        venue_name_ja = COALESCE(${target.stadium || null}, venue_name_ja),
+        round         = COALESCE(${target.round || null}, round),
+        round_number  = COALESCE(${target.roundNumber ?? null}, round_number),
+        stage_ja      = COALESCE(${target.stageJa || null}, stage_ja),
+        broadcast_ja  = COALESCE(${target.broadcast || null}, broadcast_ja),
+        updated_at    = NOW()
+      WHERE id = ${fixtureId}
+    `)
+  } else {
+    queries.push(sql`
+      INSERT INTO fixtures (
+        id, league_id, season, round, round_number, stage_ja, date,
+        home_team_id, away_team_id, venue_name_ja, broadcast_ja,
+        status, data_source, created_at, updated_at
+      ) VALUES (
+        ${fixtureId}, ${league}, ${y}, ${target.round || null}, ${target.roundNumber ?? null}, ${target.stageJa || null}, ${dateIso},
+        ${homeId}, ${awayId}, ${target.stadium || null}, ${target.broadcast || null},
+        'NS', 'j-league', NOW(), NOW()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        date          = EXCLUDED.date,
+        venue_name_ja = EXCLUDED.venue_name_ja,
+        broadcast_ja  = COALESCE(EXCLUDED.broadcast_ja, fixtures.broadcast_ja),
+        updated_at    = NOW()
+    `)
+  }
+
+  return {
+    matchCardId: fixtureId,
+    queries,
+    logLines: [
+      `\n[future] ${target.date} ${target.kickoff || ''} ${target.home} vs ${target.away} ${target.stadium ? `@${target.stadium}` : ''}`,
+      `  → ${isUpdate ? `既存fixture=${fixtureId} (${existing[0].data_source ?? 'api-football'}) を UPDATE` : `新規 (synthetic) id=${fixtureId}`}`,
+    ],
+    dryRun: !apply,
+    newPlayerCount: 0,
+  }
+}
+
 async function commitMatch(prep) {
   await sql.transaction(prep.queries)
+}
+
+// 未開催試合用 synthetic ID 生成 (date + homeId からデターミニスティック)
+//   formula: (season-2020)*1e8 + monthDay*1e4 + (homeId mod 10000)
+//   for 2026-05-03 home=290 → 6*1e8 + 503*1e4 + 290 = 605030290 (INT4内に収まる)
+function syntheticFutureId(year, month, day, homeId) {
+  return (year - 2020) * 100_000_000 + (month * 100 + day) * 10_000 + (homeId % 10_000)
 }
 
 // ─── 試合一覧取得 ────────────────────────────────
@@ -595,6 +698,7 @@ async function fetchMatchListForSeason(yearsParam, frameIdParam) {
   const params = new URLSearchParams({
     competition_years: String(yearsParam),
     competition_frame_ids: String(frameIdParam),
+    tv_relay_station_name: '',  // ← これを付けると未開催試合も同じリストに含まれる
   })
   const url = `https://data.j-league.or.jp/SFMS01/search?${params.toString()}`
   console.log(`[list] ${url}`)
@@ -603,15 +707,14 @@ async function fetchMatchListForSeason(yearsParam, frameIdParam) {
   const rows = []
   const seen = new Set()
   $('table tr').each((_, tr) => {
-    const link = $(tr).find('a[href*="match_card_id="]').first().attr('href')
-    if (!link) return
-    const m = link.match(/match_card_id=(\d+)/)
-    if (!m) return
-    const matchCardId = Number(m[1])
-    if (seen.has(matchCardId)) return
-    seen.add(matchCardId)
-
     const cells = $(tr).find('td').map((_, td) => clean($(td).text())).get()
+    if (cells.length < 8) return  // ヘッダー行などをスキップ
+
+    const link = $(tr).find('a[href*="match_card_id="]').first().attr('href')
+    const m = link?.match(/match_card_id=(\d+)/)
+    const matchCardId = m ? Number(m[1]) : null  // null = 未開催 (synthetic ID 後で付与)
+    if (matchCardId != null && seen.has(matchCardId)) return
+    if (matchCardId != null) seen.add(matchCardId)
     // cells: [0]年, [1]リーグ, [2]節, [3]日付, [4]KO, [5]ホーム, [6]スコア,
     //        [7]アウェイ, [8]スタジアム, [9]入場者数, [10]インターネット中継・TV放送
     const score = cells[6] ?? ''
@@ -625,9 +728,11 @@ async function fetchMatchListForSeason(yearsParam, frameIdParam) {
     rows.push({
       matchCardId,
       date: cells[3] ?? '',
+      kickoff: cells[4] ?? '',
       score,
       home: cells[5] ?? '',
       away: cells[7] ?? '',
+      stadium: cells[8] ?? '',
       stageJa,
       round: cells[2] ?? null,
       roundNumber: parseRoundNumber(cells[2]),
@@ -730,25 +835,26 @@ try {
     // --skip-done: 一括チェックで既処理分を除外
     //   (A) id = match_card_id の直接一致 (2017-2025 新規INSERT由来)
     //   (B) date + home_team + away_team の一致 (2026特別など既存API-FOOTBALL fixtureをUPDATEした場合)
+    //   未開催試合 (status='NS') は 'j-league' でも完了後に再処理が必要なのでスキップ対象外
     if (skipDone && filtered.length > 0) {
       const teamMap = await loadTeamNameMap()
       const listDateToYmd = s => {
         const m = /^(\d{2})\/(\d{2})\/(\d{2})/.exec(s ?? '')
         return m ? `20${m[1]}-${m[2]}-${m[3]}` : null
       }
-      const ids = filtered.map(r => r.matchCardId)
+      const ids = filtered.map(r => r.matchCardId).filter(v => v != null)  // 未開催 (matchCardId=null) は除外
       const dates = [...new Set(filtered.map(r => listDateToYmd(r.date)).filter(Boolean))]
       const [byId, byDate] = await Promise.all([
-        sql`SELECT id FROM fixtures WHERE id = ANY(${ids}) AND data_source = 'j-league'`,
+        sql`SELECT id FROM fixtures WHERE id = ANY(${ids}) AND data_source = 'j-league' AND status IN ('FT','AET','PEN')`,
         dates.length > 0
-          ? sql`SELECT TO_CHAR(date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS d_jst, home_team_id, away_team_id FROM fixtures WHERE TO_CHAR(date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') = ANY(${dates}) AND data_source = 'j-league'`
+          ? sql`SELECT TO_CHAR(date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS d_jst, home_team_id, away_team_id FROM fixtures WHERE TO_CHAR(date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') = ANY(${dates}) AND data_source = 'j-league' AND status IN ('FT','AET','PEN')`
           : Promise.resolve([])
       ])
       const doneIds = new Set(byId.map(r => r.id))
       const doneDTA = new Set(byDate.map(r => `${r.d_jst}:${r.home_team_id}:${r.away_team_id}`))
       const before = filtered.length
       filtered = filtered.filter(r => {
-        if (doneIds.has(r.matchCardId)) return false
+        if (r.matchCardId != null && doneIds.has(r.matchCardId)) return false
         const ymd = listDateToYmd(r.date)
         const hId = resolveTeamId(r.home, teamMap)
         const aId = resolveTeamId(r.away, teamMap)
@@ -789,16 +895,27 @@ try {
     for (let i = 0; i < targets.length; i++) {
       const target = targets[i]
       try {
-        // J.League へのリクエスト間隔を維持（fetch 開始時刻ベース）
-        if (lastFetchStartAt > 0) {
-          const wait = lastFetchStartAt + randDelay() - Date.now()
-          if (wait > 0) await sleep(wait)
+        // 未開催試合 (matchCardId なし) は詳細ページfetchせず、リスト行データだけで処理
+        const isFuture = target.matchCardId == null
+
+        if (!isFuture) {
+          // J.League へのリクエスト間隔を維持（fetch 開始時刻ベース）
+          if (lastFetchStartAt > 0) {
+            const wait = lastFetchStartAt + randDelay() - Date.now()
+            if (wait > 0) await sleep(wait)
+          }
+          lastFetchStartAt = Date.now()
         }
-        lastFetchStartAt = Date.now()
 
         // fetch + parse + 選手プリロード（前試合のDBコミットと並行）
         //   バッチモードでは既に一括 skip-done 済みなので prepareMatch 側の個別 SELECT は無効化
-        const prep = await prepareMatch(target.matchCardId, { apply, league: leagueId, skipDone: false, broadcast: target.broadcast })
+        const prep = isFuture
+          ? await prepareFutureMatch(target, { apply, league: leagueId })
+          : await prepareMatch(target.matchCardId, {
+              apply, league: leagueId, skipDone: false,
+              broadcast: target.broadcast,
+              isCompleted: target.isCompleted ?? true,
+            })
 
         if (prep.skipped) {
           console.log(`[match=${prep.matchCardId}] skip (already j-league)`)
