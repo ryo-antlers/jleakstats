@@ -44,6 +44,12 @@ export async function GET(request) {
 
     for (const { id } of fixtures) {
       try {
+        // J公式記録が既に取込済かチェック (取込済なら lineups/events は上書きしない)
+        const [{ data_source } = {}] = await sql`
+          SELECT data_source FROM fixtures WHERE id = ${id}
+        `
+        const skipJLeagueOwned = data_source === 'j-league'
+
         // 並行取得（リクエスト数: 5/試合）
         const [statsRes, eventsRes, lineupsRes, playersRes, oddsRes] = await Promise.all([
           fetchFixtureStatistics(id).catch(() => []),
@@ -112,7 +118,8 @@ export async function GET(request) {
         }
 
         // --- イベント保存（既存削除して再投入）---
-        if (eventsRes.length > 0) {
+        // J公式記録取込済 (data_source='j-league') の試合は上書きしない
+        if (eventsRes.length > 0 && !skipJLeagueOwned) {
           await sql`DELETE FROM fixture_events WHERE fixture_id = ${id}`
           for (const ev of eventsRes) {
             await sql`
@@ -133,7 +140,8 @@ export async function GET(request) {
         }
 
         // --- ラインナップ保存 ---
-        if (lineupsRes.length > 0) {
+        // J公式記録取込済 (data_source='j-league') の試合は上書きしない
+        if (lineupsRes.length > 0 && !skipJLeagueOwned) {
           await sql`DELETE FROM fixture_lineups WHERE fixture_id = ${id}`
           for (const teamData of lineupsRes) {
             const teamId = teamData.team.id
