@@ -32,6 +32,10 @@ export async function GET(request) {
 
     for (const { id } of fixtures) {
       try {
+        // J公式記録取込済 (data_source='j-league') の試合は上書きしない
+        const [{ data_source } = {}] = await sql`SELECT data_source FROM fixtures WHERE id = ${id}`
+        if (data_source === 'j-league') continue
+
         const lineupsRes = await fetchFixtureLineups(id).catch(() => [])
         if (lineupsRes.length === 0) continue
 
