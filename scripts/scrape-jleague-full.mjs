@@ -202,7 +202,7 @@ function parseMatchPage(html) {
     })
   }
 
-  // penalty shootout
+  // penalty shootout (集計値)
   const pkArea = $('.score-board-pk').filter((_, el) =>
     $(el).find('th').text().trim() === 'PK戦' && $(el).find('td.left-area > table').length === 0,
   ).first()
@@ -210,6 +210,56 @@ function parseMatchPage(html) {
     home: parseIntOrNull(pkArea.find('td.left-area').first().text()),
     away: parseIntOrNull(pkArea.find('td.right-area').first().text()),
   } : { home: null, away: null }
+
+  // PK戦キッカー (個別記録、時系列順)
+  // HTML: .score-board-pk で th='PK戦' かつ left-area に nested table を持つ要素
+  // 各行は 3列: (アイコン or 空) / 選手名 / (アイコン or 'first-kick'マーカー)
+  // icon_c-w*.gif = 成功、icon_clo*.gif = 失敗
+  const pkKicks = (() => {
+    const $area = $('.score-board-pk').filter((_, el) =>
+      $(el).find('th').text().trim() === 'PK戦' && $(el).find('td.left-area > table').length > 0,
+    ).first()
+    if (!$area.length) return []
+
+    const parseSide = (cls) => {
+      const rows = $area.find(`td.${cls} > table tr`).toArray()
+      return rows.map(tr => {
+        const $tr = $(tr)
+        let name = null
+        let imgSrc = null
+        let isFirst = false
+        $tr.find('td').each((_, td) => {
+          const $td = $(td)
+          if ($td.find('span.first-kick').length) { isFirst = true; return }
+          const $img = $td.find('img').first()
+          if ($img.length) { imgSrc = $img.attr('src') ?? ''; return }
+          const txt = clean($td.text())
+          if (txt && !name) name = txt
+        })
+        if (!name) return null
+        const src = imgSrc ?? ''
+        const success = src.includes('c-w')  // icon_c-w2.gif/icon_c-w.png = ○
+        return { name, success, isFirst }
+      }).filter(Boolean)
+    }
+
+    const home = parseSide('left-area')
+    const away = parseSide('right-area')
+    if (home.length === 0 && away.length === 0) return []
+    const homeFirst = home.some(k => k.isFirst)
+    const ordered = []
+    const max = Math.max(home.length, away.length)
+    for (let i = 0; i < max; i++) {
+      if (homeFirst) {
+        if (home[i]) ordered.push({ side: 'home', name: home[i].name, success: home[i].success })
+        if (away[i]) ordered.push({ side: 'away', name: away[i].name, success: away[i].success })
+      } else {
+        if (away[i]) ordered.push({ side: 'away', name: away[i].name, success: away[i].success })
+        if (home[i]) ordered.push({ side: 'home', name: home[i].name, success: home[i].success })
+      }
+    }
+    return ordered.map((k, i) => ({ ...k, sequence: i + 1 }))
+  })()
 
   // referees
   const refLabels = {}
@@ -259,6 +309,7 @@ function parseMatchPage(html) {
     teams,
     goals,
     penalty_shootout: pk,
+    pk_kicks: pkKicks,
     referees,
     starters:       sectionPairs('先発'),
     bench:          sectionPairs('控え'),
@@ -595,6 +646,23 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, i
         )
       `)
     }
+  }
+
+  // 8. PK戦キッカー (時系列順、elapsed=120+sequence で extra time 後に並ぶ)
+  for (const k of parsed.pk_kicks) {
+    const teamId = k.side === 'home' ? homeId : awayId
+    const pid = resolvePlayer(k.name, teamId, null)
+    queries.push(sql`
+      INSERT INTO fixture_events (
+        fixture_id, elapsed, team_id,
+        player_id, player_name_ja,
+        type, detail
+      ) VALUES (
+        ${fixtureId}, ${120 + k.sequence}, ${teamId},
+        ${pid}, ${k.name},
+        'Penalty Shootout', ${k.success ? 'Goal' : 'Missed'}
+      )
+    `)
   }
 
   } // end if (isCompleted)
