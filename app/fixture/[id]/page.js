@@ -58,9 +58,10 @@ async function getSeasonAllFixtures() {
 }
 
 async function getAllTeams() {
+  // J1 (EAST/WEST) と J2J3 (EAST-A/EAST-B/WEST-A/WEST-B) の全グループを返す
   return await sql`
     SELECT id, abbr, color_primary, group_name
-    FROM teams_master WHERE group_name IN ('EAST', 'WEST')
+    FROM teams_master WHERE group_name IS NOT NULL
   `.catch(() => [])
 }
 
@@ -118,8 +119,8 @@ async function getSeasonPlayerStats(homeTeamId, awayTeamId) {
 async function getRecentForm(homeTeamId, awayTeamId) {
   return await sql`
     SELECT f.id, f.home_team_id, f.away_team_id, f.home_score, f.away_score,
-           f.home_penalty, f.away_penalty, f.status,
-           f.referee_ja, f.referee_en, f.date,
+           f.home_penalty, f.away_penalty, f.status, f.league_id,
+           f.referee_ja, f.referee_en, f.referee_ja_official, f.date,
            ht.name_ja AS home_name, ht.color_primary AS home_color,
            at.name_ja AS away_name, at.color_primary AS away_color
     FROM fixtures f
@@ -130,6 +131,103 @@ async function getRecentForm(homeTeamId, awayTeamId) {
            OR f.home_team_id = ${awayTeamId} OR f.away_team_id = ${awayTeamId})
     ORDER BY f.date DESC
     LIMIT 20
+  `.catch(() => [])
+}
+
+// 現スカッド選手が対戦相手相手に通算で奪ったゴールランキング (在籍クラブ別の内訳付き)
+// 「2026年シーズンに現クラブの試合に出場した選手」を対象にし、
+// 過去他クラブ在籍時のものも含めて vs 対戦相手戦の全ゴールを集計 (PK戦・OG除外)
+//
+// 注: 同じ選手が移籍前後で別 player_id を持つことがある (例: レオセアラ 9550=鹿島, 9000365=C大阪)
+// → 選手名 (name_ja) で集約することで両IDの記録をまとめてカウントする
+async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2026) {
+  return await sql`
+    WITH current_squad_names AS (
+      SELECT
+        pm.name_ja,
+        MIN(pm.id) AS canonical_id,
+        MIN(fl.number) AS jersey_number
+      FROM fixture_lineups fl
+      JOIN fixtures f ON fl.fixture_id = f.id
+      JOIN players_master pm ON fl.player_id = pm.id
+      WHERE fl.team_id = ${currentSquadTeamId}
+        AND f.season = ${season}
+        AND pm.name_ja IS NOT NULL
+      GROUP BY pm.name_ja
+    ),
+    goal_breakdown AS (
+      SELECT
+        csn.name_ja,
+        fe.team_id AS scoring_team_id,
+        tm.short_name AS team_short,
+        tm.name_ja AS team_name,
+        tm.color_primary AS team_color,
+        COUNT(*)::int AS goals
+      FROM fixture_events fe
+      JOIN fixtures f ON fe.fixture_id = f.id
+      JOIN players_master pm ON fe.player_id = pm.id
+      JOIN current_squad_names csn ON pm.name_ja = csn.name_ja
+      JOIN teams_master tm ON fe.team_id = tm.id
+      WHERE fe.type = 'Goal'
+        AND (fe.detail IS DISTINCT FROM 'Own Goal')
+        AND (
+          (f.home_team_id = ${opponentTeamId} AND fe.team_id = f.away_team_id)
+          OR (f.away_team_id = ${opponentTeamId} AND fe.team_id = f.home_team_id)
+        )
+        AND fe.player_id IS NOT NULL
+      GROUP BY csn.name_ja, fe.team_id, tm.short_name, tm.name_ja, tm.color_primary
+    )
+    SELECT
+      gb.name_ja AS player_name,
+      (SELECT canonical_id FROM current_squad_names WHERE name_ja = gb.name_ja) AS player_id,
+      (SELECT jersey_number FROM current_squad_names WHERE name_ja = gb.name_ja) AS jersey,
+      SUM(gb.goals)::int AS goals,
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'team_id', gb.scoring_team_id,
+          'team_short', gb.team_short,
+          'team_name', gb.team_name,
+          'team_color', gb.team_color,
+          'goals', gb.goals
+        ) ORDER BY gb.goals DESC, gb.team_short
+      ) AS breakdown
+    FROM goal_breakdown gb
+    GROUP BY gb.name_ja
+    ORDER BY goals DESC, jersey ASC NULLS LAST, player_name
+    LIMIT 10
+  `.catch(() => [])
+}
+
+// 各チームに関わる過去全試合 (FT/AET/PEN) を取得 → JSで状況別集計
+async function getTeamHistory(teamA, teamB) {
+  return await sql`
+    SELECT f.id, f.date, f.season, f.home_team_id, f.away_team_id,
+           f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
+           ht.name_ja AS home_name, at.name_ja AS away_name
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.status IN ('FT','AET','PEN')
+      AND (f.home_team_id = ${teamA} OR f.away_team_id = ${teamA}
+        OR f.home_team_id = ${teamB} OR f.away_team_id = ${teamB})
+  `.catch(() => [])
+}
+
+// H2H: 両チーム間の過去対戦を全件 (通算成績集計用) + 直近N件詳細
+async function getH2H(teamA, teamB) {
+  return await sql`
+    SELECT f.id, f.date, f.season, f.league_id, f.status,
+           f.home_team_id, f.away_team_id,
+           f.home_score, f.away_score, f.home_penalty, f.away_penalty,
+           ht.name_ja AS home_name, ht.color_primary AS home_color, ht.abbr AS home_abbr,
+           at.name_ja AS away_name, at.color_primary AS away_color, at.abbr AS away_abbr
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.status IN ('FT', 'AET', 'PEN')
+      AND ((f.home_team_id = ${teamA} AND f.away_team_id = ${teamB})
+        OR (f.home_team_id = ${teamB} AND f.away_team_id = ${teamA}))
+    ORDER BY f.date DESC
   `.catch(() => [])
 }
 
@@ -652,6 +750,10 @@ export default async function FixturePage({ params }) {
   const isFinished = ['FT', 'AET', 'PEN'].includes(fixture.status)
   const isLive = ['LIVE', 'HT'].includes(fixture.status)
   const hasStarted = isFinished || isLive
+  // J公式記録の取込完了フラグ。true でメンバー / タイムライン / 審判を解禁
+  const hasJLeagueRecord = fixture.data_source === 'j-league'
+  // J2J3 (league_id=2): API-Footballデータがないので試合スタッツ・選手スタッツ・レーダーは出さない
+  const isJ2J3 = Number(fixture.league_id) === 2
 
   const [stats, events, lineups, playerStats, odds, exactScoreOdds] = await Promise.all([
     isFinished ? getStatistics(fixture.id) : Promise.resolve([]),
@@ -677,15 +779,19 @@ export default async function FixturePage({ params }) {
       ])
     : [[], [], { w:0, d:0, l:0, total:0 }, { w:0, d:0, l:0, total:0 }, null, null, null]
 
-  const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows] = !hasStarted
+  const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows, h2hRows, teamHistory, homeGoalsVsAway, awayGoalsVsHome] = !hasStarted
     ? await Promise.all([
         getSeasonAllFixtures(),
         getAllTeams(),
         getSeasonTeamStats(fixture.home_team_id, fixture.away_team_id),
         getSeasonPlayerStats(fixture.home_team_id, fixture.away_team_id),
         getRecentForm(fixture.home_team_id, fixture.away_team_id),
+        getH2H(fixture.home_team_id, fixture.away_team_id),
+        getTeamHistory(fixture.home_team_id, fixture.away_team_id),
+        getGoalsVsOpponent(fixture.home_team_id, fixture.away_team_id),
+        getGoalsVsOpponent(fixture.away_team_id, fixture.home_team_id),
       ])
-    : [[], [], [], [], []]
+    : [[], [], [], [], [], [], [], [], []]
 
   const hid = Number(fixture.home_team_id), aid = Number(fixture.away_team_id)
   const homeRecentForm = recentFormRows.filter(f => Number(f.home_team_id) === hid || Number(f.away_team_id) === hid).slice(0, 5)
@@ -919,16 +1025,9 @@ export default async function FixturePage({ params }) {
           </div>
         </div>
       )}
-      {!hasStarted && (
-        <div style={{ textAlign: 'center', marginTop: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em' }}>
-            {formatKickoff(fixture.date)}
-          </span>
-        </div>
-      )}
 
       {/* メタ情報: 1段目 主審/会場/観客, 2段目 天候/気温/湿度, 放送あれば下に */}
-      {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en
+      {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || (hasJLeagueRecord && (fixture.referee_ja_official || fixture.referee_en))
         || fixture.weather || fixture.temperature_c != null || fixture.humidity_pct != null || fixture.broadcast_ja) && (() => {
         const iconColor = 'rgba(255,255,255,0.55)'
         const cellStyle = {
@@ -940,27 +1039,31 @@ export default async function FixturePage({ params }) {
         }
         return (
           <div style={{ marginTop: 18, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 1段目: 主審 / 会場 / 観客 */}
-            {((fixture.venue_name_ja || fixture.venue_name) || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_en) && (
+            {/* 1段目: 主審 / 会場 / 観客 (主審はJ公式記録取込後のみ表示) */}
+            {((fixture.venue_name_ja || fixture.venue_name) || fixture.attendance != null || (hasJLeagueRecord && (fixture.referee_ja_official || fixture.referee_en))) && (
               <div style={rowStyle}>
-                <span style={cellStyle}>
-                  <Flag size={16} strokeWidth={1.5} color={iconColor} />
-                  {fixture.referee_ja_official ? (
-                    <Link href={`/referee/${encodeURIComponent(fixture.referee_ja_official)}`} style={{ color: '#fff', textDecoration: 'none' }}>
-                      {fixture.referee_ja_official}
-                    </Link>
-                  ) : (
-                    <span>{refereeJa ?? fixture.referee_ja ?? fixture.referee_en ?? '—'}</span>
-                  )}
-                </span>
+                {hasJLeagueRecord && (
+                  <span style={cellStyle}>
+                    <Flag size={16} strokeWidth={1.5} color={iconColor} />
+                    {fixture.referee_ja_official ? (
+                      <Link href={`/referee/${encodeURIComponent(fixture.referee_ja_official)}`} style={{ color: '#fff', textDecoration: 'none' }}>
+                        {fixture.referee_ja_official}
+                      </Link>
+                    ) : (
+                      <span>{refereeJa ?? fixture.referee_ja ?? fixture.referee_en ?? '—'}</span>
+                    )}
+                  </span>
+                )}
                 <span style={cellStyle}>
                   <Building2 size={16} strokeWidth={1.5} color={iconColor} />
                   <span>{fixture.venue_name_ja ?? fixture.venue_name ?? '—'}</span>
                 </span>
-                <span style={cellStyle}>
-                  <Users size={16} strokeWidth={1.5} color={iconColor} />
-                  <span>{fixture.attendance != null ? `${Number(fixture.attendance).toLocaleString()}人` : '—'}</span>
-                </span>
+                {fixture.attendance != null && (
+                  <span style={cellStyle}>
+                    <Users size={16} strokeWidth={1.5} color={iconColor} />
+                    <span>{Number(fixture.attendance).toLocaleString()}人</span>
+                  </span>
+                )}
               </div>
             )}
             {/* 2段目: 天候 / 気温 / 湿度 */}
@@ -994,14 +1097,30 @@ export default async function FixturePage({ params }) {
       })()}
 
       {/* 試合イベントタイムライン (Goal/Yellow/Red/Sub、時系列) + KO/HT/FT マーカー */}
-      {(() => {
+      {/* J公式記録 (events) 取込後にのみ表示 */}
+      {hasJLeagueRecord && (() => {
+        // 同じelapsed内では Yellow → Red の順で並べる (2枚目イエロー→退場のケース)
+        const evtPriority = (e) => {
+          if (e.type === 'Card' && e.detail === 'Yellow Card') return 0
+          if (e.type === 'Card' && (e.detail === 'Red Card' || e.detail === 'Yellow Red Card')) return 1
+          return 2
+        }
         const tlEvents = events
           .filter(e => e.type === 'Goal'
             || (e.type === 'Card' && (e.detail === 'Yellow Card' || e.detail === 'Red Card' || e.detail === 'Yellow Red Card'))
             || e.type === 'subst')
+          .sort((a, b) => {
+            const dt = (a.elapsed ?? 0) - (b.elapsed ?? 0)
+            if (dt !== 0) return dt
+            return evtPriority(a) - evtPriority(b)
+          })
+
+        // PK戦キッカー (elapsed=121+ で格納) 時系列順にソート
+        const pkEvents = events
+          .filter(e => e.type === 'Penalty Shootout')
           .sort((a, b) => (a.elapsed ?? 0) - (b.elapsed ?? 0))
 
-        if (tlEvents.length === 0 && !hasStarted) return null
+        if (tlEvents.length === 0 && pkEvents.length === 0 && !hasStarted) return null
 
         const items = []
         items.push({ type: 'marker', label: 'KICK OFF' })
@@ -1015,6 +1134,12 @@ export default async function FixturePage({ params }) {
         }
         if (!htInserted) items.push({ type: 'marker', label: 'HALF TIME' })
         if (isFinished) items.push({ type: 'marker', label: 'FULL TIME' })
+
+        // PK戦セクション (キッカーがいる場合のみ)
+        if (pkEvents.length > 0) {
+          items.push({ type: 'marker', label: 'PENALTY SHOOTOUT' })
+          for (const e of pkEvents) items.push({ type: 'event', e })
+        }
 
         const Marker = ({ label }) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 6 }}>
@@ -1039,6 +1164,8 @@ export default async function FixturePage({ params }) {
                 const isRed = e.type === 'Card' && e.detail === 'Red Card'
                 const isOG = isGoal && e.detail === 'Own Goal'
                 const isPK = isGoal && e.detail === 'Penalty'
+                const isPKShootout = e.type === 'Penalty Shootout'
+                const pkSuccess = isPKShootout && e.detail === 'Goal'
 
                 const playerName = e.player_name_ja ?? e.player_name_en
                 const subOutName = e.assist_name_ja ?? e.assist_name_en
@@ -1072,11 +1199,30 @@ export default async function FixturePage({ params }) {
                   <span style={{ display: 'inline-flex', alignItems: 'center', marginRight: isHome ? 0 : 6, marginLeft: isHome ? 6 : 0 }}>
                     <ArrowUpDown size={13} strokeWidth={1.6} color="rgba(255,255,255,0.6)" />
                   </span>
+                ) : isPKShootout ? (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 14, height: 14, marginRight: isHome ? 0 : 8, marginLeft: isHome ? 8 : 0,
+                    fontSize: 14, fontWeight: 900, lineHeight: 1,
+                    color: pkSuccess ? '#fff' : 'rgba(255,255,255,0.45)',
+                  }}>{pkSuccess ? '○' : '×'}</span>
                 ) : null
 
                 const tag = isOG ? <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>OG</span>
                           : isPK ? <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>PK</span>
                           : null
+
+                // PK戦は中央列に通し番号 (1, 2, ...) を表示
+                const centerLabel = isPKShootout
+                  ? `${(e.elapsed ?? 120) - 120}`
+                  : `${e.elapsed}'`
+                const centerStyle = isPKShootout
+                  ? { color: 'rgba(255,255,255,0.35)', fontSize: 9 }
+                  : { color: 'rgba(255,255,255,0.5)', fontSize: 10 }
+                // PK戦の名前は控えめに
+                const pkNameStyle = isPKShootout
+                  ? { fontSize: 12, fontWeight: 600, opacity: pkSuccess ? 1 : 0.55 }
+                  : null
 
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', minHeight: 22 }}>
@@ -1091,14 +1237,14 @@ export default async function FixturePage({ params }) {
                               {nameNode}
                             </span>
                           ) : (
-                            <span style={goalStyle}>{nameNode}{tag}</span>
+                            <span style={pkNameStyle ?? goalStyle}>{nameNode}{tag}</span>
                           )}
                           {!isGoal && badge}
                         </span>
                       )}
                     </div>
-                    <div style={{ width: 38, textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontVariantNumeric: 'tabular-nums' }}>
-                      {e.elapsed}'
+                    <div style={{ width: 38, textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums', ...centerStyle }}>
+                      {centerLabel}
                     </div>
                     <div style={{ flex: 1, textAlign: 'left', paddingLeft: 16, color: '#fff' }}>
                       {!isHome && (
@@ -1111,7 +1257,7 @@ export default async function FixturePage({ params }) {
                               {subOutNode}
                             </span>
                           ) : (
-                            <span style={goalStyle}>{nameNode}{tag}</span>
+                            <span style={pkNameStyle ?? goalStyle}>{nameNode}{tag}</span>
                           )}
                           {isGoal && badge}
                         </span>
@@ -1394,71 +1540,261 @@ export default async function FixturePage({ params }) {
         </section>
         ) : null
 
-        const preMatchGraphsJsx = !hasStarted && seasonFixtures.length > 0 && (
-          <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 32, alignItems: 'center' }}>
-          {/* 順位推移 */}
-          <div style={{ width: '100%' }}>
-            <FixtureRankChart
-              allFixtures={seasonFixtures} allTeams={allTeams}
-              homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id}
-              homeColor={homeColor} awayColor={awayColor}
-              currentRound={fixture.round_number}
-
-            />
-          </div>
-          {/* レーダーチャート 2列 */}
-          {homeSeasonStats?.games > 0 && (
-            <div style={{ width: '100%', display: 'flex', gap: 16 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 0 }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em' }}>ATTACK</span>
-                  <span style={{ fontSize: 10, color: homeColor, fontWeight: 700 }}>● {fixture.home_abbr}</span>
-                  <span style={{ fontSize: 10, color: awayColor, fontWeight: 700 }}>● {fixture.away_abbr}</span>
-                </div>
-                <SeasonAttackRadar homeStats={homeSeasonStats} awayStats={awaySeasonStats} homeColor={homeColor} awayColor={awayColor} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 0 }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em' }}>DEFENSE</span>
-                  <span style={{ fontSize: 10, color: homeColor, fontWeight: 700 }}>● {fixture.home_abbr}</span>
-                  <span style={{ fontSize: 10, color: awayColor, fontWeight: 700 }}>● {fixture.away_abbr}</span>
-                </div>
-                <SeasonDefenseRadar homeStats={homeSeasonStats} awayStats={awaySeasonStats} homeColor={homeColor} awayColor={awayColor} />
-              </div>
+        // 未開催: タブ群の上に表示する 順位推移 (+ J1のみレーダー2個)
+        const rankAndRadarJsx = !hasStarted && seasonFixtures.length > 0 && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
+            <div style={{ width: '100%' }}>
+              <FixtureRankChart
+                allFixtures={seasonFixtures} allTeams={allTeams}
+                homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id}
+                homeColor={homeColor} awayColor={awayColor}
+                currentRound={fixture.round_number}
+              />
             </div>
-          )}
-
-
-          {/* 直近5試合 */}
-          {(homeRecentForm.length > 0 || awayRecentForm.length > 0) && (
-            <div style={{ width: '100%', display: 'flex', gap: 16 }}>
-              <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 14 }}>
-                {homeRecentForm.map((f, i) => <RecentFormRow key={i} f={f} teamId={fixture.home_team_id} align="left" clubColor={homeColor} />)}
+            {/* レーダーは API-Football スタッツ依存なので J1 のみ */}
+            {!isJ2J3 && homeSeasonStats?.games > 0 && (
+              <div style={{ width: '100%', display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 0 }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em' }}>ATTACK</span>
+                    <span style={{ fontSize: 10, color: homeColor, fontWeight: 700 }}>● {fixture.home_abbr}</span>
+                    <span style={{ fontSize: 10, color: awayColor, fontWeight: 700 }}>● {fixture.away_abbr}</span>
+                  </div>
+                  <SeasonAttackRadar homeStats={homeSeasonStats} awayStats={awaySeasonStats} homeColor={homeColor} awayColor={awayColor} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 0 }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em' }}>DEFENSE</span>
+                    <span style={{ fontSize: 10, color: homeColor, fontWeight: 700 }}>● {fixture.home_abbr}</span>
+                    <span style={{ fontSize: 10, color: awayColor, fontWeight: 700 }}>● {fixture.away_abbr}</span>
+                  </div>
+                  <SeasonDefenseRadar homeStats={homeSeasonStats} awayStats={awaySeasonStats} homeColor={homeColor} awayColor={awayColor} />
+                </div>
               </div>
-              <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${awayColor}`, paddingTop: 14 }}>
-                {awayRecentForm.map((f, i) => <RecentFormRow key={i} f={f} teamId={fixture.away_team_id} align="right" clubColor={awayColor} />)}
-              </div>
-            </div>
-          )}
-          {/* 散布図 */}
-          {seasonPlayerStats.length > 0 && (
-            <>
-              <div style={{ width: '100%' }}>
-                <SeasonRatingScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
-              </div>
-              <div style={{ width: '100%' }}>
-                <SeasonDuelScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
-              </div>
-              <div style={{ width: '100%' }}>
-                <SeasonPassScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
-              </div>
-              <div style={{ width: '100%' }}>
-                <SeasonShotScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
-              </div>
-            </>
-          )}
-        </section>
+            )}
+          </section>
         )
+
+        // 未開催「選手スタッツ」タブ用: 散布図4種
+        const preMatchScattersJsx = !hasStarted && seasonPlayerStats.length > 0 ? (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 24, alignItems: 'center' }}>
+            <div style={{ width: '100%' }}>
+              <SeasonRatingScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <SeasonDuelScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <SeasonPassScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <SeasonShotScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
+            </div>
+          </section>
+        ) : null
+
+        // 未開催「H2H」タブ: 通算成績 + 直近5試合
+        const h2hJsx = !hasStarted ? (() => {
+          if (!h2hRows || h2hRows.length === 0) {
+            return (
+              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
+                過去の対戦データはありません
+              </p>
+            )
+          }
+          // ホームチーム視点で集計
+          const hid = Number(fixture.home_team_id)
+          let w = 0, d = 0, l = 0, gf = 0, ga = 0
+          for (const f of h2hRows) {
+            const isHome = Number(f.home_team_id) === hid
+            const myScore = isHome ? Number(f.home_score) : Number(f.away_score)
+            const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
+            const isPK = f.status === 'PEN' && f.home_penalty != null && f.away_penalty != null
+            const myPK = isPK ? (isHome ? Number(f.home_penalty) : Number(f.away_penalty)) : null
+            const oppPK = isPK ? (isHome ? Number(f.away_penalty) : Number(f.home_penalty)) : null
+            gf += myScore; ga += oppScore
+            if (myScore > oppScore) w++
+            else if (myScore < oppScore) l++
+            else if (isPK) (myPK > oppPK ? w++ : l++)
+            else d++
+          }
+          const recent10 = h2hRows.slice(0, 10)
+          return (
+            <section style={{ marginBottom: 24 }}>
+              {/* 通算成績 */}
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, marginBottom: 32 }}>
+                {/* ALL GAME */}
+                <div style={{ flex: 1, padding: '18px 12px', borderRight: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.14em', marginBottom: 10, lineHeight: '18px', height: 18 }}>
+                    ALL GAME
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                    {h2hRows.length}
+                  </div>
+                </div>
+                {/* W / D / W (3つとも箱、丸みなし。数値の高さを左右の列に揃える) */}
+                <div style={{ flex: 2, padding: '18px 12px', borderRight: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 28, fontVariantNumeric: 'tabular-nums' }}>
+                    {[
+                      { bg: homeColor, label: 'W', value: w },
+                      { bg: 'rgba(255,255,255,0.18)', label: 'D', value: d },
+                      { bg: awayColor, label: 'W', value: l },
+                    ].map((it, idx) => (
+                      <div key={idx} style={{ textAlign: 'center' }}>
+                        <div style={{
+                          display: 'inline-block',
+                          backgroundColor: it.bg,
+                          color: 'rgba(255,255,255,0.83)',
+                          fontSize: 11, fontWeight: 700,
+                          letterSpacing: '0.14em',
+                          padding: '0 9px',
+                          lineHeight: '18px',
+                          height: 18,
+                          marginBottom: 10,
+                          verticalAlign: 'top',
+                        }}>{it.label}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: 'rgba(255,255,255,0.83)', lineHeight: 1 }}>{it.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* 得失点 (色は ALL GAME と統一) */}
+                <div style={{ flex: 1, padding: '18px 12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.14em', marginBottom: 10, lineHeight: '18px', height: 18 }}>
+                    得失点
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                    {gf} - {ga}
+                  </div>
+                </div>
+              </div>
+
+              {/* 直近10試合: 10個の縦並び (上にクラブカラー線) */}
+              <div style={{ marginBottom: 40 }}>
+                <style>{`
+                  .h2h-box { transition: transform 0.15s ease; cursor: pointer; }
+                  .h2h-box:hover { transform: translateY(-2px); }
+                `}</style>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.14em', marginBottom: 14 }}>
+                  LAST 10
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, minmax(0, 1fr))', gap: 4 }}>
+                  {recent10.map(f => {
+                    const fIsPK = f.status === 'PEN' && f.home_penalty != null && f.away_penalty != null
+                    // 勝者判定 (PK勝者も考慮)
+                    let winnerSide = null
+                    if (Number(f.home_score) > Number(f.away_score)) winnerSide = 'home'
+                    else if (Number(f.away_score) > Number(f.home_score)) winnerSide = 'away'
+                    else if (fIsPK) winnerSide = Number(f.home_penalty) > Number(f.away_penalty) ? 'home' : 'away'
+                    const isDraw = winnerSide == null
+                    const boxColor = isDraw ? 'rgba(255,255,255,0.12)' : (winnerSide === 'home' ? f.home_color : f.away_color)
+                    const fg = isDraw ? '#fff' : textColor(boxColor)
+                    const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+                    const yy = String(jst.getFullYear()).slice(2)
+                    const dateStr = `${yy}.${jst.getMonth() + 1}.${jst.getDate()}`
+                    return (
+                      <Link key={f.id} href={`/fixture/${f.id}`} style={{ textDecoration: 'none' }}>
+                        <div className="h2h-box" style={{
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center',
+                          fontVariantNumeric: 'tabular-nums',
+                          color: 'rgba(255,255,255,0.83)',
+                        }}>
+                          {/* クラブカラーの5px線 */}
+                          <div style={{
+                            width: '100%', height: 5,
+                            backgroundColor: boxColor,
+                            opacity: 0.85,
+                          }} />
+                          {/* 上段: 日付 */}
+                          <div style={{ fontSize: 10, fontWeight: 700, marginTop: 8, letterSpacing: '0.02em' }}>
+                            {dateStr}
+                          </div>
+                          {/* 下段: スコア (左=ホーム, 右=アウェイ) */}
+                          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 4, lineHeight: 1, letterSpacing: '0.02em' }}>
+                            {f.home_score}-{f.away_score}
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            </section>
+          )
+        })() : null
+
+        // 未開催「審判」タブ: 各チームの直近5試合 + 各試合の主審名
+        const preMatchRefereeJsx = !hasStarted ? (() => {
+          if (homeRecentForm.length === 0 && awayRecentForm.length === 0) {
+            return (
+              <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
+                直近の試合データがありません
+              </p>
+            )
+          }
+          const renderRow = (f, teamId, clubColor) => {
+            const isHome = Number(f.home_team_id) === Number(teamId)
+            const myScore = isHome ? Number(f.home_score) : Number(f.away_score)
+            const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
+            const isPK = f.status === 'PEN' && f.home_penalty != null && f.away_penalty != null
+            const myPK = isPK ? (isHome ? Number(f.home_penalty) : Number(f.away_penalty)) : null
+            const oppPK = isPK ? (isHome ? Number(f.away_penalty) : Number(f.home_penalty)) : null
+            const result = myScore > oppScore ? 'W' : myScore < oppScore ? 'L' : isPK ? (myPK > oppPK ? 'W' : 'L') : 'D'
+            const oppName = isHome ? f.away_name : f.home_name
+            const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+            const dateStr = `${jst.getFullYear()}/${jst.getMonth() + 1}/${jst.getDate()}`
+            const badgeColor = result === 'W' ? clubColor : '#555'
+            const scoreStr = `${myScore}-${oppScore}${isPK ? ` (PK ${myPK}-${oppPK})` : ''}`
+            const refName = (f.referee_ja_official ?? f.referee_ja ?? f.referee_en ?? '').replace(/\s+/g, '')
+            return (
+              <Link key={f.id} href={`/fixture/${f.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 4px',
+                }}>
+                  <span style={{
+                    width: 22, height: 22, borderRadius: 3, backgroundColor: badgeColor,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0,
+                  }}>{result}</span>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* 上段: 主審名 (主役、目立つ) */}
+                    {refName && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {refName}
+                      </span>
+                    )}
+                    {/* 下段: 日付 + 対戦相手 + スコア (おまけ) */}
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'flex', gap: 8, fontVariantNumeric: 'tabular-nums', overflow: 'hidden' }}>
+                      <span style={{ flexShrink: 0 }}>{dateStr}</span>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{oppName}</span>
+                      <span style={{ flexShrink: 0 }}>{scoreStr}</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )
+          }
+          return (
+            <section style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>
+                  {homeRecentForm.length > 0
+                    ? homeRecentForm.map(f => renderRow(f, fixture.home_team_id, homeColor))
+                    : <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>データなし</p>
+                  }
+                </div>
+                <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${awayColor}`, paddingTop: 10 }}>
+                  {awayRecentForm.length > 0
+                    ? awayRecentForm.map(f => renderRow(f, fixture.away_team_id, awayColor))
+                    : <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>データなし</p>
+                  }
+                </div>
+              </div>
+            </section>
+          )
+        })() : null
 
         const oddsJsx = !hasStarted && (odds.length > 0 || exactScoreOdds.length > 0) && (() => {
         const homeOdds = odds.filter(o => o.value === 'Home')
@@ -1549,25 +1885,645 @@ export default async function FixturePage({ params }) {
         )
         })()
 
-        const fallbackJsx = !hasStarted && odds.length === 0 && seasonFixtures.length === 0 && (
-          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
-            試合前のため詳細データはありません
-          </p>
-        )
+        // 未開催「Winner」タブ: クジ攻略ヒント
+        const winnerJsx = !hasStarted ? (() => {
+          // 各チームの今季スコア分布 (チーム視点 my-opp)
+          const computeTeamDist = (teamId) => {
+            const counts = new Map()
+            const blowoutMatches = []
+            let total = 0, w = 0, d = 0, l = 0
+            for (const f of seasonFixtures) {
+              const isHome = Number(f.home_team_id) === Number(teamId)
+              const isAway = Number(f.away_team_id) === Number(teamId)
+              if (!isHome && !isAway) continue
+              total++
+              const my = isHome ? Number(f.home_score) : Number(f.away_score)
+              const opp = isHome ? Number(f.away_score) : Number(f.home_score)
+              const key = `${my}-${opp}`
+              counts.set(key, (counts.get(key) || 0) + 1)
+              if (my > opp) w++
+              else if (my < opp) l++
+              else d++
+              if (Number(f.home_score) >= 4 || Number(f.away_score) >= 4) blowoutMatches.push(f)
+            }
+            const sorted = [...counts.entries()]
+              .map(([score, n]) => {
+                const [my, opp] = score.split('-').map(Number)
+                const result = my > opp ? 'W' : my < opp ? 'L' : 'D'
+                return { score, n, result }
+              })
+              .sort((a, b) => b.n - a.n)
+            return { top: sorted.slice(0, 5), blowouts: blowoutMatches.length, total, w, d, l }
+          }
+          const homeDist = computeTeamDist(fixture.home_team_id)
+          const awayDist = computeTeamDist(fixture.away_team_id)
 
-        const statsJsx = (
-          <>
-            {gameStatsJsx}
-            {preMatchGraphsJsx}
-            {oddsJsx}
-            {fallbackJsx}
-          </>
-        )
+          // H2H スコア分布 (現ホーム視点で正規化: home-away)
+          const h2hCounts = new Map()
+          for (const f of h2hRows) {
+            const isHomeForCurrent = Number(f.home_team_id) === Number(fixture.home_team_id)
+            const h = isHomeForCurrent ? Number(f.home_score) : Number(f.away_score)
+            const a = isHomeForCurrent ? Number(f.away_score) : Number(f.home_score)
+            const key = `${h}-${a}`
+            h2hCounts.set(key, (h2hCounts.get(key) || 0) + 1)
+          }
+          const h2hTopScores = [...h2hCounts.entries()]
+            .map(([score, n]) => ({ score, n }))
+            .sort((a, b) => b.n - a.n)
+            .slice(0, 10)
+          const h2hBlowouts = h2hRows.filter(f => Number(f.home_score) >= 4 || Number(f.away_score) >= 4)
+
+          // 共通スタイル
+          const headerStyle = { display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.12em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.18)' }
+
+          // スコア + 横棒バー (count比率) — 共通スケール対応
+          const ScoreBar = ({ score, n, result, scale, accent }) => {
+            const widthPct = scale > 0 ? (n / scale) * 100 : 0
+            const barColor = result === 'W' ? accent : result === 'L' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.4)'
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, marginBottom: 4 }}>
+                <span style={{ fontWeight: 700, color: '#fff', minWidth: 32, fontVariantNumeric: 'tabular-nums' }}>{score}</span>
+                <div style={{ flex: 1, height: 6, overflow: 'hidden' }}>
+                  <div style={{ width: `${widthPct}%`, height: '100%', backgroundColor: barColor, opacity: 0.9 }} />
+                </div>
+              </div>
+            )
+          }
+
+          // 共通スケール: 両チームのTOP値で揃える
+          const seasonScale = Math.max(1, ...homeDist.top.map(s => s.n), ...awayDist.top.map(s => s.n))
+          const h2hScale = Math.max(1, ...h2hTopScores.map(s => s.n))
+
+          // W/D/L ドーナツチャート (中央テキストなし)
+          const WDLDonut = ({ w, d, l, accent, size = 84, thickness = 11 }) => {
+            const total = w + d + l
+            if (total === 0) return null
+            const cx = size / 2, cy = size / 2
+            const r = (size - thickness) / 2
+            const C = 2 * Math.PI * r
+            const wLen = (w / total) * C
+            const dLen = (d / total) * C
+            const lLen = (l / total) * C
+            return (
+              <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke={accent}
+                        strokeWidth={thickness} strokeDasharray={`${wLen} ${C - wLen}`} />
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.32)"
+                        strokeWidth={thickness} strokeDasharray={`${dLen} ${C - dLen}`} strokeDashoffset={-wLen} />
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.14)"
+                        strokeWidth={thickness} strokeDasharray={`${lLen} ${C - lLen}`} strokeDashoffset={-(wLen + dLen)} />
+              </svg>
+            )
+          }
+
+          // 4得点以上の試合行 (LAST 10 風: クラブカラー線 + 日付 + スコア)
+          const BlowoutRow = ({ f }) => {
+            const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+            const dateStr = `${jst.getFullYear()}/${jst.getMonth() + 1}/${jst.getDate()}`
+            return (
+              <Link key={f.id} href={`/fixture/${f.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '78px 1fr auto 1fr', alignItems: 'center', columnGap: 12,
+                  padding: '6px 4px', fontSize: 12, color: 'rgba(255,255,255,0.83)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>{dateStr}</span>
+                  <span style={{ textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.home_name ?? ''}</span>
+                  <span style={{ fontWeight: 800, color: '#fff' }}>{f.home_score}-{f.away_score}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.away_name ?? ''}</span>
+                </div>
+              </Link>
+            )
+          }
+
+          return (
+            <section style={{ marginBottom: 24 }}>
+              {/* 上段: 2カラム (今シーズンのスコア傾向 + 4得点以上の試合数) */}
+              <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
+                {[
+                  { label: fixture.home_name ?? fixture.home_short ?? 'HOME', dist: homeDist, accent: homeColor },
+                  { label: fixture.away_name ?? fixture.away_short ?? 'AWAY', dist: awayDist, accent: awayColor },
+                ].map((it, idx) => (
+                  <div key={idx} style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ marginBottom: 18 }}>
+                      <p style={headerStyle}>今シーズンのスコア傾向</p>
+                      {it.dist.total > 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                          {/* 左: W/D/L ドーナツ */}
+                          <WDLDonut w={it.dist.w} d={it.dist.d} l={it.dist.l} accent={it.accent} />
+                          {/* 右: W/D/L サマリ + TOP5 スコア横棒 */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', gap: 14, fontSize: 10, color: 'rgba(255,255,255,0.83)', marginBottom: 8, fontVariantNumeric: 'tabular-nums' }}>
+                              <span><span style={{ color: '#fff', fontWeight: 700 }}>{it.dist.w}</span>勝</span>
+                              <span><span style={{ color: '#fff', fontWeight: 700 }}>{it.dist.d}</span>分</span>
+                              <span><span style={{ color: '#fff', fontWeight: 700 }}>{it.dist.l}</span>敗</span>
+                            </div>
+                            {it.dist.top.map((s, i) => (
+                              <ScoreBar key={i} score={s.score} n={s.n} result={s.result} scale={seasonScale} accent={it.accent} />
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>データなし</p>
+                      )}
+                    </div>
+                    <div>
+                      <p style={headerStyle}>4得点以上</p>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 28, fontWeight: 800, color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                          {it.dist.blowouts}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>試合</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 過去対戦のスコア傾向 — ヒートマップ */}
+              <div style={{ marginBottom: 24 }}>
+                <p style={headerStyle}>過去対戦のスコア傾向</p>
+                {h2hRows.length === 0 ? (
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>データなし</p>
+                ) : (() => {
+                  // (h, a) ごとに試合数を集計 + 最大得点で SIZE 自動拡張 (デフォ 6×6)
+                  let maxScore = 5
+                  for (const f of h2hRows) {
+                    const isHomeForCurrent = Number(f.home_team_id) === Number(fixture.home_team_id)
+                    const h = isHomeForCurrent ? Number(f.home_score) : Number(f.away_score)
+                    const a = isHomeForCurrent ? Number(f.away_score) : Number(f.home_score)
+                    if (h > maxScore) maxScore = h
+                    if (a > maxScore) maxScore = a
+                  }
+                  const SIZE = maxScore + 1
+                  const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(0))
+                  let maxCount = 0
+                  for (const f of h2hRows) {
+                    const isHomeForCurrent = Number(f.home_team_id) === Number(fixture.home_team_id)
+                    const h = isHomeForCurrent ? Number(f.home_score) : Number(f.away_score)
+                    const a = isHomeForCurrent ? Number(f.away_score) : Number(f.home_score)
+                    grid[h][a]++
+                    if (grid[h][a] > maxCount) maxCount = grid[h][a]
+                  }
+                  const cellSize = 44
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        {/* Y軸ラベル (ホーム得点) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', marginRight: 4 }}>
+                          <div style={{ width: 24, height: 22 }} />
+                          {Array.from({ length: SIZE }, (_, h) => (
+                            <div key={h} style={{ width: 24, height: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
+                              {h}
+                            </div>
+                          ))}
+                        </div>
+                        {/* グリッド + X軸ラベル */}
+                        <div>
+                          {/* X軸 (アウェイ得点) */}
+                          <div style={{ display: 'flex', height: 22 }}>
+                            {Array.from({ length: SIZE }, (_, a) => (
+                              <div key={a} style={{ width: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
+                                {a}
+                              </div>
+                            ))}
+                          </div>
+                          {/* セル */}
+                          {Array.from({ length: SIZE }, (_, h) => (
+                            <div key={h} style={{ display: 'flex' }}>
+                              {Array.from({ length: SIZE }, (_, a) => {
+                                const count = grid[h][a]
+                                let bgColor = 'transparent'
+                                if (count > 0) {
+                                  if (h > a) bgColor = homeColor
+                                  else if (h < a) bgColor = awayColor
+                                  else bgColor = 'rgba(255,255,255,0.4)'
+                                }
+                                return (
+                                  <div key={a} style={{
+                                    width: cellSize, height: cellSize,
+                                    backgroundColor: bgColor,
+                                    opacity: count > 0 ? 0.85 : 1,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 11, fontWeight: 700, color: '#fff',
+                                    fontVariantNumeric: 'tabular-nums',
+                                  }}>
+                                    {count > 0 ? count : ''}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                        {/* 右側: 多いスコア TOP10 横棒バー */}
+                        <div style={{ marginLeft: 46, flex: 1, minWidth: 0, maxWidth: 280 }}>
+                          {h2hTopScores.map((s, i) => {
+                            const [hh, aa] = s.score.split('-').map(Number)
+                            const result = hh > aa ? 'W' : hh < aa ? 'L' : 'D'
+                            const barColor = result === 'W' ? homeColor : result === 'L' ? awayColor : 'rgba(255,255,255,0.4)'
+                            const widthPct = maxCount > 0 ? (s.n / maxCount) * 100 : 0
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, marginBottom: 6 }}>
+                                <span style={{ fontWeight: 700, color: '#fff', minWidth: 32, fontVariantNumeric: 'tabular-nums' }}>{s.score}</span>
+                                <div style={{ flex: 1, height: 6, overflow: 'hidden' }}>
+                                  <div style={{ width: `${widthPct}%`, height: '100%', backgroundColor: barColor, opacity: 0.85 }} />
+                                </div>
+                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right' }}>{s.n}回</span>
+                              </div>
+                            )
+                          })}
+                          {/* TOP10 下: 同一カードで4得点以上の試合トグル */}
+                          {h2hBlowouts.length > 0 && (
+                            <details style={{ marginTop: 14 }}>
+                              <summary style={{
+                                cursor: 'pointer', fontSize: 10, color: 'rgba(255,255,255,0.83)',
+                                letterSpacing: '0.06em', userSelect: 'none', listStyle: 'none',
+                              }}>
+                                ▶ どちらかが4得点以上の試合一覧 ({h2hBlowouts.length})
+                              </summary>
+                              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column' }}>
+                                {h2hBlowouts.map(f => {
+                                  const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+                                  const dateStr = `${jst.getFullYear()}/${jst.getMonth() + 1}/${jst.getDate()}`
+                                  return (
+                                    <Link key={f.id} href={`/fixture/${f.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                      <div style={{
+                                        display: 'flex', alignItems: 'center', gap: 10,
+                                        padding: '4px 0', fontSize: 11,
+                                        color: 'rgba(255,255,255,0.83)',
+                                        fontVariantNumeric: 'tabular-nums',
+                                      }}>
+                                        <span style={{ minWidth: 70, flexShrink: 0 }}>{dateStr}</span>
+                                        <span style={{ minWidth: 32, flexShrink: 0, fontWeight: 700, color: f.home_color, textAlign: 'center' }}>
+                                          {f.home_abbr ?? '---'}
+                                        </span>
+                                        <span style={{ minWidth: 36, flexShrink: 0, fontWeight: 800, color: '#fff', textAlign: 'center' }}>
+                                          {f.home_score}-{f.away_score}
+                                        </span>
+                                        <span style={{ minWidth: 32, flexShrink: 0, fontWeight: 700, color: f.away_color, textAlign: 'center' }}>
+                                          {f.away_abbr ?? '---'}
+                                        </span>
+                                      </div>
+                                    </Link>
+                                  )
+                                })}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            </section>
+          )
+        })() : null
+
+        // 未開催「データ」タブ: 状況別成績 (ホーム/アウェイ・KO時刻・日付)
+        const dataJsx = !hasStarted ? (() => {
+          const hid = Number(fixture.home_team_id)
+          const aid = Number(fixture.away_team_id)
+          const currentSeason = Number(fixture.season ?? 2026)
+          // 試合のJST時刻情報
+          const koJst = new Date(new Date(fixture.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+          const koHour = koJst.getHours()
+          // 30分バケット (0分台 or 30分台)
+          const koHalfMin = koJst.getMinutes() >= 30 ? 30 : 0
+          const koMM = koJst.getMonth() + 1
+          const koDD = koJst.getDate()
+
+          // 1試合ごとの結果計算
+          const computeResult = (f, teamId) => {
+            const isHome = Number(f.home_team_id) === Number(teamId)
+            const my = isHome ? Number(f.home_score) : Number(f.away_score)
+            const opp = isHome ? Number(f.away_score) : Number(f.home_score)
+            const isPK = f.status === 'PEN' && f.home_penalty != null && f.away_penalty != null
+            const myPK = isPK ? (isHome ? Number(f.home_penalty) : Number(f.away_penalty)) : null
+            const oppPK = isPK ? (isHome ? Number(f.away_penalty) : Number(f.home_penalty)) : null
+            const result = my > opp ? 'W' : my < opp ? 'L' : isPK ? (myPK > oppPK ? 'W' : 'L') : 'D'
+            return { my, opp, result, isHome }
+          }
+
+          // フィルタ後集計 (W/D/L/GF/GA)
+          const aggregate = (matches, teamId) => {
+            let w = 0, d = 0, l = 0, gf = 0, ga = 0
+            for (const f of matches) {
+              const r = computeResult(f, teamId)
+              gf += r.my; ga += r.opp
+              if (r.result === 'W') w++
+              else if (r.result === 'L') l++
+              else d++
+            }
+            return { total: matches.length, w, d, l, gf, ga, winRate: matches.length ? Math.round(w / matches.length * 100) : 0 }
+          }
+
+          // チーム別フィルタ
+          const filterTeam = (teamId, opts = {}) => {
+            return teamHistory.filter(f => {
+              const isHome = Number(f.home_team_id) === Number(teamId)
+              const isAway = Number(f.away_team_id) === Number(teamId)
+              if (!isHome && !isAway) return false
+              if (opts.homeOnly && !isHome) return false
+              if (opts.awayOnly && !isAway) return false
+              if (opts.season != null && Number(f.season) !== Number(opts.season)) return false
+              if (opts.thisSeasonOnly && Number(f.season) !== currentSeason) return false
+              if (opts.koHour != null) {
+                const fJst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+                if (fJst.getHours() !== opts.koHour) return false
+                // 30分バケット指定があれば一致チェック
+                if (opts.koHalfMin != null) {
+                  const fHalf = fJst.getMinutes() >= 30 ? 30 : 0
+                  if (fHalf !== opts.koHalfMin) return false
+                }
+              }
+              if (opts.koMD != null) {
+                const fJst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+                if ((fJst.getMonth() + 1) !== opts.koMD.m || fJst.getDate() !== opts.koMD.d) return false
+              }
+              return true
+            })
+          }
+
+          // 各種集計を計算
+          const homeHomeThis = aggregate(filterTeam(hid, { homeOnly: true, thisSeasonOnly: true }), hid)
+          const awayAwayThis = aggregate(filterTeam(aid, { awayOnly: true, thisSeasonOnly: true }), aid)
+
+          const homeHourThis = aggregate(filterTeam(hid, { koHour, koHalfMin, thisSeasonOnly: true }), hid)
+          const homeHourAll  = aggregate(filterTeam(hid, { koHour, koHalfMin }), hid)
+          const awayHourThis = aggregate(filterTeam(aid, { koHour, koHalfMin, thisSeasonOnly: true }), aid)
+          const awayHourAll  = aggregate(filterTeam(aid, { koHour, koHalfMin }), aid)
+
+          // 同じMM/DDの過去試合 (リストとaggregateの両方使う)
+          const homeDatePast = filterTeam(hid, { koMD: { m: koMM, d: koDD } })
+          const homeDateAll = aggregate(homeDatePast, hid)
+          const awayDatePast = filterTeam(aid, { koMD: { m: koMM, d: koDD } })
+          const awayDateAll = aggregate(awayDatePast, aid)
+
+          // 1ブロック (ラベル + W/D/L バー + 数字)
+          const StatRow = ({ label, agg, accent }) => {
+            const total = agg.total || 1
+            const wPct = (agg.w / total) * 100
+            const dPct = (agg.d / total) * 100
+            const lPct = (agg.l / total) * 100
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 10 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.83)', letterSpacing: '0.06em' }}>{label}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums' }}>
+                    {agg.total > 0 ? `${agg.total}試合 / 勝率${agg.winRate}%` : 'なし'}
+                  </span>
+                </div>
+                {agg.total > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', height: 6, overflow: 'hidden' }}>
+                      <div style={{ width: `${wPct}%`, backgroundColor: accent, opacity: 0.85 }} />
+                      <div style={{ width: `${dPct}%`, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+                      <div style={{ width: `${lPct}%`, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums' }}>
+                      <span>{agg.w}勝 {agg.d}分 {agg.l}敗</span>
+                      <span>得失点 {agg.gf}-{agg.ga}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.04)' }} />
+                )}
+              </div>
+            )
+          }
+
+          // 同じ日付の過去試合リスト (TeamColumn 内の <details> トグル用)
+          const PastDateList = ({ matches, teamId }) => {
+            if (!matches || matches.length === 0) return null
+            const sorted = [...matches].sort((a, b) => new Date(b.date) - new Date(a.date))
+            return (
+              <details style={{ marginTop: 10 }}>
+                <summary style={{
+                  cursor: 'pointer', fontSize: 10, color: 'rgba(255,255,255,0.83)',
+                  letterSpacing: '0.06em', userSelect: 'none', listStyle: 'none',
+                }}>
+                  ▸ 過去の試合一覧 ({matches.length})
+                </summary>
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column' }}>
+                  {sorted.map(f => {
+                    const isHome = Number(f.home_team_id) === Number(teamId)
+                    const myScore = isHome ? Number(f.home_score) : Number(f.away_score)
+                    const oppScore = isHome ? Number(f.away_score) : Number(f.home_score)
+                    const oppName = isHome ? f.away_name : f.home_name
+                    const jst = new Date(new Date(f.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+                    const dateStr = `${jst.getFullYear()}/${jst.getMonth() + 1}/${jst.getDate()}`
+                    return (
+                      <Link key={f.id} href={`/fixture/${f.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '4px 0', fontSize: 11,
+                          color: 'rgba(255,255,255,0.83)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}>
+                          <span style={{ minWidth: 78, flexShrink: 0 }}>{dateStr}</span>
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>vs {oppName}</span>
+                          <span style={{ flexShrink: 0 }}>{myScore}-{oppScore}</span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </details>
+            )
+          }
+
+          // 得点ランキング (vs 対戦相手) — 在籍クラブ別の積み上げ横棒
+          // maxGoals は両チームのランキングで共通の絶対指標を渡す (= 2列で同じスケール)
+          const GoalRanking = ({ rows, oppName, accent, maxGoals }) => {
+            if (!rows || rows.length === 0) {
+              return (
+                <div style={{ marginBottom: 18 }}>
+                  <p style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.12em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
+                    vs {oppName} 得点ランキング
+                  </p>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.83)' }}>該当なし</p>
+                </div>
+              )
+            }
+            const scale = maxGoals && maxGoals > 0 ? maxGoals : (rows[0]?.goals ?? 1)
+            return (
+              <div style={{ marginBottom: 18 }}>
+                <p style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.12em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
+                  vs {oppName} 得点ランキング
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {rows.map((r, i) => {
+                    // 同じ得点数は左カラムに数値を出さない (1回目のみ表示)
+                    const prevGoals = i > 0 ? rows[i - 1].goals : null
+                    const showGoal = r.goals !== prevGoals
+                    return (
+                      <div key={r.player_id ?? r.player_name} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '24px 110px 1fr',
+                        alignItems: 'center', gap: 12,
+                        fontSize: 12,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        <span style={{ color: '#fff', fontWeight: 800, textAlign: 'right' }}>
+                          {showGoal ? r.goals : ''}
+                        </span>
+                        <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.player_name}
+                        </span>
+                        {/* 積み上げバー: 各セグメント幅 = goals/scale (両列で共通スケール) */}
+                        <div style={{ height: 16, display: 'flex', overflow: 'hidden' }}>
+                          {(r.breakdown ?? []).map((b, bi) => (
+                            <div key={bi}
+                              title={`${b.team_short ?? b.team_name}: ${b.goals}得点`}
+                              style={{
+                                width: `${(b.goals / scale) * 100}%`,
+                                height: '100%',
+                                backgroundColor: b.team_color ?? '#666',
+                                opacity: 0.9,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          }
+
+          // チームカラム
+          const TeamColumn = ({ accent, sideHomeAway, teamId, statsHA_this, statsHour_this, statsHour_all, statsDate_all, pastDateMatches, goalsVsOpp, oppName, goalRankMax }) => (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ marginBottom: 18 }}>
+                <p style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.12em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
+                  {sideHomeAway === 'ホーム' ? 'ホーム時' : 'アウェイ時'}の成績
+                </p>
+                <StatRow label="今季" agg={statsHA_this} accent={accent} />
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <p style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.12em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
+                  {koHour}:{String(koHalfMin).padStart(2, '0')} KO の成績
+                </p>
+                <StatRow label="今季" agg={statsHour_this} accent={accent} />
+                <StatRow label="過去全" agg={statsHour_all} accent={accent} />
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <p style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.83)', letterSpacing: '0.12em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
+                  {koMM}/{koDD} の成績
+                </p>
+                <StatRow label="過去" agg={statsDate_all} accent={accent} />
+                <PastDateList matches={pastDateMatches} teamId={teamId} />
+              </div>
+              <GoalRanking rows={goalsVsOpp} oppName={oppName} accent={accent} maxGoals={goalRankMax} />
+            </div>
+          )
+
+          // 両ランキング共通の最大得点 (= 横棒スケール基準)
+          const goalRankMax = Math.max(
+            homeGoalsVsAway[0]?.goals ?? 0,
+            awayGoalsVsHome[0]?.goals ?? 0,
+            1
+          )
+
+          return (
+            <section style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', gap: 20 }}>
+                <TeamColumn
+                  accent={homeColor}
+                  sideHomeAway="ホーム"
+                  teamId={hid}
+                  statsHA_this={homeHomeThis}
+                  statsHour_this={homeHourThis}
+                  statsHour_all={homeHourAll}
+                  statsDate_all={homeDateAll}
+                  pastDateMatches={homeDatePast}
+                  goalsVsOpp={homeGoalsVsAway}
+                  oppName={fixture.away_name ?? fixture.away_short ?? 'AWAY'}
+                  goalRankMax={goalRankMax}
+                />
+                <TeamColumn
+                  accent={awayColor}
+                  sideHomeAway="アウェイ"
+                  teamId={aid}
+                  statsHA_this={awayAwayThis}
+                  statsHour_this={awayHourThis}
+                  statsHour_all={awayHourAll}
+                  statsDate_all={awayDateAll}
+                  pastDateMatches={awayDatePast}
+                  goalsVsOpp={awayGoalsVsHome}
+                  oppName={fixture.home_name ?? fixture.home_short ?? 'HOME'}
+                  goalRankMax={goalRankMax}
+                />
+              </div>
+            </section>
+          )
+        })() : null
+
+        const statsJsx = gameStatsJsx  // 試合後のみ (試合スタッツ表)
 
         const ratingsJsx = ratingsChartsJsx
 
         const postsJsx = <PostsSection fixtureId={parseInt(id)} />
 
+        // 未開催試合: H2H(+データ) / Winner / 選手スタッツ / 掲示板 / 審判
+        if (useTabs && !hasStarted) {
+          const h2hAndDataJsx = (
+            <>
+              {h2hJsx}
+              {dataJsx}
+            </>
+          )
+          // J2J3 はAPI-Football選手スタッツがないので 選手スタッツタブを除外
+          const preMatchTabs = isJ2J3
+            ? [
+                { key: 'h2h',     label: 'H2H',     content: h2hAndDataJsx },
+                { key: 'winner',  label: 'Winner',  content: winnerJsx },
+                { key: 'posts',   label: '掲示板',   content: postsJsx },
+                { key: 'referee', label: '審判',     content: preMatchRefereeJsx },
+              ]
+            : [
+                { key: 'h2h',     label: 'H2H',         content: h2hAndDataJsx },
+                { key: 'winner',  label: 'Winner',      content: winnerJsx },
+                { key: 'players', label: '選手スタッツ', content: preMatchScattersJsx },
+                { key: 'posts',   label: '掲示板',       content: postsJsx },
+                { key: 'referee', label: '審判',         content: preMatchRefereeJsx },
+              ]
+          return (
+            <>
+              {rankAndRadarJsx}
+              <MatchTabs tabs={preMatchTabs} />
+            </>
+          )
+        }
+
+        // 試合中・終了済 + J公式記録未取込 (J1のみ想定): 試合スタッツ / 選手スタッツのみ
+        if (useTabs && hasStarted && !hasJLeagueRecord && !isJ2J3) {
+          return (
+            <MatchTabs
+              tabs={[
+                { key: 'stats',   label: '試合スタッツ', content: statsJsx },
+                { key: 'ratings', label: '選手スタッツ', content: ratingsJsx },
+              ]}
+            />
+          )
+        }
+
+        // J2J3 試合中・終了済: メンバー / 掲示板 / 審判 のみ (API-Footballスタッツなし)
+        if (useTabs && hasStarted && isJ2J3) {
+          return (
+            <MatchTabs
+              tabs={[
+                { key: 'members', label: 'メンバー', content: lineupJsx },
+                { key: 'posts',   label: '掲示板',   content: postsJsx },
+                { key: 'referee', label: '審判',     content: refereeHistoryJsx },
+              ]}
+            />
+          )
+        }
+
+        // J1 試合中・終了済 + J公式記録あり: 既存5タブ
         return useTabs ? (
           <MatchTabs
             members={lineupJsx}

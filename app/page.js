@@ -3,11 +3,9 @@ import sql from '@/lib/db'
 
 export const revalidate = 0 // キャッシュ無効・常に最新
 
-import GroupTabs from '@/app/components/GroupTabs'
+import LeagueGroupTabs from '@/app/components/LeagueGroupTabs'
 import StandingsChart from '@/app/components/StandingsChart'
 import PointsChart from '@/app/components/PointsChart'
-import ScatterChart from '@/app/components/ScatterChart'
-import HeatmapChart from '@/app/components/HeatmapChart'
 
 const TEAM_ORDER = [
   290, 281, 287, 292, 294, 296, 303, 305, 306, 301, // EAST
@@ -55,6 +53,78 @@ async function getFixturesByRound(roundNumber) {
     const bi = TEAM_ORDER.indexOf(b.home_team_id)
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
   })
+}
+
+// カレンダー用: 任意の日付範囲のJ1試合を取得 (group_name関係なく)
+async function getFixturesInRange(fromDate, toDate) {
+  return await sql`
+    SELECT
+      f.id, f.date, f.status, f.elapsed, f.home_score, f.away_score,
+      f.home_penalty, f.away_penalty, f.round_number, f.round, f.stage_ja,
+      f.league_id, f.venue_name_ja, f.attendance, f.referee_ja_official,
+      ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
+      ht.color_primary AS home_color,
+      at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr,
+      at.color_primary AS away_color
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.season = 2026
+      AND f.league_id = 98
+      AND f.date >= ${fromDate}
+      AND f.date < ${toDate}
+    ORDER BY f.date ASC
+  `.catch(() => [])
+}
+
+// 6グループ別の試合一覧 (J1 EAST/WEST, J2J3 EAST-A/B, WEST-A/B)
+async function getGroupedFixtures() {
+  // J1 (league_id=98) 全試合 → JS側でEAST/WEST振り分け
+  const j1All = await sql`
+    SELECT
+      f.id, f.date, f.status, f.elapsed, f.home_score, f.away_score,
+      f.home_penalty, f.away_penalty, f.round_number, f.round, f.stage_ja,
+      f.league_id, f.venue_name_ja,
+      ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
+      ht.color_primary AS home_color, ht.group_name AS home_group,
+      at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr,
+      at.color_primary AS away_color, at.group_name AS away_group
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.season = 2026 AND f.league_id = 98
+    ORDER BY f.date ASC
+  `.catch(() => [])
+
+  // J2J3 (league_id=2) 全試合
+  const j2j3All = await sql`
+    SELECT
+      f.id, f.date, f.status, f.elapsed, f.home_score, f.away_score,
+      f.home_penalty, f.away_penalty, f.round_number, f.round, f.stage_ja,
+      f.league_id, f.venue_name_ja,
+      ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
+      ht.color_primary AS home_color, ht.group_name AS home_group,
+      at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr,
+      at.color_primary AS away_color, at.group_name AS away_group
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
+    LEFT JOIN teams_master at ON f.away_team_id = at.id
+    WHERE f.season = 2026 AND f.league_id = 2
+    ORDER BY f.date ASC
+  `.catch(() => [])
+
+  // J1 振り分け: チームのgroup_name基準 (両端どちらかが該当すればOK)
+  const j1East = j1All.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
+  const j1West = j1All.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
+
+  // J2J3 振り分け: stage_ja で完全一致
+  const matchStage = (s) => (f) => (f.stage_ja ?? '').includes(s)
+  const j2j3EastA = j2j3All.filter(matchStage('EAST-A'))
+  const j2j3EastB = j2j3All.filter(matchStage('EAST-B'))
+  const j2j3WestA = j2j3All.filter(matchStage('WEST-A'))
+  const j2j3WestB = j2j3All.filter(matchStage('WEST-B'))
+
+  return { j1East, j1West, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB }
 }
 
 async function getEarlyFixtures(fromDate, toDate, excludeRounds) {
@@ -263,7 +333,7 @@ export default async function HomePage() {
   // 例外（先行）試合 = 現在節・次節以外で、現在節初戦日〜次節初戦日の間にある試合
   const earlyWindowEnd = nextMain?.first_date ?? new Date('2099-01-01').toISOString()
 
-  const [fixtures, nextFixtures, earlyFixturesRaw] = await Promise.all([
+  const [fixtures, nextFixtures, earlyFixturesRaw, groupedFixtures] = await Promise.all([
     getFixturesByRound(currentMain.round_number),
     nextMain ? getFixturesByRound(nextMain.round_number) : Promise.resolve([]),
     nextMain ? getEarlyFixtures(
@@ -271,6 +341,7 @@ export default async function HomePage() {
       earlyWindowEnd,
       [currentMain.round_number, nextMain.round_number]
     ) : Promise.resolve([]),
+    getGroupedFixtures(),
   ])
 
   // Number()でキャスト比較（型不一致対策）
@@ -313,54 +384,27 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <GroupTabs
-        validRound={currentMain.round_number}
-        nextRound={nextMain?.round_number ?? null}
-        eastColor="#ffffff"
-        westColor="#ffffff"
-        eastContent={
-          <div>
-            {eastFixtures.length > 0 && (
-              <div className="grid-fixtures-5col" style={{ marginBottom: 16 }}>
-                {eastFixtures.map(f => <FixtureCard key={f.id} fixture={f} />)}
-              </div>
-            )}
-            <EarlyFixtureGroup fixtures={eastEarlyFixtures} />
-            <div className="grid-charts-2col" style={{ marginTop: 60 }}>
-              <PointsChart group="EAST" />
-              <StandingsChart group="EAST" />
-            </div>
-            <ScatterChart group="EAST" />
-            <HeatmapChart group="EAST" />
-          </div>
-        }
-        westContent={
-          <div>
-            {westFixtures.length > 0 && (
-              <div className="grid-fixtures-5col" style={{ marginBottom: 16 }}>
-                {westFixtures.map(f => <FixtureCard key={f.id} fixture={f} />)}
-              </div>
-            )}
-            <EarlyFixtureGroup fixtures={westEarlyFixtures} />
-            <div className="grid-charts-2col" style={{ marginTop: 60 }}>
-              <PointsChart group="WEST" />
-              <StandingsChart group="WEST" />
-            </div>
-            <ScatterChart group="WEST" />
-            <HeatmapChart group="WEST" />
-          </div>
-        }
-        bottomEastContent={eastNextFixtures.length > 0 ? (
-          <div className="grid-fixtures-5col">
-            {eastNextFixtures.map(f => <UpcomingFixtureCard key={f.id} fixture={f} />)}
-          </div>
-        ) : null}
-        bottomWestContent={westNextFixtures.length > 0 ? (
-          <div className="grid-fixtures-5col">
-            {westNextFixtures.map(f => <UpcomingFixtureCard key={f.id} fixture={f} />)}
-          </div>
-        ) : null}
+      {/* リーググループ別 タイムライン + 順位表 (アクティブタブのみ表示) */}
+      <LeagueGroupTabs
+        groups={groupedFixtures}
+        standings={{
+          j1East:    <StandingsPair group="EAST" />,
+          j1West:    <StandingsPair group="WEST" />,
+          j2j3EastA: <StandingsPair group="EAST-A" />,
+          j2j3EastB: <StandingsPair group="EAST-B" />,
+          j2j3WestA: <StandingsPair group="WEST-A" />,
+          j2j3WestB: <StandingsPair group="WEST-B" />,
+        }}
       />
+    </div>
+  )
+}
+
+function StandingsPair({ group }) {
+  return (
+    <div className="grid-charts-2col">
+      <PointsChart group={group} />
+      <StandingsChart group={group} />
     </div>
   )
 }

@@ -103,7 +103,7 @@ export default async function PointsChart({ group }) {
                 textAnchor="middle"
                 style={{ fontSize: 9, fill: team.color_primary ?? 'rgba(255,255,255,0.5)', fontFamily: 'inherit' }}
               >
-                {team.abbr}
+                {team.abbr ?? '?'}
               </text>
             </g>
           )
