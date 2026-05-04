@@ -366,6 +366,21 @@ async function loadCustomPlayerCache() {
   return customPlayerCache
 }
 
+// 全players_master の name_ja → [{id, position}] マップ
+// API-Football ID (id<9M) も含めて、移籍時に既存IDを再利用するための検索用
+let globalPlayerCache = null
+async function loadGlobalPlayerCache() {
+  if (globalPlayerCache) return globalPlayerCache
+  const rows = await sql`SELECT id, name_ja, position FROM players_master WHERE name_ja IS NOT NULL`
+  globalPlayerCache = new Map()
+  for (const r of rows) {
+    if (!globalPlayerCache.has(r.name_ja)) globalPlayerCache.set(r.name_ja, [])
+    globalPlayerCache.get(r.name_ja).push({ id: r.id, position: r.position })
+  }
+  console.log(`[cache] global players preloaded: ${rows.length}件 (${globalPlayerCache.size} 一意名)`)
+  return globalPlayerCache
+}
+
 // パイプライン実行中、直前の試合で割当てた選手IDをDB未コミットでも参照できるようにする
 const recentlyAllocatedPlayers = new Map()  // name_ja → id
 
@@ -434,6 +449,7 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, i
   // 選手マップをまとめてプリロード (両チームの既存選手のみ毎回フェッチ; 9000000+ はキャッシュ参照)
   await ensurePlayerIdCounter()
   const customMap = await loadCustomPlayerCache()  // 起動時1回だけフェッチ、以降は同じMap参照
+  const globalMap = await loadGlobalPlayerCache()  // 全players_master (API-Football ID含む) name → [{id, position}]
   const teamRows = await sql`
     SELECT id, name_ja, team_id FROM players_master
     WHERE team_id IN (${homeId}, ${awayId})
@@ -452,12 +468,30 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, i
   function resolvePlayer(name, teamId, pos) {
     if (!name || !teamId) return null
     const k = `${teamId}:${name}`
+    // ① 同チーム×名前 完全一致 (最高精度)
     if (playerByTeamName.has(k)) return playerByTeamName.get(k)
+    // ② 9000000+ カスタムIDキャッシュ (既存ロジック)
     if (playerByName9M.has(name)) return playerByName9M.get(name)
+    // ③ 移籍時の重複防止: 全DBで name (+ position) 一意一致なら既存IDを再利用
+    //    例: API-Football管理の選手がJ2/J3移籍 → 同名の既存ID (id<9M) を再利用して重複回避
+    const allMatches = globalMap.get(name) ?? []
+    const posMatches = pos ? allMatches.filter(m => m.position === pos) : allMatches
+    const candidates = posMatches.length > 0 ? posMatches : allMatches
+    if (candidates.length === 1) {
+      const reuseId = candidates[0].id
+      playerByTeamName.set(k, reuseId)
+      // 9000000+の場合は既存キャッシュ参照済なので来ないが念のため
+      if (reuseId >= 9000000) playerByName9M.set(name, reuseId)
+      return reuseId
+    }
+    // ④ 該当なし or 複数候補で曖昧 → 新規 9000000+ ID 生成
     const id = nextCustomPlayerId++
     playerByTeamName.set(k, id)
     playerByName9M.set(name, id)
     customMap.set(name, id)  // モジュールキャッシュも同期 (次の試合のために)
+    // globalMap にも追加 (このセッションで以降の resolvePlayer に反映)
+    if (!globalMap.has(name)) globalMap.set(name, [])
+    globalMap.get(name).push({ id, position: pos })
     recentlyAllocatedPlayers.set(name, id)
     newPlayerRows.push({ id, name, teamId, pos })
     return id
