@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 
-const TABS = [
+// 後方互換: 旧APIは {members, ratings, stats, posts, referee} 5つのpropを受ける
+// 新API: tabs={[{key, label, content}, ...]}
+const LEGACY_TABS = [
   { key: 'members',  label: 'メンバー' },
   { key: 'stats',    label: '試合スタッツ' },
   { key: 'ratings',  label: '選手スタッツ' },
@@ -10,11 +12,36 @@ const TABS = [
   { key: 'referee',  label: '審判' },
 ]
 
-export default function MatchTabs({ members, ratings, stats, posts, referee }) {
-  const [active, setActive] = useState('members')
+export default function MatchTabs({ tabs, members, ratings, stats, posts, referee }) {
+  // 新API優先
+  const tabList = Array.isArray(tabs) && tabs.length > 0
+    ? tabs
+    : LEGACY_TABS.map(t => ({ ...t, content: { members, stats, ratings, posts, referee }[t.key] }))
+
+  const [active, setActive] = useState(tabList[0]?.key)
   const navRef = useRef(null)
   const contentRef = useRef(null)
   const [underline, setUnderline] = useState({ left: 0, width: 0 })
+
+  // URL hashとタブ状態を同期 (試合ページに飛んで戻ってきた時に元のタブを保持)
+  useEffect(() => {
+    const sync = () => {
+      const hash = window.location.hash.slice(1)
+      if (hash && tabList.some(t => t.key === hash)) setActive(hash)
+    }
+    sync()
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleTabClick = (key) => {
+    setActive(key)
+    // history を増やさず hash だけ書き換え (戻る時に1段で済む)
+    if (typeof window !== 'undefined') {
+      history.replaceState(null, '', `#${key}`)
+    }
+  }
 
   useEffect(() => {
     const nav = navRef.current
@@ -35,8 +62,7 @@ export default function MatchTabs({ members, ratings, stats, posts, referee }) {
     )
   }, [active])
 
-  const contentMap = { members, ratings, stats, posts, referee }
-  const content = contentMap[active]
+  const activeTab = tabList.find(t => t.key === active)
 
   return (
     <>
@@ -49,13 +75,13 @@ export default function MatchTabs({ members, ratings, stats, posts, referee }) {
         overflowY: 'hidden',
         paddingBottom: 2,
       }}>
-        {TABS.map(t => {
+        {tabList.map(t => {
           const isActive = active === t.key
           return (
             <button
               key={t.key}
               data-key={t.key}
-              onClick={() => setActive(t.key)}
+              onClick={() => handleTabClick(t.key)}
               style={{
                 flex: '1 1 0',
                 minWidth: 60,
@@ -84,11 +110,10 @@ export default function MatchTabs({ members, ratings, stats, posts, referee }) {
           height: 2,
           backgroundColor: '#fff',
           transition: 'left 0.36s cubic-bezier(0.4, 0, 0.2, 1), width 0.36s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '0 0 8px rgba(255,255,255,0.3)',
         }} />
       </nav>
       <div ref={contentRef}>
-        {content ?? (
+        {activeTab?.content ?? (
           <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>データなし</p>
         )}
       </div>

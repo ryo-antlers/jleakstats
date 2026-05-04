@@ -673,8 +673,13 @@ export function FixtureRankChart({ allFixtures, allTeams, homeTeamId, awayTeamId
   if (!homeTeam) return null
   const group = homeTeam.group_name
   const groupTeams = allTeams.filter(t => t.group_name === group)
+  const groupTeamIds = new Set(groupTeams.map(t => Number(t.id)))
 
-  const rounds = [...new Set(allFixtures.map(f => f.round_number))].sort((a, b) => a - b)
+  // 同グループ内の試合のみで rounds を計算 (他グループの先行進度に引きずられないように)
+  const groupFixtures = allFixtures.filter(f =>
+    groupTeamIds.has(Number(f.home_team_id)) && groupTeamIds.has(Number(f.away_team_id))
+  )
+  const rounds = [...new Set(groupFixtures.map(f => f.round_number))].sort((a, b) => a - b)
   const points = {}, gd = {}, gf = {}
   for (const t of allTeams) { points[Number(t.id)] = 0; gd[Number(t.id)] = 0; gf[Number(t.id)] = 0 }
   const history = {}
@@ -738,7 +743,7 @@ export function FixtureRankChart({ allFixtures, allTeams, homeTeamId, awayTeamId
             <polyline points={tr.map(r => `${rx(r)},${ry(history[id][r])}`).join(' ')}
               fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
             <circle cx={rx(last)} cy={ry(rank)} r="4" fill={color} />
-            <text x={rx(last) + 8} y={ry(rank) - 1}
+            <text x={rx(last) + 8} y={ry(rank)} dominantBaseline="central"
               style={{ fontSize: 9, fill: color, fontFamily: 'inherit', fontWeight: 700 }}>{team?.abbr}  {rank}位</text>
           </g>
         )

@@ -16,15 +16,23 @@ async function getFixtureResults() {
   `
 }
 
-async function getTeams() {
+async function getTeams(group) {
+  // J1 EAST/WEST 互換のため groupパラメータが省略された場合は両方返す
+  if (group) {
+    return await sql`
+      SELECT id, abbr, color_primary, group_name
+      FROM teams_master
+      WHERE group_name = ${group}
+    `.catch(() => [])
+  }
   return await sql`
     SELECT id, abbr, color_primary, group_name
     FROM teams_master
     WHERE group_name IN ('EAST', 'WEST')
-  `
+  `.catch(() => [])
 }
 
-function buildHistory(fixtures, teams) {
+function buildHistory(fixtures, teams, groupKeys) {
   const teamIds = new Set(teams.map(t => t.id))
   const rounds = [...new Set(fixtures.map(f => f.round_number))].sort((a, b) => a - b)
   const points = {}, gd = {}, gf = {}, gameCount = {}
@@ -59,7 +67,7 @@ function buildHistory(fixtures, teams) {
 
     if (playedThisRound.size === 0) continue
 
-    for (const group of ['EAST', 'WEST']) {
+    for (const group of groupKeys) {
       const groupTeams = teams.filter(t => t.group_name === group)
       const sorted = [...groupTeams].sort((a, b) => {
         const pd = (points[b.id] ?? 0) - (points[a.id] ?? 0)
@@ -81,7 +89,7 @@ function buildHistory(fixtures, teams) {
 
   // 現時点の最終順位（試合数に関わらず勝ち点で計算）
   const finalRank = {}
-  for (const group of ['EAST', 'WEST']) {
+  for (const group of groupKeys) {
     const groupTeams = teams.filter(t => t.group_name === group)
     const sorted = [...groupTeams].sort((a, b) => {
       const pd = (points[b.id] ?? 0) - (points[a.id] ?? 0)
@@ -108,12 +116,9 @@ function LineChart({ teams, history, maxGames, finalRank, group }) {
   const x = (gameNum) => padL + ((gameNum - 1) / Math.max(maxGames - 1, 1)) * chartW
   const y = (rank) => padT + ((rank - 1) / (teamCount - 1)) * chartH
 
-  // 目盛りの間隔を決める（多すぎないように）
-  const tickInterval = maxGames <= 10 ? 1 : maxGames <= 20 ? 2 : 5
+  // 全節を表示 (0は出さない)
   const ticks = []
-  for (let i = 1; i <= maxGames; i++) {
-    if (i === 1 || i % tickInterval === 0) ticks.push(i)
-  }
+  for (let i = 1; i <= maxGames; i++) ticks.push(i)
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
@@ -156,8 +161,9 @@ function LineChart({ teams, history, maxGames, finalRank, group }) {
             />
             {/* 試合数が少ないチームのみ点線で延長（ラベルの後ろから） */}
             {hasFewerGames && (() => {
-              const dashStartX = x(last.gameNum) + 5 + team.abbr.length * 5.5 + 4
-              const maxAbbrLen = Math.max(...groupTeams.filter(t => (history[t.id]?.at(-1)?.gameNum ?? 0) >= maxGames).map(t => t.abbr.length), 3)
+              const teamAbbrLen = (team.abbr ?? '?').length
+              const dashStartX = x(last.gameNum) + 5 + teamAbbrLen * 5.5 + 4
+              const maxAbbrLen = Math.max(...groupTeams.filter(t => (history[t.id]?.at(-1)?.gameNum ?? 0) >= maxGames).map(t => (t.abbr ?? '?').length), 3)
               const dashEndX = x(maxGames) + 5 + maxAbbrLen * 5.5
               if (dashStartX >= dashEndX) return null
               return (
@@ -177,7 +183,7 @@ function LineChart({ teams, history, maxGames, finalRank, group }) {
               y={labelY}
               style={{ fontSize: 9, fill: color, fontFamily: 'inherit', fontWeight: 700 }}
             >
-              {team.abbr}
+              {team.abbr ?? '?'}
             </text>
           </g>
         )
@@ -187,10 +193,11 @@ function LineChart({ teams, history, maxGames, finalRank, group }) {
 }
 
 export default async function StandingsChart({ group }) {
-  const [fixtures, teams] = await Promise.all([getFixtureResults(), getTeams()])
-  if (fixtures.length === 0) return null
+  const [fixtures, teams] = await Promise.all([getFixtureResults(), getTeams(group)])
+  if (fixtures.length === 0 || teams.length === 0) return null
 
-  const { history, maxGames, finalRank } = buildHistory(fixtures, teams)
+  const groupKeys = group ? [group] : ['EAST', 'WEST']
+  const { history, maxGames, finalRank } = buildHistory(fixtures, teams, groupKeys)
 
   return (
     <div>

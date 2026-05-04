@@ -9,17 +9,18 @@ import { containsNG } from '@/lib/ng-words'
  * 掲示板に投稿する Server Action。
  *
  * 権限:
- *   - ログイン済み (Clerk)
- *   - user_profiles にプロフィールあり
+ *   - ログインユーザー: user_profiles にプロフィールあり
+ *   - 未ログイン: guest_name 必須 (1〜30文字)
  *   - 本文 1〜1000 文字、NGワードなし
  *   - 試合がDBに存在すること
  */
 export async function submitPost(_prev, formData) {
   const { userId } = await auth()
-  if (!userId) return { error: 'ログインが必要です' }
+  const isGuest = !userId
 
   const fixtureId = Number(formData.get('fixture_id'))
   const body = String(formData.get('body') ?? '').trim()
+  const guestName = isGuest ? String(formData.get('guest_name') ?? '').trim() : null
   const parentRaw = formData.get('parent_post_id')
   const parentPostId = parentRaw == null || parentRaw === ''
     ? null
@@ -38,12 +39,21 @@ export async function submitPost(_prev, formData) {
     return { error: '返信先IDが無効です' }
   }
 
-  // プロフィール確認
-  const profiles = await sql`
-    SELECT clerk_user_id FROM user_profiles WHERE clerk_user_id = ${userId}
-  `
-  if (profiles.length === 0) {
-    return { error: 'プロフィール未設定です', need_profile: true }
+  if (isGuest) {
+    if (!guestName || guestName.length < 1 || guestName.length > 30) {
+      return { error: '名前は 1〜30 文字で入力してください' }
+    }
+    if (containsNG(guestName)) {
+      return { error: '名前に使用できない言葉が含まれています' }
+    }
+  } else {
+    // プロフィール確認 (ログインユーザーのみ)
+    const profiles = await sql`
+      SELECT clerk_user_id FROM user_profiles WHERE clerk_user_id = ${userId}
+    `
+    if (profiles.length === 0) {
+      return { error: 'プロフィール未設定です', need_profile: true }
+    }
   }
 
   // 試合存在確認
@@ -69,10 +79,10 @@ export async function submitPost(_prev, formData) {
 
   await sql`
     INSERT INTO posts (
-      fixture_id, clerk_user_id, parent_post_id, body,
+      fixture_id, clerk_user_id, guest_name, parent_post_id, body,
       created_at, updated_at
     ) VALUES (
-      ${fixtureId}, ${userId}, ${parentPostId}, ${body},
+      ${fixtureId}, ${isGuest ? null : userId}, ${guestName}, ${parentPostId}, ${body},
       NOW(), NOW()
     )
   `

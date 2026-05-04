@@ -11,13 +11,15 @@ export default async function PostsSection({ fixtureId }) {
       p.id,
       p.parent_post_id,
       p.clerk_user_id,
+      p.guest_name,
       p.body,
       p.created_at,
       p.updated_at,
-      up.display_name,
+      COALESCE(up.display_name, p.guest_name) AS display_name,
       up.supported_club_id,
       t.name_ja      AS club_name_ja,
-      t.color_primary AS club_color
+      t.color_primary AS club_color,
+      (p.clerk_user_id IS NULL) AS is_guest
     FROM posts p
     LEFT JOIN user_profiles up ON up.clerk_user_id = p.clerk_user_id
     LEFT JOIN teams_master t   ON t.id = up.supported_club_id
