@@ -9,7 +9,7 @@ jobs:
   live:
     runs-on: ubuntu-latest
     steps:
-      - name: Sync live scores (J1)
+      - name: Sync live scores (J1 + J2/J3百年構想)
         run: |
           curl -f -s \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
