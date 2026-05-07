@@ -1,25 +1,36 @@
 import sql from '@/lib/db'
-import { fetchLiveFixtures } from '@/lib/api-football'
+import { fetchLiveFixtures, API_LEAGUES_ALL } from '@/lib/api-football'
 
 // 進行中の試合のスコア・status のみ高頻度で同期する軽量エンドポイント
-// /api/sync/fixtures より絞った専用版 (--live=all で進行中の試合のみAPIから返る)
-// 5分cron想定 → 試合中以外は0件で即終了するのでAPI消費は控えめ
+// /api/sync/fixtures より絞った専用版 (live=all で進行中の試合のみAPIから返る)
+// 1分cron想定 (cron-job.org) → 試合中以外は0件で即終了するのでAPI消費は控えめ
+// J1 + J2/J3百年構想 の両方を 1コール/リーグ で取得
 export async function GET(request) {
   if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const response = await fetchLiveFixtures()
+    const responses = await Promise.all(
+      API_LEAGUES_ALL.map(league =>
+        fetchLiveFixtures(league).then(r => ({ league, items: r ?? [] }))
+      )
+    )
 
-    if (!response || response.length === 0) {
-      return Response.json({ ok: true, live: 0, updated: 0 })
+    const allItems = responses.flatMap(r => r.items)
+    if (allItems.length === 0) {
+      return Response.json({
+        ok: true,
+        live: 0,
+        updated: 0,
+        by_league: Object.fromEntries(responses.map(r => [r.league, 0])),
+      })
     }
 
     let updated = 0
     const errors = []
 
-    for (const item of response) {
+    for (const item of allItems) {
       const f = item.fixture
       const goals = item.goals
       const score = item.score
@@ -53,8 +64,9 @@ export async function GET(request) {
 
     return Response.json({
       ok: true,
-      live: response.length,
+      live: allItems.length,
       updated,
+      by_league: Object.fromEntries(responses.map(r => [r.league, r.items.length])),
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {

@@ -1027,7 +1027,8 @@ export default async function FixturePage({ params }) {
       )}
 
       {/* メタ情報: 1段目 主審/会場/観客, 2段目 天候/気温/湿度, 放送あれば下に */}
-      {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || (hasJLeagueRecord && (fixture.referee_ja_official || fixture.referee_en))
+      {/* 主審: 公式記録取込後は referee_ja_official、試合前は referee_ja (J.League公式から事前取得) */}
+      {(fixture.venue_name_ja || fixture.venue_name || fixture.attendance != null || fixture.referee_ja_official || fixture.referee_ja
         || fixture.weather || fixture.temperature_c != null || fixture.humidity_pct != null || fixture.broadcast_ja) && (() => {
         const iconColor = 'rgba(255,255,255,0.55)'
         const cellStyle = {
@@ -1037,12 +1038,13 @@ export default async function FixturePage({ params }) {
         const rowStyle = {
           display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px 36px',
         }
+        const refereeName = fixture.referee_ja_official ?? fixture.referee_ja ?? null
         return (
           <div style={{ marginTop: 18, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 1段目: 主審 / 会場 / 観客 (主審はJ公式記録取込後のみ表示) */}
-            {((fixture.venue_name_ja || fixture.venue_name) || fixture.attendance != null || (hasJLeagueRecord && (fixture.referee_ja_official || fixture.referee_en))) && (
+            {/* 1段目: 主審 / 会場 / 観客 */}
+            {((fixture.venue_name_ja || fixture.venue_name) || fixture.attendance != null || refereeName) && (
               <div style={rowStyle}>
-                {hasJLeagueRecord && (
+                {refereeName && (
                   <span style={cellStyle}>
                     <Flag size={16} strokeWidth={1.5} color={iconColor} />
                     {fixture.referee_ja_official ? (
@@ -1050,7 +1052,7 @@ export default async function FixturePage({ params }) {
                         {fixture.referee_ja_official}
                       </Link>
                     ) : (
-                      <span>{refereeJa ?? fixture.referee_ja ?? fixture.referee_en ?? '—'}</span>
+                      <span>{refereeName}</span>
                     )}
                   </span>
                 )}
