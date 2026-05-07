@@ -10,15 +10,16 @@ import {
 // 試合前の審判情報を J.League 公式 (jleague.jp) から取得して fixtures.referee_ja に保存
 //
 // 動作:
-//   1. キックオフ ±3時間以内 (status=NS, referee_ja IS NULL) の試合を DB から取得
+//   1. キックオフ -2h10min 〜 +30min (status=NS, referee_ja IS NULL) の試合を DB から取得
+//      審判発表は 試合2時間前 が定例なので、それより前の窓は無駄打ちになる
 //   2. 該当ありなら リーグ別に節別TOP一覧を1回 fetch して match_code マップ作成
 //   3. 各試合の ajax_live.json を fetch、主審が入っていれば referee_ja に保存
 //   4. 主審がまだ空なら skip (次の cron tick で再試行)
 //
-// 想定 cron: 15分おき (cron-job.org)
+// 想定 cron: 5分おき (cron-job.org)
 // J.League 側への負荷:
 //   - 試合のない日: DB クエリ1発で 0 件 → 何も fetch しない
-//   - 試合のある日: 該当試合数 × (節別TOP 1回 + ajax_live 1回/試合) 程度
+//   - 試合のある日: 該当試合数 × (節別TOP 1回 + ajax_live 数回/試合) 程度
 //
 // 念のため fetch 間に 200ms スリープを入れて並列突撃しない
 
@@ -35,7 +36,8 @@ export async function GET(request) {
 
   try {
     // 1. 対象試合を DB から取得
-    //    キックオフ前 30分〜3時間 (試合開始しているが status まだ更新前のケースもケア)
+    //    キックオフ前 2時間10分〜開始後30分 (試合開始しているが status まだ更新前のケースもケア)
+    //    審判発表は 試合2時間前 が定例。-2h10min は 5分間隔 cron で 1〜2 tick の余裕を取る形
     const targets = await sql`
       SELECT
         f.id, f.league_id, f.date,
@@ -50,7 +52,7 @@ export async function GET(request) {
         AND f.status = 'NS'
         AND f.referee_ja IS NULL
         AND f.date BETWEEN NOW() - INTERVAL '30 minutes'
-                       AND NOW() + INTERVAL '3 hours'
+                       AND NOW() + INTERVAL '2 hours 10 minutes'
         AND f.league_id IN (98, 2)
     `
 
