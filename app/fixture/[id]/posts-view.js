@@ -244,6 +244,12 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
             letterSpacing: '0.02em',
           }}>
             {name}
+            {post.club_abbr && (
+              <>
+                <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px', fontWeight: 500 }}>/</span>
+                <span title={post.club_name_ja}>{post.club_abbr}</span>
+              </>
+            )}
           </span>
           {post.is_guest && (
             <span style={{
@@ -255,18 +261,8 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
               GUEST
             </span>
           )}
-          {post.club_name_ja && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-              padding: '1px 6px',
-              backgroundColor: post.club_color || '#444',
-              color: '#fff',
-            }}>
-              {post.club_name_ja}
-            </span>
-          )}
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
-            {formatRelative(post.created_at)}
+            {formatTimestamp(post.created_at)}
           </span>
         </div>
         <div style={{
@@ -468,7 +464,7 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
         name="body"
         value={body}
         onChange={e => setBody(e.target.value)}
-        placeholder={(homeAbbr && awayAbbr) ? `${homeAbbr}×${awayAbbr}について` : ''}
+        placeholder={parentPostId ? '返信する' : (homeAbbr && awayAbbr ? `${homeAbbr}×${awayAbbr}について` : '')}
         maxLength={200}
         rows={1}
         required
@@ -585,17 +581,16 @@ function renderBody(body) {
     ))
 }
 
-function formatRelative(iso) {
-  const t = new Date(iso).getTime()
-  const now = Date.now()
-  const diff = Math.floor((now - t) / 1000)
-  if (diff < 60) return `${diff}秒前`
-  if (diff < 3600) return `${Math.floor(diff / 60)}分前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}時間前`
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}日前`
-  return new Date(iso).toLocaleDateString('ja-JP', {
-    month: 'numeric', day: 'numeric',
-  })
+function formatTimestamp(iso) {
+  if (!iso) return ''
+  // JST に変換した上で「2026年5月3日 14:19」形式
+  const d = new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
+  const y = d.getFullYear()
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}年${m}月${day}日 ${h}:${min}`
 }
 
 // ─────────────────────────────────────────────
