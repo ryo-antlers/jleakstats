@@ -277,10 +277,10 @@ function ReactionPicker({ postId, userId, fixtureId }) {
             backgroundColor: '#1a1a1a',
             border: '1px solid rgba(255,255,255,0.15)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-            padding: 6,
+            padding: 4,
             display: 'grid',
             gridTemplateColumns: 'repeat(8, 32px)',
-            gap: 4,
+            gap: 2,
           }}
         >
           {REACTION_EMOJIS.map(emoji => (
@@ -288,26 +288,23 @@ function ReactionPicker({ postId, userId, fixtureId }) {
               key={emoji}
               type="button"
               onClick={() => onPick(emoji)}
-              title={emoji}
               style={{
                 width: 32, height: 32, padding: 0,
-                background: 'transparent', border: '1px solid transparent',
+                background: 'transparent', border: 'none',
                 borderRadius: 4,
                 cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'background-color 0.12s ease, border-color 0.12s ease',
+                transition: 'background-color 0.12s ease',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.backgroundColor = 'transparent'
-                e.currentTarget.style.borderColor = 'transparent'
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={reactionIconSrc(emoji)} alt="" width={28} height={28} style={{ display: 'block' }} />
+              <img src={reactionIconSrc(emoji)} alt="" width={32} height={32} style={{ display: 'block', opacity: 1 }} />
             </button>
           ))}
         </div>
