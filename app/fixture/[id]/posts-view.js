@@ -216,6 +216,18 @@ function ReactionPicker({ postId, userId, fixtureId }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
+  // トリガーボタンの中身 (OpenMoji の 1F642 を SVG で表示)
+  const triggerIcon = (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={reactionIconSrc('1F642')}
+      alt="リアクション"
+      width={20}
+      height={20}
+      style={{ display: 'block', opacity: 0.55, transition: 'opacity 0.15s ease' }}
+    />
+  )
+
   // 未ログイン: クリックでサインインへ
   if (!userId) {
     return (
@@ -224,11 +236,13 @@ function ReactionPicker({ postId, userId, fixtureId }) {
         title="リアクションするにはサインイン"
         style={{
           background: 'none', border: 'none', padding: 0,
-          color: 'rgba(255,255,255,0.4)', fontSize: 14,
-          cursor: 'pointer', textDecoration: 'none', lineHeight: 1,
+          cursor: 'pointer', textDecoration: 'none', lineHeight: 0,
+          display: 'inline-flex',
         }}
+        onMouseEnter={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.95' }}
+        onMouseLeave={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.55' }}
       >
-        🙂
+        {triggerIcon}
       </Link>
     )
   }
@@ -246,14 +260,14 @@ function ReactionPicker({ postId, userId, fixtureId }) {
         title="リアクションを追加"
         style={{
           background: 'none', border: 'none', padding: 0,
-          color: 'rgba(255,255,255,0.4)', fontSize: 14,
-          cursor: isPending ? 'wait' : 'pointer', lineHeight: 1,
+          cursor: isPending ? 'wait' : 'pointer', lineHeight: 0,
           opacity: isPending ? 0.5 : 1,
+          display: 'inline-flex',
         }}
-        onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+        onMouseEnter={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.95' }}
+        onMouseLeave={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.55' }}
       >
-        🙂
+        {triggerIcon}
       </button>
       {open && (
         <div
@@ -265,7 +279,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
             padding: 6,
             display: 'grid',
-            gridTemplateColumns: 'repeat(8, 28px)',
+            gridTemplateColumns: 'repeat(8, 32px)',
             gap: 4,
           }}
         >
@@ -276,7 +290,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
               onClick={() => onPick(emoji)}
               title={emoji}
               style={{
-                width: 28, height: 28, padding: 2,
+                width: 32, height: 32, padding: 0,
                 background: 'transparent', border: '1px solid transparent',
                 borderRadius: 4,
                 cursor: 'pointer',
@@ -293,7 +307,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={reactionIconSrc(emoji)} alt="" width={22} height={22} style={{ display: 'block' }} />
+              <img src={reactionIconSrc(emoji)} alt="" width={28} height={28} style={{ display: 'block' }} />
             </button>
           ))}
         </div>
