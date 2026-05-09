@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { Building2, Flag, Users } from 'lucide-react'
 import sql from '@/lib/db'
 import Link from 'next/link'
+import TopLogo from '@/app/components/TopLogo'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,12 +50,15 @@ export default async function RatingIndexPage() {
   const { userId } = await auth()
   if (!userId) {
     return (
-      <EmptyState
-        title="ログインが必要です"
-        message="採点機能はログインユーザー専用です"
-        actionLabel="サインイン"
-        actionHref="/sign-in?redirect_url=/rating"
-      />
+      <>
+        <TopLogo />
+        <EmptyState
+          title="ログインが必要です"
+          message="採点機能はログインユーザー専用です"
+          actionLabel="サインイン"
+          actionHref="/sign-in?redirect_url=/rating"
+        />
+      </>
     )
   }
 
@@ -73,22 +77,28 @@ export default async function RatingIndexPage() {
   const profile = profiles[0] ?? null
   if (!profile) {
     return (
-      <EmptyState
-        title="プロフィール未設定"
-        message="表示名とあなたのクラブを設定してください"
-        actionLabel="設定する"
-        actionHref="/profile-setup?next=/rating"
-      />
+      <>
+        <TopLogo />
+        <EmptyState
+          title="プロフィール未設定"
+          message="表示名とあなたのクラブを設定してください"
+          actionLabel="設定する"
+          actionHref="/profile-setup?next=/rating"
+        />
+      </>
     )
   }
   if (!profile.supported_club_id) {
     return (
-      <EmptyState
-        title="推しクラブ未設定"
-        message="採点機能を使うには推しクラブを設定してください"
-        actionLabel="設定する"
-        actionHref="/profile-setup?next=/rating"
-      />
+      <>
+        <TopLogo />
+        <EmptyState
+          title="推しクラブ未設定"
+          message="採点機能を使うには推しクラブを設定してください"
+          actionLabel="設定する"
+          actionHref="/profile-setup?next=/rating"
+        />
+      </>
     )
   }
 
@@ -244,6 +254,7 @@ export default async function RatingIndexPage() {
 
   return (
     <div>
+      <TopLogo />
       {/* ユーザーヘッダー */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 16,
