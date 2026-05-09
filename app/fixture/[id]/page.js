@@ -890,7 +890,7 @@ export default async function FixturePage({ params }) {
 
   return (
     <>
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 30 }}>
 
       {/* カテゴリ・節ラベル（例: J1リーグ 第4節 / 2026.3.7 SAT / 16:03 KO） */}
       {(() => {
