@@ -71,7 +71,7 @@ export default function RefereeMatchRow({ f, teamId, align, clubColor, isOpen, o
   )
 
   const expansion = open && hasScorers ? (
-    <div style={{ paddingTop: 4, paddingBottom: 2, textAlign: align === 'right' ? 'right' : 'left' }}>
+    <div style={{ paddingTop: 4, paddingBottom: 2 }}>
       <div style={{ display: 'inline-block', textAlign: 'left' }}>
         <div style={{ marginBottom: 4 }}>
           <span style={{
@@ -97,37 +97,19 @@ export default function RefereeMatchRow({ f, teamId, align, clubColor, isOpen, o
     </div>
   ) : null
 
-  if (align === 'left') {
-    return (
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12 }}>
-          {badge}
-          <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap', lineHeight: '18px' }}>{dateStr}</span>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden', minHeight: 18 }}>
-              {teamSpan}
-              {scoreSpan}
-              {compBadge}
-            </span>
-            {expansion}
-          </div>
-        </div>
-      </div>
-    )
-  }
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12 }}>
+        {badge}
+        <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap', lineHeight: '18px' }}>{dateStr}</span>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minWidth: 0, overflow: 'hidden', minHeight: 18 }}>
-            {compBadge}
-            {scoreSpan}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden', minHeight: 18 }}>
             {teamSpan}
+            {scoreSpan}
+            {compBadge}
           </span>
           {expansion}
         </div>
-        <span style={{ minWidth: 68, fontSize: 10, color: 'rgba(255,255,255,0.8)', flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'right', lineHeight: '18px' }}>{dateStr}</span>
-        {badge}
       </div>
     </div>
   )
