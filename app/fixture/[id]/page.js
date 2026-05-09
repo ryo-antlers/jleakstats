@@ -890,16 +890,7 @@ export default async function FixturePage({ params }) {
 
   return (
     <>
-    <header style={{
-      position: 'fixed', top: 0, left: 0, right: 0, height: 48,
-      backgroundColor: '#111', borderBottom: '1px solid #222',
-      display: 'flex', alignItems: 'center', paddingLeft: 16, zIndex: 100,
-    }}>
-      <a href="/" style={{ fontSize: 16, fontWeight: 900, color: '#fff', textDecoration: 'none', letterSpacing: '0.05em' }}>
-        J.Leak Stats
-      </a>
-    </header>
-    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 64 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
 
       {/* カテゴリ・節ラベル（例: J1リーグ 第4節 / 2026.3.7 SAT / 16:03 KO） */}
       {(() => {
