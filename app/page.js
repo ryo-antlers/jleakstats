@@ -425,7 +425,7 @@ export default async function HomePage() {
             className="deco-circle-white"
             style={{
               position: 'absolute', top: 0, right: 0,
-              width: 100, height: 100, borderRadius: '50%',
+              width: 75, height: 75, borderRadius: '50%',
               backgroundColor: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#000', textDecoration: 'none',
@@ -461,8 +461,8 @@ export default async function HomePage() {
 //   未ログイン: 赤背景に "Sign in"、押すと /sign-in
 function ProfileBubble({ profile }) {
   const sharedStyle = {
-    position: 'absolute', top: 71, right: 70,
-    width: 100, height: 100, borderRadius: '50%',
+    position: 'absolute', top: 56, right: 50,
+    width: 75, height: 75, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     textDecoration: 'none', cursor: 'pointer',
     fontWeight: 900, letterSpacing: '0.02em',
@@ -497,7 +497,7 @@ function ProfileBubble({ profile }) {
         ...sharedStyle,
         backgroundColor: clubColor,
         color: textOn(clubColor),
-        fontSize: 24,
+        fontSize: 18,
       }}
     >
       {initial}
