@@ -138,26 +138,25 @@ async function getRecentForm(homeTeamId, awayTeamId) {
 // 「2026年シーズンに現クラブの試合に出場した選手」を対象にし、
 // 過去他クラブ在籍時のものも含めて vs 対戦相手戦の全ゴールを集計 (PK戦・OG除外)
 //
-// 注: 同じ選手が移籍前後で別 player_id を持つことがある (例: レオセアラ 9550=鹿島, 9000365=C大阪)
-// → 選手名 (name_ja) で集約することで両IDの記録をまとめてカウントする
+// 名寄せ: canonical_id (= COALESCE(canonical_id, id)) で集約。
+//   - 移籍前後の別 player_id (レオセアラ 9550=鹿島, 9000365=C大阪) は同一 canonical に統合済 (Phase 2)
+//   - 同姓同名 (東京VマテウスGK vs 名古屋マテウスFW) は別 canonical に分離済 (Phase 2)
 async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2026) {
   return await sql`
-    WITH current_squad_names AS (
+    WITH current_squad_canonicals AS (
       SELECT
-        pm.name_ja,
-        MIN(pm.id) AS canonical_id,
+        COALESCE(pm.canonical_id, pm.id) AS canonical_id,
         MIN(fl.number) AS jersey_number
       FROM fixture_lineups fl
       JOIN fixtures f ON fl.fixture_id = f.id
       JOIN players_master pm ON fl.player_id = pm.id
       WHERE fl.team_id = ${currentSquadTeamId}
         AND f.season = ${season}
-        AND pm.name_ja IS NOT NULL
-      GROUP BY pm.name_ja
+      GROUP BY COALESCE(pm.canonical_id, pm.id)
     ),
     goal_breakdown AS (
       SELECT
-        csn.name_ja,
+        COALESCE(pm.canonical_id, pm.id) AS canonical_id,
         fe.team_id AS scoring_team_id,
         tm.short_name AS team_short,
         tm.name_ja AS team_name,
@@ -166,7 +165,7 @@ async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2
       FROM fixture_events fe
       JOIN fixtures f ON fe.fixture_id = f.id
       JOIN players_master pm ON fe.player_id = pm.id
-      JOIN current_squad_names csn ON pm.name_ja = csn.name_ja
+      JOIN current_squad_canonicals csc ON COALESCE(pm.canonical_id, pm.id) = csc.canonical_id
       JOIN teams_master tm ON fe.team_id = tm.id
       WHERE fe.type = 'Goal'
         AND (fe.detail IS DISTINCT FROM 'Own Goal')
@@ -175,12 +174,12 @@ async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2
           OR (f.away_team_id = ${opponentTeamId} AND fe.team_id = f.home_team_id)
         )
         AND fe.player_id IS NOT NULL
-      GROUP BY csn.name_ja, fe.team_id, tm.short_name, tm.name_ja, tm.color_primary
+      GROUP BY COALESCE(pm.canonical_id, pm.id), fe.team_id, tm.short_name, tm.name_ja, tm.color_primary
     )
     SELECT
-      gb.name_ja AS player_name,
-      (SELECT canonical_id FROM current_squad_names WHERE name_ja = gb.name_ja) AS player_id,
-      (SELECT jersey_number FROM current_squad_names WHERE name_ja = gb.name_ja) AS jersey,
+      cpm.name_ja AS player_name,
+      gb.canonical_id AS player_id,
+      csc.jersey_number AS jersey,
       SUM(gb.goals)::int AS goals,
       JSON_AGG(
         JSON_BUILD_OBJECT(
@@ -192,8 +191,10 @@ async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2
         ) ORDER BY gb.goals DESC, gb.team_short
       ) AS breakdown
     FROM goal_breakdown gb
-    GROUP BY gb.name_ja
-    ORDER BY goals DESC, jersey ASC NULLS LAST, player_name
+    JOIN current_squad_canonicals csc ON csc.canonical_id = gb.canonical_id
+    JOIN players_master cpm ON cpm.id = gb.canonical_id
+    GROUP BY gb.canonical_id, cpm.name_ja, csc.jersey_number
+    ORDER BY goals DESC, csc.jersey_number ASC NULLS LAST, cpm.name_ja
     LIMIT 10
   `.catch(() => [])
 }
