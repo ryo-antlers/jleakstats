@@ -19,27 +19,6 @@ function nameInitial(name) {
   return [...s][0] ?? '?'
 }
 
-// プレースホルダーの遊び心
-const PLACEHOLDERS = [
-  '今の試合の感想は？',
-  '熱狂を分かち合おう ⚽',
-  'やっぱサッカーは最高だ 🔥',
-  'PK どこ見てたんだ笑',
-  '今のプレー、どう思った？',
-  '次は勝つぞ！',
-  '監督ぃ〜',
-  '主審の判定どう思う？',
-  '完全に決まってたやろ今の',
-  '相手強すぎ…',
-  '逆転劇ありがとう 🥹',
-  '今日のMOM (Man of the Match) 誰？',
-  'スタジアム最高だった！',
-]
-function randomPlaceholder() {
-  return PLACEHOLDERS[Math.floor(Math.random() * PLACEHOLDERS.length)]
-}
-
-
 // ─────────────────────────────────────────────
 // 掲示板ビュー (Slack風)
 // ─────────────────────────────────────────────
@@ -74,25 +53,9 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile, profil
         <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' }} />
       </div>
 
-      {/* 投稿一覧 (上から古い→新しい) */}
+      {/* 投稿一覧 (上から古い→新しい) — 0件時は何も表示しない */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {topLevel.length === 0 ? (
-          <div style={{
-            fontSize: 13, color: 'rgba(255,255,255,0.45)',
-            textAlign: 'center', padding: '48px 16px',
-            border: '1px dashed rgba(255,255,255,0.1)',
-            display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center',
-          }}>
-            <div style={{ fontSize: 36, lineHeight: 1 }}>⚽</div>
-            <div style={{ fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-              まだ誰も話してないっぽい
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-              下のフォームから一言どうぞ
-            </div>
-          </div>
-        ) : (
-          topLevel.map((p, i) => (
+        {topLevel.map((p, i) => (
             <Thread
               key={p.id}
               post={p}
@@ -103,8 +66,7 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile, profil
               hasProfile={hasProfile}
               profile={profile}
             />
-          ))
-        )}
+        ))}
       </div>
 
       {/* 投稿フォーム (一番下) */}
@@ -203,7 +165,6 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile })
             userId={userId}
             hasProfile={hasProfile}
             profile={profile}
-            placeholder={`${post.display_name ?? '名無し'} さんへ返信...`}
             compact
             onCancel={() => setReplyMode(false)}
             onSuccess={() => { setReplyMode(false); setExpanded(true) }}
@@ -416,16 +377,13 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
 // ─────────────────────────────────────────────
 // 投稿フォーム
 // ─────────────────────────────────────────────
-function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, placeholder, compact, onCancel, onSuccess }) {
+function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, compact, onCancel, onSuccess }) {
   const [state, formAction, isPending] = useActionState(submitPost, null)
   const [body, setBody] = useState('')
   const [guestName, setGuestName] = useState('')
-  const [focused, setFocused] = useState(false)
   const [successFlash, setSuccessFlash] = useState(false)
   const prevSuccessRef = useRef(false)
   const textareaRef = useRef(null)
-  // 起動時にランダム選択して固定 (リレンダーのたびに変わると鬱陶しい)
-  const placeholderRef = useRef(placeholder ?? randomPlaceholder())
 
   useEffect(() => {
     if (state?.success && !prevSuccessRef.current) {
@@ -463,9 +421,6 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, placeh
     <form
       action={formAction}
       style={{
-        backgroundColor: focused ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
-        border: focused ? '1px solid rgba(0,255,135,0.45)' : '1px solid rgba(255,255,255,0.08)',
-        transition: 'border-color 0.15s ease, background-color 0.15s ease',
         padding: compact ? 10 : 14,
       }}
     >
@@ -482,8 +437,6 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, placeh
           name="guest_name"
           value={guestName}
           onChange={e => setGuestName(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           placeholder="名前 (公開されます)"
           maxLength={30}
           required
@@ -501,10 +454,7 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, placeh
         name="body"
         value={body}
         onChange={e => setBody(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        placeholder={placeholderRef.current}
-        maxLength={1000}
+        maxLength={200}
         rows={compact ? 2 : 3}
         required
         style={{
@@ -522,7 +472,7 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, placeh
       }}>
         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
           {isGuest && <span style={{ marginRight: 8 }}>ログインなし</span>}
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{body.length} / 1000</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{body.length} / 200</span>
         </span>
         <div style={{ display: 'flex', gap: 6 }}>
           {onCancel && (
