@@ -122,18 +122,17 @@ export default function ProfileForm({ clubs, profile, next }) {
     }
   }, [clubId, tierGroups])
 
-  // アイコン文字のバリデーション (空 / 1文字 / 英数字2文字)
+  // アイコン文字のバリデーション (空 / 1〜2文字、言語不問)
   const avatarTextError = (() => {
     const v = avatarText.trim()
     if (v === '') return null
     const chars = [...v]
-    if (chars.length === 1) return null
-    if (chars.length === 2 && /^[A-Za-z0-9]{2}$/.test(v)) return null
-    return '日本語1文字または英数字2文字まで'
+    if (chars.length === 1 || chars.length === 2) return null
+    return '1〜2文字まで'
   })()
 
-  // アイコン表示用の文字 (custom > display name の頭文字)
-  const avatarDisplay = avatarText.trim() || (displayName.trim()[0] ?? '')
+  // アイコン表示用の文字 (custom > display name の先頭2文字)
+  const avatarDisplay = avatarText.trim() || [...displayName.trim()].slice(0, 2).join('')
   const selectedClubColor = selectedClub
     ? (normalizeColor(selectedClub.color_primary) ?? '#444')
     : '#444'
@@ -325,7 +324,7 @@ export default function ProfileForm({ clubs, profile, next }) {
                 fontSize: 9, color: avatarTextError ? '#ef5350' : 'rgba(255,255,255,0.4)',
                 letterSpacing: '0.04em',
               }}>
-                {avatarTextError ?? '日本語1文字または英数字2文字まで'}
+                {avatarTextError ?? '空欄ならユーザー名の先頭2文字 / 1〜2文字で上書き可'}
               </div>
             </div>
           </div>

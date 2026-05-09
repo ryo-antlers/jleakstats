@@ -65,16 +65,14 @@ export async function POST(request) {
     return Response.json({ error: 'ユーザー名に使用できない言葉が含まれています' }, { status: 400 })
   }
 
-  // avatar_text のバリデーション (null = 未設定 / 1文字 / 英数字2文字)
+  // avatar_text のバリデーション (null = 未設定 / 1〜2文字、言語不問)
   let avatarText = null
   if (avatarTextRaw && avatarTextRaw.length > 0) {
     const chars = [...avatarTextRaw]  // multibyte-aware split
-    if (chars.length === 1) {
-      avatarText = avatarTextRaw
-    } else if (chars.length === 2 && /^[A-Za-z0-9]{2}$/.test(avatarTextRaw)) {
+    if (chars.length === 1 || chars.length === 2) {
       avatarText = avatarTextRaw
     } else {
-      return Response.json({ error: 'アイコン文字は日本語1文字または英数字2文字までです' }, { status: 400 })
+      return Response.json({ error: 'アイコン文字は1〜2文字までです' }, { status: 400 })
     }
     if (containsNG(avatarText)) {
       return Response.json({ error: 'アイコン文字に使用できない言葉が含まれています' }, { status: 400 })

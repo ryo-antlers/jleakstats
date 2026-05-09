@@ -15,9 +15,13 @@ function nameToColor(name) {
   const hash = [...s].reduce((a, c) => a + c.charCodeAt(0), 0)
   return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }
-function nameInitial(name) {
+// アイコン用の文字: avatar_text > ユーザー名先頭2文字 (multibyte対応)
+function avatarLabel(name, avatarText) {
+  const custom = (avatarText ?? '').trim()
+  if (custom) return custom
   const s = (name || '?').trim()
-  return [...s][0] ?? '?'
+  const chars = [...s]
+  return chars.slice(0, 2).join('') || '?'
 }
 
 // ─────────────────────────────────────────────
@@ -330,7 +334,7 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
   const name = post.display_name ?? '名無し'
   // クラブカラー優先、未設定 (ゲスト等) なら名前ハッシュからフォールバック
   const avatarColor = post.club_color || nameToColor(name)
-  const initial = nameInitial(name)
+  const initial = avatarLabel(name, post.avatar_text)
   const avatarSize = isReply ? 28 : 36
 
   return (
@@ -347,7 +351,9 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
         width: avatarSize, height: avatarSize, borderRadius: '50%',
         backgroundColor: avatarColor,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontWeight: 800, fontSize: isReply ? 13 : 16,
+        color: '#fff', fontWeight: 800,
+        fontSize: initial.length === 2 ? (isReply ? 11 : 13) : (isReply ? 13 : 16),
+        letterSpacing: initial.length === 2 ? '0.02em' : 0,
         flexShrink: 0,
       }}>
         {initial}
@@ -597,7 +603,7 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
 function PostFormIdentity({ profile, compact }) {
   const name = profile.display_name ?? '名無し'
   const avatarColor = profile.club_color || nameToColor(name)
-  const initial = nameInitial(name)
+  const initial = avatarLabel(name, profile.avatar_text)
   const size = compact ? 28 : 32
   const abbr = profile.club_abbr ?? null
 
@@ -612,7 +618,9 @@ function PostFormIdentity({ profile, compact }) {
         width: size, height: size, borderRadius: '50%',
         backgroundColor: avatarColor,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontWeight: 800, fontSize: compact ? 13 : 14,
+        color: '#fff', fontWeight: 800,
+        fontSize: initial.length === 2 ? (compact ? 11 : 12) : (compact ? 13 : 14),
+        letterSpacing: initial.length === 2 ? '0.02em' : 0,
         flexShrink: 0,
       }}>
         {initial}

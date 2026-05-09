@@ -487,7 +487,7 @@ function ProfileBubble({ profile }) {
   let initial = custom
   if (!initial) {
     const src = (profile.display_name ?? '?').trim()
-    initial = (src[0] ?? '?').toUpperCase()
+    initial = [...src].slice(0, 2).join('') || '?'
   }
   return (
     <Link
