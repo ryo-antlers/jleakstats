@@ -12,13 +12,17 @@ const LEGACY_TABS = [
   { key: 'referee',  label: '審判' },
 ]
 
-export default function MatchTabs({ tabs, members, ratings, stats, posts, referee }) {
+export default function MatchTabs({ tabs, defaultTab, members, ratings, stats, posts, referee }) {
   // 新API優先
   const tabList = Array.isArray(tabs) && tabs.length > 0
     ? tabs
     : LEGACY_TABS.map(t => ({ ...t, content: { members, stats, ratings, posts, referee }[t.key] }))
 
-  const [active, setActive] = useState(tabList[0]?.key)
+  // 初期アクティブタブ: defaultTab > tabList先頭 (URL hash があればそちらが優先される)
+  const initialActive = defaultTab && tabList.some(t => t.key === defaultTab)
+    ? defaultTab
+    : tabList[0]?.key
+  const [active, setActive] = useState(initialActive)
   const navRef = useRef(null)
   const contentRef = useRef(null)
   const [underline, setUnderline] = useState({ left: 0, width: 0 })
