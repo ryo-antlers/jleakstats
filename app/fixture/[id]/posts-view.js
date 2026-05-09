@@ -215,23 +215,6 @@ function ReactionPicker({ userId, fixtureId, onPick }) {
     />
   )
 
-  // 未ログイン: クリックでサインインへ
-  if (!userId) {
-    return (
-      <Link
-        href={`/sign-in?redirect_url=/fixture/${fixtureId}`}
-        title="リアクションするにはサインイン"
-        style={{
-          background: 'none', border: 'none', padding: 0,
-          cursor: 'pointer', textDecoration: 'none',
-          display: 'inline-flex', alignItems: 'center',
-        }}
-      >
-        {triggerIcon}
-      </Link>
-    )
-  }
-
   const handlePick = (emoji) => {
     setOpen(false)
     onPick(emoji)
@@ -321,7 +304,7 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
   )
   const [, startTransition] = useTransition()
   const handleToggle = (emoji) => {
-    if (!userId) return
+    // ゲストも OK (サーバー側で Cookie ベースの guest_id 自動発行)
     startTransition(async () => {
       applyOptimistic({ type: 'toggle', emoji })
       const fd = new FormData()

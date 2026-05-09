@@ -1,10 +1,34 @@
 'use server'
 
 import { auth } from '@clerk/nextjs/server'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'crypto'
 import sql from '@/lib/db'
 import { containsNG } from '@/lib/ng-words'
 import { REACTION_EMOJI_SET } from './reaction-emojis'
+
+// ゲスト識別用 Cookie 名 (リアクション用)
+const GUEST_COOKIE = 'jleak_guest_id'
+
+// ログイン済みなら clerk_user_id、未ログインなら Cookie に保存した g_<UUID>。
+// Cookie が無ければ新規発行してセット (戻り値は新ID)。
+async function ensureUserKey() {
+  const { userId } = await auth()
+  if (userId) return userId
+  const jar = await cookies()
+  let gid = jar.get(GUEST_COOKIE)?.value
+  if (!gid || !/^g_[A-Za-z0-9-]+$/.test(gid)) {
+    gid = `g_${randomUUID()}`
+    jar.set(GUEST_COOKIE, gid, {
+      httpOnly: false,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365 * 2,  // 2年
+      path: '/',
+    })
+  }
+  return gid
+}
 
 /**
  * 掲示板に投稿する Server Action。
@@ -175,14 +199,15 @@ export async function reportPost(_prev, formData) {
  * 投稿のリアクションをトグルする Server Action。
  *
  * 権限:
- *   - ログインユーザーのみ (ゲスト不可)
+ *   - ログインユーザー: clerk_user_id で識別
+ *   - 未ログイン (ゲスト): Cookie の g_<UUID> で識別 (無ければ自動発行)
  *   - emoji は REACTION_EMOJIS のいずれかであること
  *
- * 既に同じ (post_id, user, emoji) があれば削除、なければ追加。
+ * 既に同じ (post_id, user_key, emoji) があれば削除、なければ追加。
+ * DB の clerk_user_id 列にゲストの場合は g_<UUID> をそのまま格納。
  */
 export async function toggleReaction(_prev, formData) {
-  const { userId } = await auth()
-  if (!userId) return { error: 'リアクションにはログインが必要です' }
+  const userKey = await ensureUserKey()
 
   const postId = Number(formData.get('post_id'))
   const emoji = String(formData.get('emoji') ?? '').trim()
@@ -196,17 +221,17 @@ export async function toggleReaction(_prev, formData) {
 
   const existing = await sql`
     SELECT 1 FROM post_reactions
-    WHERE post_id = ${postId} AND clerk_user_id = ${userId} AND emoji = ${emoji}
+    WHERE post_id = ${postId} AND clerk_user_id = ${userKey} AND emoji = ${emoji}
   `
   if (existing.length > 0) {
     await sql`
       DELETE FROM post_reactions
-      WHERE post_id = ${postId} AND clerk_user_id = ${userId} AND emoji = ${emoji}
+      WHERE post_id = ${postId} AND clerk_user_id = ${userKey} AND emoji = ${emoji}
     `
   } else {
     await sql`
       INSERT INTO post_reactions (post_id, clerk_user_id, emoji)
-      VALUES (${postId}, ${userId}, ${emoji})
+      VALUES (${postId}, ${userKey}, ${emoji})
     `
   }
 

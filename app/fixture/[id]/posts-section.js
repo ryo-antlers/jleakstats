@@ -1,10 +1,15 @@
 import { auth } from '@clerk/nextjs/server'
+import { cookies } from 'next/headers'
 import sql from '@/lib/db'
 import PostsView from './posts-view'
 
 // サーバーコンポーネント: 掲示板のトップレベル投稿 + 返信を一括取得
 export default async function PostsSection({ fixtureId, homeAbbr, awayAbbr }) {
   const { userId } = await auth()
+  // ゲスト識別用 Cookie (リアクションの mine 判定に使う)
+  const jar = await cookies()
+  const guestId = jar.get('jleak_guest_id')?.value ?? ''
+  const reactionUserKey = userId ?? guestId
 
   const posts = await sql`
     SELECT
@@ -39,7 +44,7 @@ export default async function PostsSection({ fixtureId, homeAbbr, awayAbbr }) {
       pr.post_id,
       pr.emoji,
       COUNT(*)::int AS count,
-      BOOL_OR(pr.clerk_user_id = ${userId ?? ''}) AS mine
+      BOOL_OR(pr.clerk_user_id = ${reactionUserKey}) AS mine
     FROM post_reactions pr
     JOIN posts p ON p.id = pr.post_id
     WHERE p.fixture_id = ${fixtureId}
