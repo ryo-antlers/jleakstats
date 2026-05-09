@@ -42,3 +42,4 @@ next-env.d.ts
 
 # scrape logs
 /logs/
+.claude/worktrees/
