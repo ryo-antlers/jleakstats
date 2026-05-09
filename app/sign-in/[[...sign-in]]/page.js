@@ -228,8 +228,6 @@ const wrapperStyle = {
 
 const cardStyle = {
   width: '100%', maxWidth: 380,
-  backgroundColor: '#111',
-  border: '1px solid #2a2a2a',
   padding: '32px 28px',
 }
 
@@ -244,10 +242,11 @@ const labelStyle = {
 
 const inputStyle = {
   width: '100%',
-  padding: '12px 14px',
+  padding: '12px 0',
   marginBottom: 18,
-  backgroundColor: '#1a1a1a',
-  border: '1px solid #2a2a2a',
+  backgroundColor: 'transparent',
+  border: 'none',
+  borderBottom: '1px solid #2a2a2a',
   color: '#fff',
   fontSize: 14,
   fontFamily: 'inherit',
