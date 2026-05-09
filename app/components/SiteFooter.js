@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 // トップ ('/') と Fantasy ('/fantasy*') ではフッター非表示
@@ -18,6 +19,18 @@ export default function SiteFooter() {
       style={{ borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
       className="text-center text-xs py-4"
     >
+      {/* ロゴ (押すとトップへ) */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+        <Link href="/" aria-label="トップへ" style={{ display: 'inline-block', lineHeight: 0 }}>
+          <img
+            src="/apple-icon.png"
+            alt="J.Leak Stats"
+            width={40}
+            height={40}
+            style={{ display: 'block', borderRadius: 8 }}
+          />
+        </Link>
+      </div>
       <div>© 2026 J.Leak Stats · データ提供: API-FOOTBALL</div>
       <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 16 }}>
         <a href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>

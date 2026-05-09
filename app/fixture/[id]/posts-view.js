@@ -43,7 +43,7 @@ function randomPlaceholder() {
 // ─────────────────────────────────────────────
 // 掲示板ビュー (Slack風)
 // ─────────────────────────────────────────────
-export default function PostsView({ fixtureId, posts, userId, hasProfile }) {
+export default function PostsView({ fixtureId, posts, userId, hasProfile, profile }) {
   const { topLevel, repliesMap } = useMemo(() => {
     const top = []
     const rmap = new Map()
@@ -101,6 +101,7 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile }) {
               fixtureId={fixtureId}
               userId={userId}
               hasProfile={hasProfile}
+              profile={profile}
             />
           ))
         )}
@@ -112,6 +113,7 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile }) {
           fixtureId={fixtureId}
           userId={userId}
           hasProfile={hasProfile}
+          profile={profile}
         />
       </div>
     </section>
@@ -121,7 +123,7 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile }) {
 // ─────────────────────────────────────────────
 // スレッド1件 (トップ + 返信群)
 // ─────────────────────────────────────────────
-function Thread({ post, rank, replies, fixtureId, userId, hasProfile }) {
+function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile }) {
   const [expanded, setExpanded] = useState(false)
   const [replyMode, setReplyMode] = useState(false)
   const hasReplies = replies.length > 0
@@ -200,6 +202,7 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile }) {
             parentPostId={post.id}
             userId={userId}
             hasProfile={hasProfile}
+            profile={profile}
             placeholder={`${post.display_name ?? '名無し'} さんへ返信...`}
             compact
             onCancel={() => setReplyMode(false)}
@@ -225,7 +228,7 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
 
   const name = post.display_name ?? '名無し'
   // クラブカラー優先、未設定 (ゲスト等) なら名前ハッシュからフォールバック
-  const avatarColor = post.club_color ? `#${post.club_color}` : nameToColor(name)
+  const avatarColor = post.club_color || nameToColor(name)
   const initial = nameInitial(name)
   const avatarSize = isReply ? 28 : 36
 
@@ -289,7 +292,7 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
             <span style={{
               fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
               padding: '1px 6px',
-              backgroundColor: post.club_color ? `#${post.club_color}` : '#444',
+              backgroundColor: post.club_color || '#444',
               color: '#fff',
             }}>
               {post.club_name_ja}
@@ -413,7 +416,7 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
 // ─────────────────────────────────────────────
 // 投稿フォーム
 // ─────────────────────────────────────────────
-function PostForm({ fixtureId, parentPostId, userId, hasProfile, placeholder, compact, onCancel, onSuccess }) {
+function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, placeholder, compact, onCancel, onSuccess }) {
   const [state, formAction, isPending] = useActionState(submitPost, null)
   const [body, setBody] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -469,6 +472,9 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, placeholder, co
       <input type="hidden" name="fixture_id" value={fixtureId} />
       {parentPostId != null && (
         <input type="hidden" name="parent_post_id" value={parentPostId} />
+      )}
+      {!isGuest && profile && (
+        <PostFormIdentity profile={profile} compact={compact} />
       )}
       {isGuest && (
         <input
@@ -545,6 +551,49 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, placeholder, co
       </div>
       {state?.error && <div style={errorStyle}>{state.error}</div>}
     </form>
+  )
+}
+
+// ─────────────────────────────────────────────
+// 投稿フォーム上部のアイデンティティ表示 (アバター + 名前 + クラブ)
+// ─────────────────────────────────────────────
+function PostFormIdentity({ profile, compact }) {
+  const name = profile.display_name ?? '名無し'
+  const avatarColor = profile.club_color || nameToColor(name)
+  const initial = nameInitial(name)
+  const size = compact ? 28 : 32
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      marginBottom: compact ? 8 : 10,
+    }}>
+      <div style={{
+        width: size, height: size, borderRadius: '50%',
+        backgroundColor: avatarColor,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontWeight: 800, fontSize: compact ? 13 : 14,
+        flexShrink: 0,
+      }}>
+        {initial}
+      </div>
+      <span style={{
+        fontSize: compact ? 12 : 13, fontWeight: 700, color: '#fff',
+        letterSpacing: '0.02em',
+      }}>
+        {name}
+      </span>
+      {profile.club_name_ja && (
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+          padding: '1px 6px',
+          backgroundColor: profile.club_color || '#444',
+          color: '#fff',
+        }}>
+          {profile.club_name_ja}
+        </span>
+      )}
+    </div>
   )
 }
 

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 
 export const revalidate = 0 // キャッシュ無効・常に最新
@@ -6,6 +7,49 @@ export const revalidate = 0 // キャッシュ無効・常に最新
 import LeagueGroupTabs from '@/app/components/LeagueGroupTabs'
 import StandingsChart from '@/app/components/StandingsChart'
 import PointsChart from '@/app/components/PointsChart'
+
+// ヘルパー
+function normalizeColor(raw) {
+  if (!raw) return null
+  const v = String(raw).trim()
+  if (!v) return null
+  return v.startsWith('#') ? v : `#${v}`
+}
+function textOn(hex) {
+  const h = (hex ?? '').replace('#', '')
+  if (h.length < 6) return '#fff'
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
+}
+
+async function getMyProfile() {
+  const { userId } = await auth()
+  if (!userId) return null
+  const rows = await sql`
+    SELECT up.clerk_user_id, up.display_name, up.avatar_text, up.supported_club_id,
+      t.color_primary AS club_color
+    FROM user_profiles up
+    LEFT JOIN teams_master t ON t.id = up.supported_club_id
+    WHERE up.clerk_user_id = ${userId}
+  `.catch(() => [])
+  return rows[0] ?? { clerk_user_id: userId, display_name: null, avatar_text: null, supported_club_id: null, club_color: null }
+}
+
+// このユーザーが既に採点済みの (fixture_id, team_id) ペア (文字列配列で返す)
+async function getMyRatedKeys() {
+  const { userId } = await auth()
+  if (!userId) return []
+  const rows = await sql`
+    SELECT DISTINCT r.fixture_id, fl.team_id
+    FROM ratings r
+    JOIN fixture_lineups fl
+      ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
+    WHERE r.clerk_user_id = ${userId}
+  `.catch(() => [])
+  return rows.map(r => `${r.fixture_id}-${r.team_id}`)
+}
 
 const TEAM_ORDER = [
   290, 281, 287, 292, 294, 296, 303, 305, 306, 301, // EAST
@@ -60,6 +104,7 @@ async function getFixturesInRange(fromDate, toDate) {
   return await sql`
     SELECT
       f.id, f.date, f.status, f.elapsed, f.home_score, f.away_score,
+      f.home_team_id, f.away_team_id,
       f.home_penalty, f.away_penalty, f.round_number, f.round, f.stage_ja,
       f.league_id, f.venue_name_ja, f.attendance, f.referee_ja_official,
       ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
@@ -83,6 +128,7 @@ async function getGroupedFixtures() {
   const j1All = await sql`
     SELECT
       f.id, f.date, f.status, f.elapsed, f.home_score, f.away_score,
+      f.home_team_id, f.away_team_id,
       f.home_penalty, f.away_penalty, f.round_number, f.round, f.stage_ja,
       f.league_id, f.venue_name_ja,
       ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
@@ -100,6 +146,7 @@ async function getGroupedFixtures() {
   const j2j3All = await sql`
     SELECT
       f.id, f.date, f.status, f.elapsed, f.home_score, f.away_score,
+      f.home_team_id, f.away_team_id,
       f.home_penalty, f.away_penalty, f.round_number, f.round, f.stage_ja,
       f.league_id, f.venue_name_ja,
       ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
@@ -300,7 +347,9 @@ function UpcomingFixtureCard({ fixture }) {
 // ---- メインページ ----
 
 export default async function HomePage() {
-  const roundInfo = await getRoundInfo()
+  const [roundInfo, myProfile, ratedKeys] = await Promise.all([
+    getRoundInfo(), getMyProfile(), getMyRatedKeys(),
+  ])
   if (roundInfo.length === 0) {
     return (
       <div className="text-center py-20" style={{ color: 'var(--text-secondary)' }}>
@@ -371,16 +420,21 @@ export default async function HomePage() {
           J.Leak Stats
         </h1>
         <div className="deco-circles" style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
-          <div className="deco-circle-white" style={{
-            position: 'absolute', top: 0, right: 0,
-            width: 100, height: 100, borderRadius: '50%',
-            backgroundColor: '#fff',
-          }} />
-          <div className="deco-circle-red" style={{
-            position: 'absolute', top: 71, right: 70,
-            width: 100, height: 100, borderRadius: '50%',
-            backgroundColor: '#8b1a1a',
-          }} />
+          <Link
+            href="/search"
+            className="deco-circle-white"
+            style={{
+              position: 'absolute', top: 0, right: 0,
+              width: 100, height: 100, borderRadius: '50%',
+              backgroundColor: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#000', textDecoration: 'none',
+              fontSize: 14, fontWeight: 900, letterSpacing: '0.04em',
+            }}
+          >
+            試合検索
+          </Link>
+          <ProfileBubble profile={myProfile} />
         </div>
       </div>
 
@@ -395,8 +449,59 @@ export default async function HomePage() {
           j2j3WestA: <StandingsPair group="WEST-A" />,
           j2j3WestB: <StandingsPair group="WEST-B" />,
         }}
+        myProfile={myProfile}
+        ratedKeys={ratedKeys}
       />
     </div>
+  )
+}
+
+// 赤い装飾丸 → プロフィールボタン
+//   ログイン中: クラブカラー + アバター文字、押すと /profile-setup
+//   未ログイン: 赤背景に "Sign in"、押すと /sign-in
+function ProfileBubble({ profile }) {
+  const sharedStyle = {
+    position: 'absolute', top: 71, right: 70,
+    width: 100, height: 100, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    textDecoration: 'none', cursor: 'pointer',
+    fontWeight: 900, letterSpacing: '0.02em',
+  }
+  if (!profile) {
+    return (
+      <Link
+        href="/sign-in?redirect_url=/"
+        className="deco-circle-red"
+        style={{
+          ...sharedStyle,
+          backgroundColor: '#8b1a1a', color: '#fff',
+          fontSize: 16, letterSpacing: '0.08em',
+        }}
+      >
+        Sign in
+      </Link>
+    )
+  }
+  const clubColor = normalizeColor(profile.club_color) ?? '#8b1a1a'
+  const custom = (profile.avatar_text ?? '').trim()
+  let initial = custom
+  if (!initial) {
+    const src = (profile.display_name ?? '?').trim()
+    initial = (src[0] ?? '?').toUpperCase()
+  }
+  return (
+    <Link
+      href="/rating"
+      className="deco-circle-red"
+      style={{
+        ...sharedStyle,
+        backgroundColor: clubColor,
+        color: textOn(clubColor),
+        fontSize: initial.length === 2 ? 32 : 44,
+      }}
+    >
+      {initial}
+    </Link>
   )
 }
 

@@ -16,10 +16,15 @@ export default async function PostsSection({ fixtureId }) {
       p.created_at,
       p.updated_at,
       COALESCE(up.display_name, p.guest_name) AS display_name,
+      up.avatar_text AS avatar_text,
       up.supported_club_id,
       t.name_ja      AS club_name_ja,
+      t.abbr         AS club_abbr,
       t.color_primary AS club_color,
-      (p.clerk_user_id IS NULL) AS is_guest
+      (p.clerk_user_id IS NULL) AS is_guest,
+      (
+        SELECT COUNT(*) FROM reports r WHERE r.post_id = p.id
+      )::int AS report_count
     FROM posts p
     LEFT JOIN user_profiles up ON up.clerk_user_id = p.clerk_user_id
     LEFT JOIN teams_master t   ON t.id = up.supported_club_id
@@ -28,12 +33,20 @@ export default async function PostsSection({ fixtureId }) {
     ORDER BY p.created_at ASC
   `
 
-  let hasProfile = false
+  let myProfile = null
   if (userId) {
     const rows = await sql`
-      SELECT 1 FROM user_profiles WHERE clerk_user_id = ${userId}
+      SELECT
+        up.display_name,
+        up.avatar_text,
+        t.name_ja      AS club_name_ja,
+        t.abbr         AS club_abbr,
+        t.color_primary AS club_color
+      FROM user_profiles up
+      LEFT JOIN teams_master t ON t.id = up.supported_club_id
+      WHERE up.clerk_user_id = ${userId}
     `
-    hasProfile = rows.length > 0
+    if (rows.length > 0) myProfile = rows[0]
   }
 
   return (
@@ -41,7 +54,8 @@ export default async function PostsSection({ fixtureId }) {
       fixtureId={fixtureId}
       posts={posts}
       userId={userId}
-      hasProfile={hasProfile}
+      hasProfile={!!myProfile}
+      myProfile={myProfile}
     />
   )
 }
