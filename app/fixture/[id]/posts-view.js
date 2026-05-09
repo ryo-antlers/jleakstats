@@ -470,10 +470,11 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
         backgroundColor: 'rgba(0,255,135,0.05)',
         borderLeft: '2px solid #00ff87',
       }}>
-        投稿にはサインインが必要です{' '}
+        投稿には
         <Link href={`/sign-in?redirect_url=/fixture/${fixtureId}`} style={{ color: '#00ff87', fontWeight: 700 }}>
-          → サインイン
+          サインイン
         </Link>
+        が必要です
       </div>
     )
   }
