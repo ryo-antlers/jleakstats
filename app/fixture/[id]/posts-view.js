@@ -120,7 +120,7 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
         {!replyMode && (
           <button
             type="button"
-            onClick={() => setReplyMode(true)}
+            onClick={() => { setReplyMode(true); if (hasReplies) setExpanded(true) }}
             style={{
               background: 'none', border: 'none', padding: 0,
               color: 'rgba(255,255,255,0.4)', fontSize: 11,
