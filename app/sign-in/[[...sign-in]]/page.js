@@ -92,7 +92,6 @@ function SignInInner() {
             fontSize: 22,
             fontWeight: 800,
             letterSpacing: '0.12em',
-            fontFamily: 'Anta, sans-serif',
           }}>
             J.LEAK STATS
           </h1>
