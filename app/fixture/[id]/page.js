@@ -135,24 +135,26 @@ async function getRecentForm(homeTeamId, awayTeamId) {
 }
 
 // 現スカッド選手が対戦相手相手に通算で奪ったゴールランキング (在籍クラブ別の内訳付き)
-// 「2026年シーズンに現クラブの試合に出場した選手」を対象にし、
+// 「2026年シーズンに現クラブに在籍する全アクティブ選手」を対象 (未出場ルーキー含む)、
 // 過去他クラブ在籍時のものも含めて vs 対戦相手戦の全ゴールを集計 (PK戦・OG除外)
 //
 // 名寄せ: canonical_id (= COALESCE(canonical_id, id)) で集約。
 //   - 移籍前後の別 player_id (レオセアラ 9550=鹿島, 9000365=C大阪) は同一 canonical に統合済 (Phase 2)
 //   - 同姓同名 (東京VマテウスGK vs 名古屋マテウスFW) は別 canonical に分離済 (Phase 2)
+//
+// 起点: players_master.is_active=true (Step 4 でCSVから設定済)
+//   - 採点ページ (/rating) と同じく未出場選手も候補に含める
+//   - ベテラン移籍直後 (まだ未出場) でも過去ゴールが正しくランクインする
 async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2026) {
   return await sql`
     WITH current_squad_canonicals AS (
       SELECT
-        COALESCE(pm.canonical_id, pm.id) AS canonical_id,
-        MIN(fl.number) AS jersey_number
-      FROM fixture_lineups fl
-      JOIN fixtures f ON fl.fixture_id = f.id
-      JOIN players_master pm ON fl.player_id = pm.id
-      WHERE fl.team_id = ${currentSquadTeamId}
-        AND f.season = ${season}
-      GROUP BY COALESCE(pm.canonical_id, pm.id)
+        pm.id AS canonical_id,
+        pm.no AS jersey_number
+      FROM players_master pm
+      WHERE pm.team_id = ${currentSquadTeamId}
+        AND pm.is_active = true
+        AND (pm.canonical_id IS NULL OR pm.canonical_id = pm.id)
     ),
     goal_breakdown AS (
       SELECT

@@ -167,22 +167,23 @@ export default async function RatingIndexPage() {
     }
   }
 
-  // 推しクラブの2026シーズン出場選手リスト + 節ごとの採点
+  // 推しクラブの2026シーズン active 選手リスト
+  // canonical 行のみ (重複IDを統合)、未出場ルーキーも含める
   const teamPlayers = supportedClubId ? await sql`
-    SELECT DISTINCT ON (fl.player_id)
-      fl.player_id,
+    SELECT
+      pm.id AS player_id,
       pm.name_ja,
-      fl.player_name_en,
-      fl.position,
-      fl.number
-    FROM fixture_lineups fl
-    JOIN fixtures f ON f.id = fl.fixture_id
-    LEFT JOIN players_master pm ON pm.id = fl.player_id
-    WHERE fl.team_id = ${supportedClubId}
-      AND f.season = 2026
-      AND f.round_number IS NOT NULL
-      AND fl.player_id IS NOT NULL
-    ORDER BY fl.player_id, f.date DESC
+      pm.name_en AS player_name_en,
+      pm.position,
+      pm.no AS number
+    FROM players_master pm
+    WHERE pm.team_id = ${supportedClubId}
+      AND pm.is_active = true
+      AND (pm.canonical_id IS NULL OR pm.canonical_id = pm.id)
+    ORDER BY
+      CASE pm.position WHEN 'GK' THEN 1 WHEN 'DF' THEN 2 WHEN 'MF' THEN 3 WHEN 'FW' THEN 4 ELSE 5 END,
+      pm.no ASC NULLS LAST,
+      pm.name_ja
   `.catch(() => []) : []
 
   // 推しクラブの2026シーズン全試合 (相手チーム情報付き)
@@ -208,10 +209,15 @@ export default async function RatingIndexPage() {
   }))
 
   // 推しクラブに対するこのユーザーの全採点 (節ごと)
+  // canonical 化: ratings.player_id (= alias の可能性) を canonical_id に集約
+  // これにより teamPlayers (canonical only) と紐付け可能になる
   const myTeamRatings = supportedClubId ? await sql`
-    SELECT r.player_id, r.score, r.skipped, f.round_number
+    SELECT
+      COALESCE(pm.canonical_id, pm.id) AS player_id,
+      r.score, r.skipped, f.round_number
     FROM ratings r
     JOIN fixtures f ON f.id = r.fixture_id
+    JOIN players_master pm ON pm.id = r.player_id
     JOIN fixture_lineups fl ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
     WHERE r.clerk_user_id = ${userId}
       AND fl.team_id = ${supportedClubId}
