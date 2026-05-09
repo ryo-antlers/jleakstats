@@ -224,7 +224,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
       alt="リアクション"
       width={20}
       height={20}
-      style={{ display: 'block', opacity: 0.55, transition: 'opacity 0.15s ease' }}
+      style={{ display: 'block' }}
     />
   )
 
@@ -239,8 +239,6 @@ function ReactionPicker({ postId, userId, fixtureId }) {
           cursor: 'pointer', textDecoration: 'none', lineHeight: 0,
           display: 'inline-flex',
         }}
-        onMouseEnter={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.95' }}
-        onMouseLeave={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.55' }}
       >
         {triggerIcon}
       </Link>
@@ -264,8 +262,6 @@ function ReactionPicker({ postId, userId, fixtureId }) {
           opacity: isPending ? 0.5 : 1,
           display: 'inline-flex',
         }}
-        onMouseEnter={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.95' }}
-        onMouseLeave={e => { const img = e.currentTarget.querySelector('img'); if (img) img.style.opacity = '0.55' }}
       >
         {triggerIcon}
       </button>
