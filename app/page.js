@@ -497,7 +497,7 @@ function ProfileBubble({ profile }) {
         ...sharedStyle,
         backgroundColor: clubColor,
         color: textOn(clubColor),
-        fontSize: initial.length === 2 ? 32 : 44,
+        fontSize: 24,
       }}
     >
       {initial}
