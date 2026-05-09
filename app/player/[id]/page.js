@@ -3,17 +3,34 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PlayerTabs from './player-tabs'
 
+// URL の playerId から canonical を解決し、関連する全 player_ids を返す
+// 例: /player/9000365 → canonical=9550 → ids=[9550, 9000365] (両方の出場記録を統合)
+async function resolveCanonicalPlayerIds(playerId) {
+  const rows = await sql`
+    SELECT pm.id, pm.canonical_id
+    FROM players_master pm
+    WHERE COALESCE(pm.canonical_id, pm.id) = (
+      SELECT COALESCE(canonical_id, id) FROM players_master WHERE id = ${playerId}
+    )
+  `.catch(() => [])
+  if (rows.length === 0) return { ids: [playerId], canonicalId: playerId }
+  const canonicalRow = rows.find(r => r.canonical_id === null) ?? rows[0]
+  return { ids: rows.map(r => r.id), canonicalId: canonicalRow.id }
+}
+
+// canonical 解決した player を返す (alias URL でも canonical 情報を表示)
 async function getPlayer(id) {
   const rows = await sql`
-    SELECT pm.*, tm.name_ja AS team_name, tm.color_primary AS team_color, tm.abbr AS team_abbr
+    SELECT cpm.*, tm.name_ja AS team_name, tm.color_primary AS team_color, tm.abbr AS team_abbr
     FROM players_master pm
-    LEFT JOIN teams_master tm ON pm.team_id = tm.id
+    JOIN players_master cpm ON cpm.id = COALESCE(pm.canonical_id, pm.id)
+    LEFT JOIN teams_master tm ON cpm.team_id = tm.id
     WHERE pm.id = ${id}
   `.catch(() => [])
   return rows[0] ?? null
 }
 
-async function getPlayerMatches(playerId) {
+async function getPlayerMatches(playerIds) {
   return await sql`
     SELECT
       fps.*,
@@ -34,32 +51,27 @@ async function getPlayerMatches(playerId) {
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
     LEFT JOIN fixture_lineups fl ON fl.fixture_id = fps.fixture_id AND fl.player_id = fps.player_id
-    WHERE fps.player_id = ${playerId}
+    WHERE fps.player_id = ANY(${playerIds})
       AND f.season = 2026
       AND f.status IN ('FT', 'AET', 'PEN')
     ORDER BY f.date DESC
   `.catch(() => [])
 }
 
-async function getPlayerGwPoints(playerId) {
+async function getPlayerGwPoints(playerIds) {
   return await sql`
     SELECT fg.gw_number, SUM(fp.points) AS points, fp.breakdown
     FROM fantasy_points fp
     JOIN fantasy_gameweeks fg ON fg.id = fp.gameweek_id
-    WHERE fp.player_id = ${playerId}
+    WHERE fp.player_id = ANY(${playerIds})
     GROUP BY fg.gw_number, fp.breakdown
     ORDER BY fg.gw_number
   `.catch(() => [])
 }
 
 // シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
-// 全出場試合リスト（全出場タブ用）
-// 全ゴールイベント（ゴールタブ用、OGは除外）
-// シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
-// 全出場試合リスト（全出場タブ用）
-// 全ゴールイベント（ゴールタブ用、OGは除外）
-// シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
-async function getPlayerCareer(playerId) {
+// canonical 経由で全 alias IDs を統合 (移籍前後の別IDも合算)
+async function getPlayerCareer(playerIds) {
   return await sql`
     SELECT
       f.season,
@@ -71,7 +83,7 @@ async function getPlayerCareer(playerId) {
       COUNT(*) FILTER (WHERE fl.is_starter)::int AS starts,
       (
         SELECT COUNT(*)::int FROM fixture_events fe
-        WHERE fe.player_id = fl.player_id
+        WHERE fe.player_id = ANY(${playerIds})
           AND fe.team_id = fl.team_id
           AND fe.type = 'Goal'
           AND fe.detail <> 'Own Goal'
@@ -82,14 +94,14 @@ async function getPlayerCareer(playerId) {
     FROM fixture_lineups fl
     JOIN fixtures f ON fl.fixture_id = f.id
     LEFT JOIN teams_master tm ON fl.team_id = tm.id
-    WHERE fl.player_id = ${playerId}
-    GROUP BY f.season, fl.team_id, tm.name_ja, tm.color_primary, tm.abbr, fl.player_id
+    WHERE fl.player_id = ANY(${playerIds})
+    GROUP BY f.season, fl.team_id, tm.name_ja, tm.color_primary, tm.abbr
     ORDER BY f.season DESC, fl.team_id
   `.catch(() => [])
 }
 
 // 全出場試合リスト（全出場タブ用）
-async function getPlayerAppearances(playerId) {
+async function getPlayerAppearances(playerIds) {
   return await sql`
     SELECT
       fl.fixture_id, fl.team_id, fl.is_starter, fl.position, fl.number,
@@ -101,13 +113,13 @@ async function getPlayerAppearances(playerId) {
     JOIN fixtures f ON fl.fixture_id = f.id
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE fl.player_id = ${playerId}
+    WHERE fl.player_id = ANY(${playerIds})
     ORDER BY f.date DESC
   `.catch(() => [])
 }
 
 // 全ゴールイベント（ゴールタブ用、OGは除外）
-async function getPlayerGoals(playerId) {
+async function getPlayerGoals(playerIds) {
   return await sql`
     SELECT
       fe.fixture_id, fe.elapsed, fe.detail, fe.team_id,
@@ -119,18 +131,19 @@ async function getPlayerGoals(playerId) {
     JOIN fixtures f ON fe.fixture_id = f.id
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE fe.player_id = ${playerId}
+    WHERE fe.player_id = ANY(${playerIds})
       AND fe.type = 'Goal'
       AND fe.detail <> 'Own Goal'
     ORDER BY f.date DESC, fe.elapsed
   `.catch(() => [])
 }
 
+// チーム所属選手のシーズンスタッツ (canonical で重複統合)
 async function getTeamPlayersStats(teamId) {
   return await sql`
     SELECT
-      fps.player_id,
-      pm.name_ja,
+      COALESCE(pm.canonical_id, pm.id) AS player_id,
+      cpm.name_ja,
       MAX(fps.number) AS number,
       COUNT(*) AS games_count,
       SUM(CASE WHEN f.status = 'AET' THEN fps.minutes ELSE LEAST(fps.minutes, 90) END) AS total_minutes,
@@ -138,10 +151,11 @@ async function getTeamPlayersStats(teamId) {
     FROM fixture_player_stats fps
     JOIN fixtures f ON fps.fixture_id = f.id
     JOIN players_master pm ON fps.player_id = pm.id
+    JOIN players_master cpm ON cpm.id = COALESCE(pm.canonical_id, pm.id)
     WHERE fps.team_id = ${teamId}
       AND f.season = 2026
       AND f.status IN ('FT', 'AET', 'PEN')
-    GROUP BY fps.player_id, pm.name_ja
+    GROUP BY COALESCE(pm.canonical_id, pm.id), cpm.name_ja
     HAVING SUM(fps.minutes) > 0
     ORDER BY total_minutes DESC
   `.catch(() => [])
@@ -226,16 +240,18 @@ function ScatterChart({ teamStats, playerId, color }) {
 
 export default async function PlayerPage({ params }) {
   const { id } = await params
-  const playerId = parseInt(id)
-  const player = await getPlayer(playerId)
+  const urlPlayerId = parseInt(id)
+  const player = await getPlayer(urlPlayerId)
   if (!player) notFound()
+  // canonical 解決: alias URL でも全 alias の記録を統合
+  const { ids: playerIds, canonicalId: playerId } = await resolveCanonicalPlayerIds(urlPlayerId)
   const [matches, teamStats, gwPoints, career, appearances, goals] = await Promise.all([
-    getPlayerMatches(playerId),
+    getPlayerMatches(playerIds),
     getTeamPlayersStats(player.team_id),
-    getPlayerGwPoints(playerId),
-    getPlayerCareer(playerId),
-    getPlayerAppearances(playerId),
-    getPlayerGoals(playerId),
+    getPlayerGwPoints(playerIds),
+    getPlayerCareer(playerIds),
+    getPlayerAppearances(playerIds),
+    getPlayerGoals(playerIds),
   ])
   const gwMap = new Map(gwPoints.map(g => [g.gw_number, Number(g.points)]))
 

@@ -315,36 +315,47 @@ async function getTeamAllMatches(teamId) {
 }
 
 // 歴代選手 (このクラブで出場経験のある全選手)
+// 名寄せ: canonical_id で集約 (移籍前後の重複IDを1人に統合 - Phase 2)
 async function getTeamAllPlayers(teamId) {
   return await sql`
+    WITH pcm AS (
+      SELECT pm.id AS player_id, COALESCE(pm.canonical_id, pm.id) AS canonical_id
+      FROM players_master pm
+    ),
+    team_goals AS (
+      SELECT pcm.canonical_id, COUNT(*)::int AS goals
+      FROM fixture_events fe
+      JOIN pcm ON pcm.player_id = fe.player_id
+      WHERE fe.team_id = ${teamId}
+        AND fe.type = 'Goal'
+        AND fe.detail <> 'Own Goal'
+      GROUP BY pcm.canonical_id
+    )
     SELECT
-      fl.player_id,
-      COALESCE(pm.name_ja, pm.name_en) AS name,
+      pcm.canonical_id AS player_id,
+      COALESCE(cpm.name_ja, cpm.name_en) AS name,
       COUNT(*)::int AS apps,
       COUNT(*) FILTER (WHERE fl.is_starter)::int AS starts,
       MIN(f.season)::int AS first_season,
       MAX(f.season)::int AS last_season,
-      (
-        SELECT COUNT(*)::int FROM fixture_events fe
-        WHERE fe.player_id = fl.player_id
-          AND fe.team_id = ${teamId}
-          AND fe.type = 'Goal'
-          AND fe.detail <> 'Own Goal'
-      ) AS goals
+      COALESCE(MAX(tg.goals), 0) AS goals
     FROM fixture_lineups fl
     JOIN fixtures f ON fl.fixture_id = f.id
-    LEFT JOIN players_master pm ON fl.player_id = pm.id
+    JOIN pcm ON pcm.player_id = fl.player_id
+    LEFT JOIN players_master cpm ON cpm.id = pcm.canonical_id
+    LEFT JOIN team_goals tg ON tg.canonical_id = pcm.canonical_id
     WHERE fl.team_id = ${teamId}
-    GROUP BY fl.player_id, pm.name_ja, pm.name_en
+    GROUP BY pcm.canonical_id, cpm.name_ja, cpm.name_en
     ORDER BY apps DESC
   `.catch(() => [])
 }
 
+// シーズン スタッツランキング: canonical_id で集約 (移籍重複を1人に)
 async function getTeamPlayerRankings(teamId) {
   return await sql`
     SELECT
-      fps.player_id,
-      COALESCE(pm.name_ja, pm.name_en) AS name,
+      COALESCE(pm.canonical_id, pm.id) AS player_id,
+      COALESCE(cpm.name_ja, cpm.name_en) AS name,
       SUM(fps.minutes) AS total_minutes,
       AVG(CAST(fps.rating AS numeric)) FILTER (WHERE fps.rating IS NOT NULL AND fps.rating != '0') AS avg_rating,
       SUM(COALESCE(fps.passes_key, 0)) AS total_key_passes,
@@ -353,9 +364,10 @@ async function getTeamPlayerRankings(teamId) {
     FROM fixture_player_stats fps
     JOIN fixtures f ON fps.fixture_id = f.id
     LEFT JOIN players_master pm ON fps.player_id = pm.id
+    LEFT JOIN players_master cpm ON cpm.id = COALESCE(pm.canonical_id, pm.id)
     WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
       AND fps.team_id = ${teamId} AND fps.minutes > 0
-    GROUP BY fps.player_id, pm.name_en, pm.name_ja
+    GROUP BY COALESCE(pm.canonical_id, pm.id), cpm.name_en, cpm.name_ja
     HAVING SUM(fps.minutes) > 0
   `.catch(() => [])
 }
