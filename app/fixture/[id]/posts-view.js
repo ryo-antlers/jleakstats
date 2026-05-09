@@ -1,5 +1,5 @@
 'use client'
-import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
+import { useActionState, useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { submitPost, toggleReaction } from './post-actions'
 import { REACTION_EMOJIS, reactionIconSrc } from './reaction-emojis'
@@ -97,7 +97,7 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
 
   return (
     <div style={{ position: 'relative' }}>
-      <PostCard post={post} rank={rank} fixtureId={fixtureId} userId={userId} />
+      <PostCard post={post} rank={rank} userId={userId} fixtureId={fixtureId} />
 
       {/* スレッドアクション (Slack風: 返信件数 + 返信ボタン) */}
       <div style={{
@@ -133,7 +133,6 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
             返信する
           </button>
         )}
-        <ReactionPicker postId={post.id} userId={userId} fixtureId={fixtureId} />
       </div>
 
       {/* 返信展開 */}
@@ -185,26 +184,11 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
 
 // ─────────────────────────────────────────────
 // リアクションピッカー (🙂ボタン → 絵文字一覧をポップオーバー)
+// 親 (PostCard) の handleToggle を onPick で呼ぶだけ
 // ─────────────────────────────────────────────
-function ReactionPicker({ postId, userId, fixtureId }) {
+function ReactionPicker({ userId, fixtureId, onPick }) {
   const [open, setOpen] = useState(false)
-  const [, formAction, isPending] = useActionState(toggleReaction, null)
-  const [pickedEmoji, setPickedEmoji] = useState(null)
-  const formRef = useRef(null)
   const containerRef = useRef(null)
-
-  // 絵文字クリック → hidden input に値セット → form submit
-  const onPick = (emoji) => {
-    setPickedEmoji(emoji)
-    setOpen(false)
-    // useEffect で submit 発火
-  }
-  useEffect(() => {
-    if (pickedEmoji && formRef.current) {
-      formRef.current.requestSubmit()
-      setPickedEmoji(null)
-    }
-  }, [pickedEmoji])
 
   // 外側クリックで閉じる
   useEffect(() => {
@@ -216,15 +200,13 @@ function ReactionPicker({ postId, userId, fixtureId }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
-  // トリガーボタン (OpenMoji 1F642)
-  // 横並びのテキストボタン (fontSize 11) と高さを揃える
   const triggerIcon = (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img
       src={reactionIconSrc('1F642')}
       alt="リアクション"
-      width={16}
-      height={16}
+      width={20}
+      height={20}
       style={{ display: 'block' }}
     />
   )
@@ -246,21 +228,20 @@ function ReactionPicker({ postId, userId, fixtureId }) {
     )
   }
 
+  const handlePick = (emoji) => {
+    setOpen(false)
+    onPick(emoji)
+  }
+
   return (
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-      <form ref={formRef} action={formAction} style={{ display: 'none' }}>
-        <input type="hidden" name="post_id" value={postId} />
-        <input type="hidden" name="emoji" value={pickedEmoji ?? ''} />
-      </form>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        disabled={isPending}
         title="リアクションを追加"
         style={{
           background: 'none', border: 'none', padding: 0,
-          cursor: isPending ? 'wait' : 'pointer',
-          opacity: isPending ? 0.5 : 1,
+          cursor: 'pointer',
           display: 'inline-flex', alignItems: 'center',
         }}
       >
@@ -276,7 +257,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
             padding: 4,
             display: 'grid',
-            gridTemplateColumns: 'repeat(8, 32px)',
+            gridTemplateColumns: 'repeat(8, 36px)',
             gap: 2,
           }}
         >
@@ -284,9 +265,9 @@ function ReactionPicker({ postId, userId, fixtureId }) {
             <button
               key={emoji}
               type="button"
-              onClick={() => onPick(emoji)}
+              onClick={() => handlePick(emoji)}
               style={{
-                width: 32, height: 32, padding: 0,
+                width: 36, height: 36, padding: 0,
                 background: 'transparent', border: 'none',
                 borderRadius: 4,
                 cursor: 'pointer',
@@ -301,7 +282,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={reactionIconSrc(emoji)} alt="" width={32} height={32} style={{ display: 'block', opacity: 1 }} />
+              <img src={reactionIconSrc(emoji)} alt="" width={36} height={36} style={{ display: 'block' }} />
             </button>
           ))}
         </div>
@@ -313,7 +294,39 @@ function ReactionPicker({ postId, userId, fixtureId }) {
 // ─────────────────────────────────────────────
 // 投稿1件 (アバター + 名前 + 時間 + 本文)
 // ─────────────────────────────────────────────
-function PostCard({ post, rank, isReply }) {
+function PostCard({ post, rank, isReply, userId, fixtureId }) {
+  // 楽観的UI: クリックした瞬間にUI更新 → サーバ往復後に revalidate で正しい値に置換
+  const [optimisticReactions, applyOptimistic] = useOptimistic(
+    post.reactions ?? [],
+    (state, action) => {
+      if (action.type !== 'toggle') return state
+      const existing = state.find(r => r.emoji === action.emoji)
+      if (existing) {
+        if (existing.mine) {
+          // 自分のリアクションを取り消し
+          return existing.count <= 1
+            ? state.filter(r => r.emoji !== action.emoji)
+            : state.map(r => r.emoji === action.emoji ? { ...r, count: r.count - 1, mine: false } : r)
+        }
+        // 他人のリアクションに自分も追加
+        return state.map(r => r.emoji === action.emoji ? { ...r, count: r.count + 1, mine: true } : r)
+      }
+      // 新規リアクション
+      return [...state, { emoji: action.emoji, count: 1, mine: true }]
+    }
+  )
+  const [, startTransition] = useTransition()
+  const handleToggle = (emoji) => {
+    if (!userId) return
+    startTransition(async () => {
+      applyOptimistic({ type: 'toggle', emoji })
+      const fd = new FormData()
+      fd.set('post_id', String(post.id))
+      fd.set('emoji', emoji)
+      await toggleReaction(null, fd)
+    })
+  }
+
   const name = post.display_name ?? '名無し'
   // クラブカラー優先、未設定 (ゲスト等) なら名前ハッシュからフォールバック
   const avatarColor = post.club_color || nameToColor(name)
@@ -386,14 +399,13 @@ function PostCard({ post, rank, isReply }) {
         }}>
           {renderBody(post.body)}
         </div>
-        {/* リアクションバッジ (本文の下) */}
-        {(post.reactions?.length > 0) && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-            {post.reactions.map(r => (
-              <ReactionBadge key={r.emoji} postId={post.id} emoji={r.emoji} count={r.count} mine={r.mine} />
-            ))}
-          </div>
-        )}
+        {/* リアクション (本文の下: バッジ + ピッカー) */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          {optimisticReactions.map(r => (
+            <ReactionBadge key={r.emoji} emoji={r.emoji} count={r.count} mine={r.mine} onToggle={handleToggle} />
+          ))}
+          <ReactionPicker userId={userId} fixtureId={fixtureId} onPick={handleToggle} />
+        </div>
       </div>
     </div>
   )
@@ -402,35 +414,32 @@ function PostCard({ post, rank, isReply }) {
 // ─────────────────────────────────────────────
 // リアクションバッジ (絵文字 × カウント、クリックでトグル)
 // ─────────────────────────────────────────────
-function ReactionBadge({ postId, emoji, count, mine }) {
-  const [, formAction, isPending] = useActionState(toggleReaction, null)
+function ReactionBadge({ emoji, count, mine, onToggle }) {
   return (
-    <form action={formAction} style={{ display: 'inline-flex' }}>
-      <input type="hidden" name="post_id" value={postId} />
-      <input type="hidden" name="emoji" value={emoji} />
+    <>
       <button
-        type="submit"
+        type="button"
+        onClick={() => onToggle(emoji)}
         disabled={isPending}
         title={mine ? 'リアクションを取り消す' : 'リアクションする'}
         style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          padding: '2px 8px',
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '3px 10px',
           backgroundColor: mine ? 'rgba(0,255,135,0.12)' : 'rgba(255,255,255,0.05)',
           border: mine ? '1px solid rgba(0,255,135,0.5)' : '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 12,
+          borderRadius: 14,
           color: '#fff',
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 700,
-          cursor: isPending ? 'wait' : 'pointer',
-          opacity: isPending ? 0.6 : 1,
+          cursor: 'pointer',
           transition: 'background-color 0.15s ease, border-color 0.15s ease',
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={reactionIconSrc(emoji)} alt="" width={16} height={16} style={{ display: 'block' }} />
+        <img src={reactionIconSrc(emoji)} alt="" width={20} height={20} style={{ display: 'block' }} />
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{count}</span>
       </button>
-    </form>
+    </>
   )
 }
 
