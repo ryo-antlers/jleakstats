@@ -437,7 +437,6 @@ function ReactionBadge({ emoji, count, mine, onToggle }) {
 function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAbbr, awayAbbr, compact, onCancel, onSuccess }) {
   const [state, formAction, isPending] = useActionState(submitPost, null)
   const [body, setBody] = useState('')
-  const [guestName, setGuestName] = useState('')
   const [successFlash, setSuccessFlash] = useState(false)
   const prevSuccessRef = useRef(false)
   const textareaRef = useRef(null)
@@ -463,7 +462,23 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
     el.style.height = `${el.scrollHeight}px`
   }, [body])
 
-  if (userId && !hasProfile) {
+  // 未ログイン → サインイン誘導
+  if (!userId) {
+    return (
+      <div style={{
+        padding: 16, fontSize: 12, color: 'rgba(255,255,255,0.7)',
+        backgroundColor: 'rgba(0,255,135,0.05)',
+        borderLeft: '2px solid #00ff87',
+      }}>
+        投稿にはサインインが必要です{' '}
+        <Link href={`/sign-in?redirect_url=/fixture/${fixtureId}`} style={{ color: '#00ff87', fontWeight: 700 }}>
+          → サインイン
+        </Link>
+      </div>
+    )
+  }
+
+  if (!hasProfile) {
     return (
       <div style={{
         padding: 16, fontSize: 12, color: 'rgba(255,255,255,0.7)',
@@ -478,9 +493,7 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
     )
   }
 
-  const isGuest = !userId
   const canSubmit = !isPending && body.trim().length > 0
-    && (!isGuest || guestName.trim().length > 0)
 
   return (
     <form
@@ -493,26 +506,8 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
       {parentPostId != null && (
         <input type="hidden" name="parent_post_id" value={parentPostId} />
       )}
-      {!isGuest && profile && (
+      {profile && (
         <PostFormIdentity profile={profile} compact={compact} />
-      )}
-      {isGuest && (
-        <input
-          type="text"
-          name="guest_name"
-          value={guestName}
-          onChange={e => setGuestName(e.target.value)}
-          placeholder="名前 (公開されます)"
-          maxLength={30}
-          required
-          style={{
-            ...inputStyle,
-            marginBottom: 8,
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#fff',
-          }}
-        />
       )}
       <textarea
         ref={textareaRef}
@@ -543,7 +538,6 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAb
         marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.35)',
         textAlign: 'right',
       }}>
-        {isGuest && <span style={{ marginRight: 8 }}>ログインなし</span>}
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{body.length} / 200</span>
       </div>
 
