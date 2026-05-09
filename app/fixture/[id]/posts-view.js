@@ -22,7 +22,7 @@ function nameInitial(name) {
 // ─────────────────────────────────────────────
 // 掲示板ビュー (Slack風)
 // ─────────────────────────────────────────────
-export default function PostsView({ fixtureId, posts, userId, hasProfile, profile }) {
+export default function PostsView({ fixtureId, posts, userId, hasProfile, profile, homeAbbr, awayAbbr }) {
   const { topLevel, repliesMap } = useMemo(() => {
     const top = []
     const rmap = new Map()
@@ -65,6 +65,8 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile, profil
               userId={userId}
               hasProfile={hasProfile}
               profile={profile}
+              homeAbbr={homeAbbr}
+              awayAbbr={awayAbbr}
             />
         ))}
       </div>
@@ -76,6 +78,8 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile, profil
           userId={userId}
           hasProfile={hasProfile}
           profile={profile}
+          homeAbbr={homeAbbr}
+          awayAbbr={awayAbbr}
         />
       </div>
     </section>
@@ -85,7 +89,7 @@ export default function PostsView({ fixtureId, posts, userId, hasProfile, profil
 // ─────────────────────────────────────────────
 // スレッド1件 (トップ + 返信群)
 // ─────────────────────────────────────────────
-function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile }) {
+function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, homeAbbr, awayAbbr }) {
   const [expanded, setExpanded] = useState(false)
   const [replyMode, setReplyMode] = useState(false)
   const hasReplies = replies.length > 0
@@ -165,6 +169,8 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile })
             userId={userId}
             hasProfile={hasProfile}
             profile={profile}
+            homeAbbr={homeAbbr}
+            awayAbbr={awayAbbr}
             compact
             onCancel={() => setReplyMode(false)}
             onSuccess={() => { setReplyMode(false); setExpanded(true) }}
@@ -377,7 +383,7 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
 // ─────────────────────────────────────────────
 // 投稿フォーム
 // ─────────────────────────────────────────────
-function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, compact, onCancel, onSuccess }) {
+function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, homeAbbr, awayAbbr, compact, onCancel, onSuccess }) {
   const [state, formAction, isPending] = useActionState(submitPost, null)
   const [body, setBody] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -462,11 +468,18 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, compac
         name="body"
         value={body}
         onChange={e => setBody(e.target.value)}
+        placeholder={(homeAbbr && awayAbbr) ? `${homeAbbr}×${awayAbbr}について` : ''}
         maxLength={200}
         rows={1}
         required
         style={{
-          ...inputStyle,
+          width: '100%',
+          padding: '4px 0',
+          backgroundColor: 'transparent',
+          border: 'none',
+          color: '#fff',
+          fontFamily: 'inherit',
+          outline: 'none',
           resize: 'none',
           overflow: 'hidden',
           fontSize: 13.5,
@@ -524,11 +537,14 @@ function PostFormIdentity({ profile, compact }) {
   const avatarColor = profile.club_color || nameToColor(name)
   const initial = nameInitial(name)
   const size = compact ? 28 : 32
+  const abbr = profile.club_abbr ?? null
 
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10,
-      marginBottom: compact ? 8 : 10,
+      paddingBottom: compact ? 6 : 8,
+      marginBottom: compact ? 6 : 8,
+      borderBottom: '1px solid rgba(255,255,255,0.15)',
     }}>
       <div style={{
         width: size, height: size, borderRadius: '50%',
@@ -544,17 +560,13 @@ function PostFormIdentity({ profile, compact }) {
         letterSpacing: '0.02em',
       }}>
         {name}
+        {abbr && (
+          <>
+            <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px', fontWeight: 500 }}>/</span>
+            <span title={profile.club_name_ja}>{abbr}</span>
+          </>
+        )}
       </span>
-      {profile.club_name_ja && (
-        <span style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-          padding: '1px 6px',
-          backgroundColor: profile.club_color || '#444',
-          color: '#fff',
-        }}>
-          {profile.club_name_ja}
-        </span>
-      )}
     </div>
   )
 }

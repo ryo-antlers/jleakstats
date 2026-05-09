@@ -2472,7 +2472,7 @@ export default async function FixturePage({ params }) {
 
         const ratingsJsx = ratingsChartsJsx
 
-        const postsJsx = <PostsSection fixtureId={parseInt(id)} />
+        const postsJsx = <PostsSection fixtureId={parseInt(id)} homeAbbr={fixture.home_abbr} awayAbbr={fixture.away_abbr} />
 
         // 未開催試合: H2H(+データ) / Winner / 選手スタッツ / 掲示板 / 審判
         if (useTabs && !hasStarted) {

@@ -3,7 +3,7 @@ import sql from '@/lib/db'
 import PostsView from './posts-view'
 
 // サーバーコンポーネント: 掲示板のトップレベル投稿 + 返信を一括取得
-export default async function PostsSection({ fixtureId }) {
+export default async function PostsSection({ fixtureId, homeAbbr, awayAbbr }) {
   const { userId } = await auth()
 
   const posts = await sql`
@@ -56,6 +56,8 @@ export default async function PostsSection({ fixtureId }) {
       userId={userId}
       hasProfile={!!myProfile}
       profile={myProfile}
+      homeAbbr={homeAbbr}
+      awayAbbr={awayAbbr}
     />
   )
 }
