@@ -55,7 +55,7 @@ export default async function PostsSection({ fixtureId }) {
       posts={posts}
       userId={userId}
       hasProfile={!!myProfile}
-      myProfile={myProfile}
+      profile={myProfile}
     />
   )
 }

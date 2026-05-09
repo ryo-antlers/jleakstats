@@ -398,6 +398,14 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, compac
     }
   }, [state, onSuccess])
 
+  // textarea を内容に応じて自動拡張 (1行から開始 → スクロールバー出さずに伸ばす)
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [body])
+
   if (userId && !hasProfile) {
     return (
       <div style={{
@@ -455,12 +463,12 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, compac
         value={body}
         onChange={e => setBody(e.target.value)}
         maxLength={200}
-        rows={compact ? 2 : 3}
+        rows={1}
         required
         style={{
           ...inputStyle,
-          resize: 'vertical',
-          minHeight: compact ? 40 : 60,
+          resize: 'none',
+          overflow: 'hidden',
           fontSize: 13.5,
           lineHeight: 1.6,
         }}
