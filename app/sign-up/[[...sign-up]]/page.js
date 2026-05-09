@@ -26,9 +26,11 @@ function SignUpInner() {
   const [error, setError] = useState('')
   const [errorCode, setErrorCode] = useState('')
 
+  // 「すでにサインイン済」で /sign-up に来た人を redirectUrl へ飛ばす。
+  // ただし step='verify' (登録手続き中) は対象外 — verifyCode が /profile-setup へ誘導
   useEffect(() => {
-    if (authLoaded && isSignedIn) router.replace(redirectUrl)
-  }, [authLoaded, isSignedIn, redirectUrl, router])
+    if (authLoaded && isSignedIn && step === 'email') router.replace(redirectUrl)
+  }, [authLoaded, isSignedIn, redirectUrl, router, step])
 
   if (!signUp) {
     return <LoadingScreen />
@@ -65,11 +67,14 @@ function SignUpInner() {
     try {
       const verified = await signUp.verifications.verifyEmailCode({ code })
       if (verified.error) throw verified.error
+      // 新規登録完了 → プロフィール設定画面へ。
+      // 元の redirectUrl はクエリ next= で持たせ、設定後にそこへ戻す。
+      const profileSetupUrl = `/profile-setup?next=${encodeURIComponent(redirectUrl)}`
       const finalized = await signUp.finalize({
-        navigate: ({ url }) => router.replace(url ?? redirectUrl),
+        navigate: ({ url }) => router.replace(url ?? profileSetupUrl),
       })
       if (finalized.error) throw finalized.error
-      router.replace(redirectUrl)
+      router.replace(profileSetupUrl)
     } catch (err) {
       const code = err?.errors?.[0]?.code ?? err?.code ?? ''
       const raw = err?.errors?.[0]?.message ?? err?.message ?? ''
