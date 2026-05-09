@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs'
 import { jaJP } from '@clerk/localizations'
 import "./globals.css";
+import SiteHeader from '@/app/components/SiteHeader'
 import SiteFooter from '@/app/components/SiteFooter'
 
 export const metadata = {
@@ -71,6 +72,7 @@ export default function RootLayout({ children }) {
             logoPlacement: 'none',
           },
         }}>
+          <SiteHeader />
           <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
             {children}
           </main>
