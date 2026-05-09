@@ -127,13 +127,14 @@ export default function ProfileForm({ clubs, profile, next }) {
     }
   }, [clubId, tierGroups])
 
-  // アイコン文字のバリデーション (空 / 1〜2文字、言語不問)
+  // アイコン文字のバリデーション (空 / 1〜2文字、言語不問、NGワード不可)
   const avatarTextError = (() => {
     const v = avatarText.trim()
     if (v === '') return null
     const chars = [...v]
-    if (chars.length === 1 || chars.length === 2) return null
-    return '1〜2文字まで'
+    if (chars.length > 2) return '1〜2文字まで'
+    if (containsNG(v)) return '使用できない言葉が含まれています'
+    return null
   })()
 
   // アイコン表示用の文字 (custom > display name の先頭2文字)
