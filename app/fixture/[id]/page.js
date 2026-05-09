@@ -890,7 +890,21 @@ export default async function FixturePage({ params }) {
 
   return (
     <>
-    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 30 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
+
+      {/* サイトロゴ (中央寄せ、トップへ戻る) */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+        <Link href="/" aria-label="トップへ" style={{ display: 'inline-block', lineHeight: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/apple-icon.png"
+            alt="J.Leak Stats"
+            width={36}
+            height={36}
+            style={{ display: 'block', borderRadius: 8 }}
+          />
+        </Link>
+      </div>
 
       {/* カテゴリ・節ラベル（例: J1リーグ 第4節 / 2026.3.7 SAT / 16:03 KO） */}
       {(() => {
