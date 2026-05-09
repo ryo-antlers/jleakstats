@@ -107,7 +107,6 @@ function SignInInner() {
 
         {step === 'email' ? (
           <form onSubmit={sendCode}>
-            <label style={labelStyle}>メールアドレス</label>
             <input
               type="email"
               value={email}
@@ -151,7 +150,6 @@ function SignInInner() {
             }}>
               <span style={{ color: '#fff', fontWeight: 700 }}>{email}</span> に届いた6桁のコードを入力
             </div>
-            <label style={labelStyle}>確認コード</label>
             <input
               type="text"
               value={code}
