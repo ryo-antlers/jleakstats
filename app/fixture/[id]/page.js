@@ -764,8 +764,13 @@ export default async function FixturePage({ params }) {
     !isFinished ? getExactScoreOdds(fixture.id) : Promise.resolve([]),
   ])
 
-  const refereeKey = fixture.referee_ja_official ?? null
+  // 審判キー: 公式記録 (referee_ja_official) > 試合前スクレイプ (referee_ja) の優先順位
+  // 試合前 referee_ja は J.League ajax_live.json から取得した日本語フルネーム (半角空白区切り)、
+  // referee_ja_official と同じフォーマットなので getRefereeHistory 等で同じキーとして使える
+  const refereeKey = fixture.referee_ja_official ?? fixture.referee_ja ?? null
   const hasReferee = !!refereeKey
+  // 試合前審判発表済 (公式記録未取込)
+  const isPreMatchRefereeAnnounced = !hasStarted && !!fixture.referee_ja && !fixture.referee_ja_official
   const refereeLimit = 5
   const [homeRefereeHistory, awayRefereeHistory, homeRefereeRecord, awayRefereeRecord, homeRefereeFirst, awayRefereeFirst, refereeJa] = hasReferee
     ? await Promise.all([
@@ -1530,7 +1535,7 @@ export default async function FixturePage({ params }) {
         const refereeHistoryJsx = (hasReferee && (homeRefereeHistory.length > 0 || awayRefereeHistory.length > 0 || homeRefereeRecord.total > 0 || awayRefereeRecord.total > 0)) ? (
         <section style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 15, color: '#fff', marginBottom: 12, textAlign: 'center' }}>
-            {`${(fixture.referee_ja_official ?? refereeJa ?? fixture.referee_en ?? '').replace(/\s+/g, '')} 担当試合成績`}
+            {`${(fixture.referee_ja_official ?? fixture.referee_ja ?? refereeJa ?? fixture.referee_en ?? '').replace(/\s+/g, '')} 担当試合成績`}
           </p>
           <RefereeSection
             homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id}
@@ -2477,25 +2482,31 @@ export default async function FixturePage({ params }) {
               {dataJsx}
             </>
           )
+          // 審判発表済の試合前は、審判タブを「終了後と同じ仕様 (refereeHistoryJsx)」に差し替えて
+          // 初期アクティブタブも審判にする
+          const refereeTabContent = isPreMatchRefereeAnnounced && refereeHistoryJsx
+            ? refereeHistoryJsx
+            : preMatchRefereeJsx
           // J2J3 はAPI-Football選手スタッツがないので 選手スタッツタブを除外
           const preMatchTabs = isJ2J3
             ? [
                 { key: 'h2h',     label: 'H2H',     content: h2hAndDataJsx },
                 { key: 'winner',  label: 'Winner',  content: winnerJsx },
                 { key: 'posts',   label: '掲示板',   content: postsJsx },
-                { key: 'referee', label: '審判',     content: preMatchRefereeJsx },
+                { key: 'referee', label: '審判',     content: refereeTabContent },
               ]
             : [
                 { key: 'h2h',     label: 'H2H',         content: h2hAndDataJsx },
                 { key: 'winner',  label: 'Winner',      content: winnerJsx },
                 { key: 'players', label: '選手スタッツ', content: preMatchScattersJsx },
                 { key: 'posts',   label: '掲示板',       content: postsJsx },
-                { key: 'referee', label: '審判',         content: preMatchRefereeJsx },
+                { key: 'referee', label: '審判',         content: refereeTabContent },
               ]
+          const preMatchDefaultTab = isPreMatchRefereeAnnounced && refereeHistoryJsx ? 'referee' : undefined
           return (
             <>
               {rankAndRadarJsx}
-              <MatchTabs tabs={preMatchTabs} />
+              <MatchTabs tabs={preMatchTabs} defaultTab={preMatchDefaultTab} />
             </>
           )
         }
