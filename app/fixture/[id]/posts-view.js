@@ -216,14 +216,15 @@ function ReactionPicker({ postId, userId, fixtureId }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
-  // トリガーボタンの中身 (OpenMoji の 1F642 を SVG で表示)
+  // トリガーボタン (OpenMoji 1F642)
+  // 横並びのテキストボタン (fontSize 11) と高さを揃える
   const triggerIcon = (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img
       src={reactionIconSrc('1F642')}
       alt="リアクション"
-      width={20}
-      height={20}
+      width={16}
+      height={16}
       style={{ display: 'block' }}
     />
   )
@@ -236,8 +237,8 @@ function ReactionPicker({ postId, userId, fixtureId }) {
         title="リアクションするにはサインイン"
         style={{
           background: 'none', border: 'none', padding: 0,
-          cursor: 'pointer', textDecoration: 'none', lineHeight: 0,
-          display: 'inline-flex',
+          cursor: 'pointer', textDecoration: 'none',
+          display: 'inline-flex', alignItems: 'center',
         }}
       >
         {triggerIcon}
@@ -246,7 +247,7 @@ function ReactionPicker({ postId, userId, fixtureId }) {
   }
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       <form ref={formRef} action={formAction} style={{ display: 'none' }}>
         <input type="hidden" name="post_id" value={postId} />
         <input type="hidden" name="emoji" value={pickedEmoji ?? ''} />
@@ -258,9 +259,9 @@ function ReactionPicker({ postId, userId, fixtureId }) {
         title="リアクションを追加"
         style={{
           background: 'none', border: 'none', padding: 0,
-          cursor: isPending ? 'wait' : 'pointer', lineHeight: 0,
+          cursor: isPending ? 'wait' : 'pointer',
           opacity: isPending ? 0.5 : 1,
-          display: 'inline-flex',
+          display: 'inline-flex', alignItems: 'center',
         }}
       >
         {triggerIcon}
