@@ -104,7 +104,7 @@ export default function RefereeSection({
         openKey={openKey} setOpenKey={setOpenKey}
       />
       <Column
-        align="right" teamId={awayTeamId} clubColor={awayColor}
+        align="left" teamId={awayTeamId} clubColor={awayColor}
         record={awayRecord} firstMatch={awayFirst} history={awayHistory}
         openKey={openKey} setOpenKey={setOpenKey}
       />

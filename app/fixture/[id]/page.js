@@ -1361,29 +1361,29 @@ export default async function FixturePage({ params }) {
               )}
             </div>
 
-            {/* アウェイ */}
+            {/* アウェイ (ホームと同じ並び:位置→番号→名前→交代/カード) */}
             <div style={{ flex: 1, paddingLeft: 16 }}>
               {/* LINE UP ヘッダー */}
-              <div style={{ backgroundColor: awayColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+              <div style={{ backgroundColor: awayColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
                 <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
               {awayStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
                 const card = cardMap[p.player_id]
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
-                    {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginRight: 4 }}>▼{subOut.elapsed}'</span>}
-                    {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px' }}>YR</span>}
-                    {card?.red > 0 && <><span style={{ fontSize: 9, color: '#e53', marginRight: 2 }}>▼{card.redElapsed}'</span><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2 }} /></>}
-                    <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginRight: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16 }}>{p.number}</span>
-                    <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20 }}>{p.position}</span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20, textAlign: 'right' }}>{p.position}</span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16, textAlign: 'right' }}>{p.number}</span>
+                    <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginLeft: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
+                    {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px', marginLeft: 4 }}>YR</span>}
+                    {card?.red > 0 && <><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2, marginLeft: 4 }} /><span style={{ fontSize: 9, color: '#e53', marginLeft: 2 }}>▼{card.redElapsed}'</span></>}
+                    {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginLeft: 4 }}>▼{subOut.elapsed}'</span>}
                   </div>
                 )
               })}
               {awaySubs.length > 0 && (
                 <>
-                  <div style={{ backgroundColor: awayColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8 }}>
+                  <div style={{ backgroundColor: awayColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
                     <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>BENCH</span>
                   </div>
                   {awaySubs.slice(0, 9).map((p, i) => {
@@ -1391,14 +1391,14 @@ export default async function FixturePage({ params }) {
                     const subOut = subOutMap[p.player_id]
                     const card = cardMap[p.player_id]
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
-                        {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginRight: 4 }}>▼{subOut.elapsed}'</span>}
-                        {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px' }}>YR</span>}
-                        {card?.red > 0 && <><span style={{ fontSize: 9, color: '#e53', marginRight: 2 }}>▼{card.redElapsed}'</span><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2 }} /></>}
-                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginRight: 6 }}>▲{subIn.elapsed}'</span>}
-                        <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginRight: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16 }}>{p.number}</span>
-                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20 }}>{p.position}</span>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', width: 20, textAlign: 'right' }}>{p.position}</span>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 16, textAlign: 'right' }}>{p.number}</span>
+                        <Link href={`/player/${p.player_id}`} style={{ fontSize: 12, color: '#fff', marginLeft: 8, textDecoration: 'none' }}>{p.name_ja ?? p.player_name_en}</Link>
+                        {subIn && <span style={{ fontSize: 9, color: '#5e5', marginLeft: 6 }}>▲{subIn.elapsed}'</span>}
+                        {card?.yellow >= 2 && card?.red === 0 && <span style={{ fontSize: 9, backgroundColor: '#e93', borderRadius: 2, padding: '0 3px', marginLeft: 4 }}>YR</span>}
+                        {card?.red > 0 && <><span style={{ display: 'inline-block', width: 8, height: 11, backgroundColor: '#e53', borderRadius: 2, marginLeft: 4 }} /><span style={{ fontSize: 9, color: '#e53', marginLeft: 2 }}>▼{card.redElapsed}'</span></>}
+                        {subOut && !card?.red && <span style={{ fontSize: 9, color: '#e55', marginLeft: 4 }}>▼{subOut.elapsed}'</span>}
                       </div>
                     )
                   })}
