@@ -298,8 +298,8 @@ export default function ProfileForm({ clubs, profile, next }) {
           </div>
         </Field>
 
-        {/* アイコン */}
-        <Field label="アイコン">
+        {/* アイコン (ラベル無し) */}
+        <div>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 14,
           }}>
@@ -316,14 +316,17 @@ export default function ProfileForm({ clubs, profile, next }) {
             }}>
               {avatarDisplay || '?'}
             </div>
-            {/* テキスト入力 */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* テキスト入力 (2文字幅) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <input
                 type="text"
                 value={avatarText}
                 onChange={e => setAvatarText(e.target.value)}
                 maxLength={2}
-                style={{ ...inputStyle, fontSize: 16, letterSpacing: '0.04em' }}
+                style={{
+                  ...inputStyle, fontSize: 16, letterSpacing: '0.04em',
+                  width: '4em', textAlign: 'center', padding: '6px 8px',
+                }}
               />
               {avatarTextError && (
                 <div style={{
@@ -335,7 +338,7 @@ export default function ProfileForm({ clubs, profile, next }) {
               )}
             </div>
           </div>
-        </Field>
+        </div>
 
         {error && (
           <div style={{
