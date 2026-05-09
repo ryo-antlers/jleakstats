@@ -474,38 +474,42 @@ function PostForm({ fixtureId, parentPostId, userId, hasProfile, profile, compac
         }}
       />
 
+      {/* 文字カウント (textareaの直下) */}
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginTop: 10, gap: 8,
+        marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.35)',
+        textAlign: 'right',
       }}>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
-          {isGuest && <span style={{ marginRight: 8 }}>ログインなし</span>}
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{body.length} / 200</span>
-        </span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              style={ghostBtnStyle}
-            >
-              キャンセル
-            </button>
-          )}
+        {isGuest && <span style={{ marginRight: 8 }}>ログインなし</span>}
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{body.length} / 200</span>
+      </div>
+
+      {/* 送信ボタン行 (キャンセル + 投稿する) — 従来位置 */}
+      <div style={{
+        display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+        marginTop: 10, gap: 6,
+      }}>
+        {onCancel && (
           <button
-            type="submit"
-            disabled={!canSubmit}
-            style={{
-              ...filledBtnStyle,
-              backgroundColor: successFlash ? '#22c55e' : (canSubmit ? '#00ff87' : 'rgba(0,255,135,0.2)'),
-              color: successFlash ? '#fff' : (canSubmit ? '#000' : 'rgba(255,255,255,0.3)'),
-              cursor: canSubmit ? 'pointer' : 'not-allowed',
-              transition: 'background-color 0.2s ease, color 0.2s ease',
-            }}
+            type="button"
+            onClick={onCancel}
+            style={ghostBtnStyle}
           >
-            {successFlash ? '✓ 投稿しました!' : isPending ? '送信中…' : parentPostId ? '返信する' : '投稿する'}
+            キャンセル
           </button>
-        </div>
+        )}
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          style={{
+            ...filledBtnStyle,
+            backgroundColor: successFlash ? '#22c55e' : (canSubmit ? '#00ff87' : 'rgba(0,255,135,0.2)'),
+            color: successFlash ? '#fff' : (canSubmit ? '#000' : 'rgba(255,255,255,0.3)'),
+            cursor: canSubmit ? 'pointer' : 'not-allowed',
+            transition: 'background-color 0.2s ease, color 0.2s ease',
+          }}
+        >
+          {successFlash ? '✓ 投稿しました!' : isPending ? '送信中…' : parentPostId ? '返信する' : '投稿する'}
+        </button>
       </div>
       {state?.error && <div style={errorStyle}>{state.error}</div>}
     </form>
