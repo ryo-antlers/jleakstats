@@ -69,7 +69,12 @@ export default function ProfileForm({ clubs, profile, next }) {
   }
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
-  const [avatarText, setAvatarText] = useState(profile?.avatar_text ?? '')
+  // avatar_text 初期値: 保存済みがあればそれ、なければユーザー名先頭2文字をプレフィル
+  const [avatarText, setAvatarText] = useState(() => {
+    if (profile?.avatar_text) return profile.avatar_text
+    const name = (profile?.display_name ?? '').trim()
+    return [...name].slice(0, 2).join('')
+  })
   const [clubId, setClubId] = useState(profile?.supported_club_id ?? null)
   const [activeTier, setActiveTier] = useState(1)
   const [error, setError] = useState(null)
@@ -320,12 +325,14 @@ export default function ProfileForm({ clubs, profile, next }) {
                 maxLength={2}
                 style={{ ...inputStyle, fontSize: 16, letterSpacing: '0.04em' }}
               />
-              <div style={{
-                fontSize: 9, color: avatarTextError ? '#ef5350' : 'rgba(255,255,255,0.4)',
-                letterSpacing: '0.04em',
-              }}>
-                {avatarTextError ?? '空欄ならユーザー名の先頭2文字 / 1〜2文字で上書き可'}
-              </div>
+              {avatarTextError && (
+                <div style={{
+                  fontSize: 9, color: '#ef5350',
+                  letterSpacing: '0.04em',
+                }}>
+                  {avatarTextError}
+                </div>
+              )}
             </div>
           </div>
         </Field>
