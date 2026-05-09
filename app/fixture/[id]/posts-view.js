@@ -420,7 +420,6 @@ function ReactionBadge({ emoji, count, mine, onToggle }) {
       <button
         type="button"
         onClick={() => onToggle(emoji)}
-        disabled={isPending}
         title={mine ? 'リアクションを取り消す' : 'リアクションする'}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
