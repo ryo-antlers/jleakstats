@@ -22,8 +22,8 @@ export default async function ProfileSetupPage({ searchParams }) {
     sql`
       SELECT id, name_ja, short_name, color_primary, group_name
       FROM teams_master
-      WHERE group_name IN ('EAST', 'WEST')
-      ORDER BY group_name ASC, name_ja ASC
+      WHERE group_name IN ('EAST', 'WEST', 'EAST-A', 'WEST-A', 'EAST-B', 'WEST-B')
+      ORDER BY name_ja ASC
     `,
     sql`
       SELECT display_name, supported_club_id, club_changed_at

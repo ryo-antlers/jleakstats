@@ -890,16 +890,21 @@ export default async function FixturePage({ params }) {
 
   return (
     <>
-    <header style={{
-      position: 'fixed', top: 0, left: 0, right: 0, height: 48,
-      backgroundColor: '#111', borderBottom: '1px solid #222',
-      display: 'flex', alignItems: 'center', paddingLeft: 16, zIndex: 100,
-    }}>
-      <a href="/" style={{ fontSize: 16, fontWeight: 900, color: '#fff', textDecoration: 'none', letterSpacing: '0.05em' }}>
-        J.Leak Stats
-      </a>
-    </header>
-    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 64 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
+
+      {/* サイトロゴ (中央寄せ、トップへ戻る) */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+        <Link href="/" aria-label="トップへ" style={{ display: 'inline-block', lineHeight: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/apple-icon.png"
+            alt="J.Leak Stats"
+            width={36}
+            height={36}
+            style={{ display: 'block', borderRadius: 8 }}
+          />
+        </Link>
+      </div>
 
       {/* カテゴリ・節ラベル（例: J1リーグ 第4節 / 2026.3.7 SAT / 16:03 KO） */}
       {(() => {
@@ -2472,7 +2477,7 @@ export default async function FixturePage({ params }) {
 
         const ratingsJsx = ratingsChartsJsx
 
-        const postsJsx = <PostsSection fixtureId={parseInt(id)} />
+        const postsJsx = <PostsSection fixtureId={parseInt(id)} homeAbbr={fixture.home_abbr} awayAbbr={fixture.away_abbr} />
 
         // 未開催試合: H2H(+データ) / Winner / 選手スタッツ / 掲示板 / 審判
         if (useTabs && !hasStarted) {
