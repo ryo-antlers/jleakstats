@@ -1,7 +1,8 @@
 'use client'
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { submitPost } from './post-actions'
+import { submitPost, toggleReaction } from './post-actions'
+import { REACTION_EMOJIS, reactionIconSrc } from './reaction-emojis'
 
 // 名前からアバター色を生成 (Slack風)
 const AVATAR_COLORS = [
@@ -132,6 +133,7 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
             返信する
           </button>
         )}
+        <ReactionPicker postId={post.id} userId={userId} fixtureId={fixtureId} />
       </div>
 
       {/* 返信展開 */}
@@ -175,6 +177,125 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
             onCancel={() => setReplyMode(false)}
             onSuccess={() => { setReplyMode(false); setExpanded(true) }}
           />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// リアクションピッカー (🙂ボタン → 絵文字一覧をポップオーバー)
+// ─────────────────────────────────────────────
+function ReactionPicker({ postId, userId, fixtureId }) {
+  const [open, setOpen] = useState(false)
+  const [, formAction, isPending] = useActionState(toggleReaction, null)
+  const [pickedEmoji, setPickedEmoji] = useState(null)
+  const formRef = useRef(null)
+  const containerRef = useRef(null)
+
+  // 絵文字クリック → hidden input に値セット → form submit
+  const onPick = (emoji) => {
+    setPickedEmoji(emoji)
+    setOpen(false)
+    // useEffect で submit 発火
+  }
+  useEffect(() => {
+    if (pickedEmoji && formRef.current) {
+      formRef.current.requestSubmit()
+      setPickedEmoji(null)
+    }
+  }, [pickedEmoji])
+
+  // 外側クリックで閉じる
+  useEffect(() => {
+    if (!open) return
+    const onClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [open])
+
+  // 未ログイン: クリックでサインインへ
+  if (!userId) {
+    return (
+      <Link
+        href={`/sign-in?redirect_url=/fixture/${fixtureId}`}
+        title="リアクションするにはサインイン"
+        style={{
+          background: 'none', border: 'none', padding: 0,
+          color: 'rgba(255,255,255,0.4)', fontSize: 14,
+          cursor: 'pointer', textDecoration: 'none', lineHeight: 1,
+        }}
+      >
+        🙂
+      </Link>
+    )
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <form ref={formRef} action={formAction} style={{ display: 'none' }}>
+        <input type="hidden" name="post_id" value={postId} />
+        <input type="hidden" name="emoji" value={pickedEmoji ?? ''} />
+      </form>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        disabled={isPending}
+        title="リアクションを追加"
+        style={{
+          background: 'none', border: 'none', padding: 0,
+          color: 'rgba(255,255,255,0.4)', fontSize: 14,
+          cursor: isPending ? 'wait' : 'pointer', lineHeight: 1,
+          opacity: isPending ? 0.5 : 1,
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+      >
+        🙂
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+            zIndex: 20,
+            backgroundColor: '#1a1a1a',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            padding: 6,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(8, 28px)',
+            gap: 4,
+          }}
+        >
+          {REACTION_EMOJIS.map(emoji => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => onPick(emoji)}
+              title={emoji}
+              style={{
+                width: 28, height: 28, padding: 2,
+                background: 'transparent', border: '1px solid transparent',
+                borderRadius: 4,
+                cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background-color 0.12s ease, border-color 0.12s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.borderColor = 'transparent'
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={reactionIconSrc(emoji)} alt="" width={22} height={22} style={{ display: 'block' }} />
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -257,8 +378,51 @@ function PostCard({ post, rank, isReply }) {
         }}>
           {renderBody(post.body)}
         </div>
+        {/* リアクションバッジ (本文の下) */}
+        {(post.reactions?.length > 0) && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+            {post.reactions.map(r => (
+              <ReactionBadge key={r.emoji} postId={post.id} emoji={r.emoji} count={r.count} mine={r.mine} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// リアクションバッジ (絵文字 × カウント、クリックでトグル)
+// ─────────────────────────────────────────────
+function ReactionBadge({ postId, emoji, count, mine }) {
+  const [, formAction, isPending] = useActionState(toggleReaction, null)
+  return (
+    <form action={formAction} style={{ display: 'inline-flex' }}>
+      <input type="hidden" name="post_id" value={postId} />
+      <input type="hidden" name="emoji" value={emoji} />
+      <button
+        type="submit"
+        disabled={isPending}
+        title={mine ? 'リアクションを取り消す' : 'リアクションする'}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '2px 8px',
+          backgroundColor: mine ? 'rgba(0,255,135,0.12)' : 'rgba(255,255,255,0.05)',
+          border: mine ? '1px solid rgba(0,255,135,0.5)' : '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 12,
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: isPending ? 'wait' : 'pointer',
+          opacity: isPending ? 0.6 : 1,
+          transition: 'background-color 0.15s ease, border-color 0.15s ease',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={reactionIconSrc(emoji)} alt="" width={16} height={16} style={{ display: 'block' }} />
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{count}</span>
+      </button>
+    </form>
   )
 }
 

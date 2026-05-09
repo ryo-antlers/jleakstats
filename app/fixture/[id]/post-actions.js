@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import sql from '@/lib/db'
 import { containsNG } from '@/lib/ng-words'
+import { REACTION_EMOJI_SET } from './reaction-emojis'
 
 /**
  * 掲示板に投稿する Server Action。
@@ -166,5 +167,49 @@ export async function reportPost(_prev, formData) {
     throw err
   }
 
+  return { success: true }
+}
+
+
+/**
+ * 投稿のリアクションをトグルする Server Action。
+ *
+ * 権限:
+ *   - ログインユーザーのみ (ゲスト不可)
+ *   - emoji は REACTION_EMOJIS のいずれかであること
+ *
+ * 既に同じ (post_id, user, emoji) があれば削除、なければ追加。
+ */
+export async function toggleReaction(_prev, formData) {
+  const { userId } = await auth()
+  if (!userId) return { error: 'リアクションにはログインが必要です' }
+
+  const postId = Number(formData.get('post_id'))
+  const emoji = String(formData.get('emoji') ?? '').trim()
+  if (!Number.isFinite(postId) || postId <= 0) return { error: '投稿IDが無効です' }
+  if (!REACTION_EMOJI_SET.has(emoji)) return { error: '無効な絵文字です' }
+
+  // 投稿の存在確認 + fixtureId 取得 (revalidate 用)
+  const posts = await sql`SELECT fixture_id FROM posts WHERE id = ${postId} AND deleted_at IS NULL`
+  if (posts.length === 0) return { error: '投稿が見つかりません' }
+  const fixtureId = posts[0].fixture_id
+
+  const existing = await sql`
+    SELECT 1 FROM post_reactions
+    WHERE post_id = ${postId} AND clerk_user_id = ${userId} AND emoji = ${emoji}
+  `
+  if (existing.length > 0) {
+    await sql`
+      DELETE FROM post_reactions
+      WHERE post_id = ${postId} AND clerk_user_id = ${userId} AND emoji = ${emoji}
+    `
+  } else {
+    await sql`
+      INSERT INTO post_reactions (post_id, clerk_user_id, emoji)
+      VALUES (${postId}, ${userId}, ${emoji})
+    `
+  }
+
+  revalidatePath(`/fixture/${fixtureId}`)
   return { success: true }
 }

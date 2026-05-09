@@ -32,6 +32,13 @@ export default function SiteFooter() {
         </Link>
       </div>
       <div>© 2026 J.Leak Stats · データ提供: API-FOOTBALL</div>
+      <div style={{ marginTop: 4, fontSize: '0.9em', opacity: 0.7 }}>
+        Reaction icons by{' '}
+        <a href="https://openmoji.org/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)' }}>
+          OpenMoji
+        </a>
+        {' '}(CC BY-SA 4.0)
+      </div>
       <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 16 }}>
         <a href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
           プライバシーポリシー

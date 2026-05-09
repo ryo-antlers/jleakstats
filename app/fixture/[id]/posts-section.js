@@ -33,6 +33,31 @@ export default async function PostsSection({ fixtureId, homeAbbr, awayAbbr }) {
     ORDER BY p.created_at ASC
   `
 
+  // リアクション集計 (post_id × emoji ごとに count、自分が押したかも一緒に)
+  const reactionRows = await sql`
+    SELECT
+      pr.post_id,
+      pr.emoji,
+      COUNT(*)::int AS count,
+      BOOL_OR(pr.clerk_user_id = ${userId ?? ''}) AS mine
+    FROM post_reactions pr
+    JOIN posts p ON p.id = pr.post_id
+    WHERE p.fixture_id = ${fixtureId}
+      AND p.deleted_at IS NULL
+    GROUP BY pr.post_id, pr.emoji
+  `
+  // post_id ごとに [{ emoji, count, mine }] にまとめる
+  const reactionsByPost = new Map()
+  for (const r of reactionRows) {
+    const arr = reactionsByPost.get(Number(r.post_id)) ?? []
+    arr.push({ emoji: r.emoji, count: r.count, mine: r.mine })
+    reactionsByPost.set(Number(r.post_id), arr)
+  }
+  // 各 post に reactions を埋め込む
+  for (const p of posts) {
+    p.reactions = reactionsByPost.get(Number(p.id)) ?? []
+  }
+
   let myProfile = null
   if (userId) {
     const rows = await sql`
