@@ -1,7 +1,7 @@
 'use client'
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { submitPost, deletePost, reportPost } from './post-actions'
+import { submitPost } from './post-actions'
 
 // 名前からアバター色を生成 (Slack風)
 const AVATAR_COLORS = [
@@ -184,15 +184,7 @@ function Thread({ post, rank, replies, fixtureId, userId, hasProfile, profile, h
 // ─────────────────────────────────────────────
 // 投稿1件 (アバター + 名前 + 時間 + 本文)
 // ─────────────────────────────────────────────
-function PostCard({ post, rank, fixtureId, userId, isReply }) {
-  const isMine = userId && post.clerk_user_id === userId
-  const [hover, setHover] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [reportMode, setReportMode] = useState(false)
-
-  const [delState, delAction, delPending] = useActionState(deletePost, null)
-  const [repState, repAction, repPending] = useActionState(reportPost, null)
-
+function PostCard({ post, rank, isReply }) {
   const name = post.display_name ?? '名無し'
   // クラブカラー優先、未設定 (ゲスト等) なら名前ハッシュからフォールバック
   const avatarColor = post.club_color || nameToColor(name)
@@ -201,16 +193,11 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
 
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       style={{
         position: 'relative',
         display: 'flex',
-        gap: isReply ? 12 : 12,
+        gap: 12,
         padding: isReply ? '6px 8px' : '10px 8px',
-        backgroundColor: hover ? 'rgba(255,255,255,0.02)' : 'transparent',
-        transition: 'background-color 0.15s ease',
-        borderRadius: 4,
       }}
     >
       {/* アバター (クラブカラー + 名前頭文字) */}
@@ -220,8 +207,6 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: '#fff', fontWeight: 800, fontSize: isReply ? 13 : 16,
         flexShrink: 0,
-        boxShadow: hover ? `0 0 0 2px rgba(0,255,135,0.15)` : 'none',
-        transition: 'box-shadow 0.15s ease',
       }}>
         {initial}
       </div>
@@ -272,106 +257,7 @@ function PostCard({ post, rank, fixtureId, userId, isReply }) {
         }}>
           {renderBody(post.body)}
         </div>
-
-        {/* 通報フォーム */}
-        {reportMode && (
-          <form action={repAction} style={{
-            marginTop: 8, padding: 10,
-            backgroundColor: 'rgba(239,83,80,0.05)',
-            borderLeft: '2px solid #ef5350',
-            display: 'flex', flexDirection: 'column', gap: 6,
-          }}>
-            <input type="hidden" name="post_id" value={post.id} />
-            <input
-              type="text"
-              name="reason"
-              placeholder="通報理由 (任意、500文字以内)"
-              maxLength={500}
-              style={inputStyle}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" disabled={repPending} style={{
-                ...filledBtnStyle,
-                backgroundColor: '#ef5350', color: '#fff',
-              }}>
-                {repPending ? '送信中…' : '通報する'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setReportMode(false)}
-                style={ghostBtnStyle}
-              >
-                キャンセル
-              </button>
-            </div>
-            {repState?.error && <div style={errorStyle}>{repState.error}</div>}
-            {repState?.success && <div style={successStyle}>通報を受け付けました</div>}
-          </form>
-        )}
-        {delState?.error && <div style={errorStyle}>{delState.error}</div>}
       </div>
-
-      {/* ホバー時のアクションメニュー (右上) */}
-      {(hover || menuOpen) && (
-        <div style={{
-          position: 'absolute', top: 6, right: 6,
-        }}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen(v => !v)}
-            style={{
-              width: 24, height: 24, borderRadius: 4,
-              background: 'rgba(0,0,0,0.4)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff', fontSize: 14, fontWeight: 700,
-              cursor: 'pointer', padding: 0, lineHeight: 1,
-            }}
-            aria-label="メニュー"
-          >
-            ⋯
-          </button>
-          {menuOpen && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 4px)', right: 0,
-              minWidth: 140,
-              backgroundColor: '#1a1a1a',
-              border: '1px solid rgba(255,255,255,0.15)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-              zIndex: 10,
-              overflow: 'hidden',
-            }}>
-              {isMine ? (
-                <form action={delAction}>
-                  <input type="hidden" name="post_id" value={post.id} />
-                  <button
-                    type="submit"
-                    disabled={delPending}
-                    style={menuItemStyle}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {delPending ? '削除中…' : '🗑 削除'}
-                  </button>
-                </form>
-              ) : userId ? (
-                <button
-                  type="button"
-                  onClick={() => { setReportMode(true); setMenuOpen(false) }}
-                  style={menuItemStyle}
-                >
-                  ⚠ 通報
-                </button>
-              ) : (
-                <Link
-                  href={`/sign-in?redirect_url=/fixture/${fixtureId}`}
-                  style={{ ...menuItemStyle, display: 'block', textDecoration: 'none' }}
-                >
-                  サインインして通報
-                </Link>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -625,14 +511,6 @@ const ghostBtnStyle = {
   cursor: 'pointer',
 }
 
-const menuItemStyle = {
-  display: 'block', width: '100%', textAlign: 'left',
-  padding: '10px 14px', fontSize: 12,
-  background: 'transparent', border: 'none',
-  color: 'rgba(255,255,255,0.85)',
-  cursor: 'pointer',
-}
-
 const errorStyle = {
   marginTop: 8, fontSize: 11, color: '#ef5350',
   padding: '6px 10px',
@@ -640,9 +518,3 @@ const errorStyle = {
   backgroundColor: 'rgba(239,83,80,0.05)',
 }
 
-const successStyle = {
-  marginTop: 8, fontSize: 11, color: '#00ff87',
-  padding: '6px 10px',
-  borderLeft: '2px solid #00ff87',
-  backgroundColor: 'rgba(0,255,135,0.05)',
-}
