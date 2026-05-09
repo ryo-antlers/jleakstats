@@ -37,30 +37,36 @@ async function fetchTeams() {
 }
 
 async function fetchReferees() {
-  // 各審判の「最新試合のリーグ」で tier を振り分け
-  //   J1 (league_id=1) -> 1, J2=2, J3=3, それ以外(カップ・百年構想)=4
-  // tier ASC, 最新試合 DESC で並べる
+  // 過去1週間以内に担当した審判のみ。J1経験者を上 (tier 1)、それ以外を下 (tier 2) に。
+  // 同 tier 内は「最新担当日」が新しい順。
+  // J1 = league_id 98 (現行) または 1 (歴史データ互換)
   return sql`
-    WITH last_per_ref AS (
-      SELECT DISTINCT ON (referee_ja_official)
+    WITH recent AS (
+      SELECT
         referee_ja_official,
-        league_id AS last_league,
-        date AS last_date
+        CASE WHEN league_id IN (1, 98) THEN 1 ELSE 2 END AS tier,
+        date
       FROM fixtures
       WHERE referee_ja_official IS NOT NULL
         AND referee_ja_official <> ''
-      ORDER BY referee_ja_official, date DESC
+        AND date >= NOW() - INTERVAL '7 days'
+        AND date <= NOW()
+    ),
+    per_ref_tier AS (
+      SELECT referee_ja_official, tier, MAX(date) AS tier_last_date
+      FROM recent
+      GROUP BY referee_ja_official, tier
+    ),
+    best AS (
+      SELECT DISTINCT ON (referee_ja_official)
+        referee_ja_official,
+        tier,
+        tier_last_date AS last_date
+      FROM per_ref_tier
+      ORDER BY referee_ja_official, tier ASC
     )
-    SELECT
-      referee_ja_official,
-      CASE last_league
-        WHEN 1 THEN 1
-        WHEN 2 THEN 2
-        WHEN 3 THEN 3
-        ELSE 4
-      END AS tier,
-      last_date
-    FROM last_per_ref
+    SELECT referee_ja_official, tier, last_date
+    FROM best
     ORDER BY tier ASC, last_date DESC
   `.catch(() => [])
 }
