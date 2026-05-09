@@ -75,7 +75,7 @@ export default async function RatingIndexPage() {
     return (
       <EmptyState
         title="プロフィール未設定"
-        message="表示名と推しクラブを設定してください"
+        message="表示名とあなたのクラブを設定してください"
         actionLabel="設定する"
         actionHref="/profile-setup?next=/rating"
       />
