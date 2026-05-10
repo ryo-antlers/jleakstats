@@ -10,8 +10,12 @@
 //   4. 既存エントリ → alias 更新のみ (Idempotent)
 //   5. 結果を JSON で stdout に出力 (GitHub Actions で email body 用)
 
-import { Pool } from '@neondatabase/serverless'
+import { Pool, neonConfig } from '@neondatabase/serverless'
 import * as cheerio from 'cheerio'
+import ws from 'ws'
+
+// Node.js 環境では WebSocket をパッケージで明示 (GitHub Actions Node 20 で必要)
+neonConfig.webSocketConstructor = ws
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const DRY_RUN = process.argv.includes('--dry-run')

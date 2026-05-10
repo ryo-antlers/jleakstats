@@ -18,9 +18,13 @@
 //      - 20人以上: 即停止 (--force-abolish で強制)
 //   6. JSON サマリ出力 (email body 用)
 
-import { Pool } from '@neondatabase/serverless'
+import { Pool, neonConfig } from '@neondatabase/serverless'
 import { readFileSync, statSync } from 'fs'
 import { createHash } from 'crypto'
+import ws from 'ws'
+
+// Node.js 環境では WebSocket をパッケージで明示
+neonConfig.webSocketConstructor = ws
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const DRY_RUN = process.argv.includes('--dry-run')
