@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "csv:update": "git add data/players-active-2026.csv && git commit -m \"csv: 週次更新 $(date +%Y-%m-%d)\" && git push"
   },
   "dependencies": {
     "@clerk/localizations": "^4.3.2",
