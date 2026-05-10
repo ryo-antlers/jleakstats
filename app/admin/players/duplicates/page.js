@@ -38,25 +38,37 @@ async function getKanjiVariants() {
 }
 
 // ② 同一 name_ja で複数 canonical (active含む)
+// 「全員 dob 違う」グループは別人確定なので除外、
+// 「dob NULL を含む」or「dob 重複あり」グループのみ表示 (要レビュー)
 async function getSameNameMultiCanonical() {
   return await sql`
     WITH canonical_only AS (
       SELECT id, name_ja, team_id, is_active, dob, position
       FROM players_master
       WHERE canonical_id IS NULL OR canonical_id = id
+    ),
+    grouped AS (
+      SELECT
+        name_ja,
+        JSON_AGG(JSON_BUILD_OBJECT(
+          'id', id, 'name_ja', name_ja, 'team_id', team_id,
+          'is_active', is_active, 'dob', dob, 'position', position
+        ) ORDER BY id) AS rows,
+        BOOL_OR(is_active) AS any_active,
+        COUNT(*)::int AS c,
+        COUNT(*) FILTER (WHERE dob IS NULL)::int AS null_dob_count,
+        COUNT(*)::int - COUNT(DISTINCT dob)::int AS dob_dup_signal,
+        COUNT(DISTINCT dob)::int AS distinct_dobs
+      FROM canonical_only
+      WHERE name_ja IS NOT NULL
+      GROUP BY name_ja
+      HAVING COUNT(*) > 1 AND BOOL_OR(is_active) = true
     )
-    SELECT
-      name_ja,
-      JSON_AGG(JSON_BUILD_OBJECT(
-        'id', id, 'name_ja', name_ja, 'team_id', team_id,
-        'is_active', is_active, 'dob', dob, 'position', position
-      ) ORDER BY id) AS rows,
-      BOOL_OR(is_active) AS any_active,
-      COUNT(*)::int AS c
-    FROM canonical_only
-    WHERE name_ja IS NOT NULL
-    GROUP BY name_ja
-    HAVING COUNT(*) > 1 AND BOOL_OR(is_active) = true
+    SELECT name_ja, rows, any_active, c
+    FROM grouped
+    WHERE
+      null_dob_count > 0          -- dob NULL を含む (判定不能)
+      OR distinct_dobs < c         -- dob 重複あり (= 同一人物の疑い)
     ORDER BY c DESC, name_ja
   `.catch(() => [])
 }
