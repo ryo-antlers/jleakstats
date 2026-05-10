@@ -128,6 +128,8 @@ jobs:
           CSV_ABOL="${{ steps.csv.outputs.abolished }}"
           CSV_ERR="${{ steps.csv.outputs.errors }}"
           SFIX_ERR="${{ steps.sfix03.outputs.errors }}"
+          ORPHAN_AUTO="${{ steps.orphans.outputs.auto_linked }}"
+          ORPHAN_PEND="${{ steps.orphans.outputs.pending }}"
 
           # 通知判定
           NEEDS_EMAIL="false"
@@ -140,10 +142,14 @@ jobs:
             NEEDS_EMAIL="true"
             SUBJECT="[J.Leak Stats] ⚠️ 週次同期: 抹消閾値超過で中止 ($CSV_ABOL件)"
           else
-            TOTAL_CHANGES=$((SFIX_NEW_CANO + SFIX_NEW_LINK + CSV_NEW_CANO + CSV_ACTIV + CSV_TRANS + CSV_ABOL))
+            TOTAL_CHANGES=$((SFIX_NEW_CANO + SFIX_NEW_LINK + CSV_NEW_CANO + CSV_ACTIV + CSV_TRANS + CSV_ABOL + ORPHAN_AUTO + ORPHAN_PEND))
             if [ "$TOTAL_CHANGES" -gt 0 ]; then
               NEEDS_EMAIL="true"
-              SUBJECT="[J.Leak Stats] 週次選手同期: 変更 ${TOTAL_CHANGES}件"
+              if [ "$ORPHAN_PEND" -gt 0 ]; then
+                SUBJECT="[J.Leak Stats] 週次選手同期: 変更${TOTAL_CHANGES}件 (要手動解決${ORPHAN_PEND}件)"
+              else
+                SUBJECT="[J.Leak Stats] 週次選手同期: 変更 ${TOTAL_CHANGES}件"
+              fi
             fi
           fi
 
@@ -182,6 +188,15 @@ jobs:
             if [ -n "$TRANSFER_NAMES" ]; then echo "<p>${TRANSFER_NAMES}</p>"; fi
             echo "<li>抹消: ${CSV_ABOL}件 ${ABOLISH_NAMES:+($ABOLISH_NAMES)}</li>"
             echo "<li>エラー: ${CSV_ERR}件</li>"
+            echo "</ul>"
+            echo "<h3>API-Football オーファン紐付け (Phase 8)</h3>"
+            echo "<ul>"
+            echo "<li>自動 link: ${ORPHAN_AUTO}件</li>"
+            if [ "$ORPHAN_PEND" -gt 0 ]; then
+              echo "<li><b style='color:#e67e22;'>手動解決待ち: ${ORPHAN_PEND}件</b> → <a href='https://www.jleakstats.com/admin/players/pending-review'>admin で 7桁ID 入力</a></li>"
+            else
+              echo "<li>手動解決待ち: 0件</li>"
+            fi
             echo "</ul>"
             echo "<p>詳細: <a href='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'>GitHub Actions ログ</a></p>"
             echo "EMAILEOF"
