@@ -343,46 +343,54 @@ function resolveTeamId(name, map) {
   return map.get(key) ?? null
 }
 
-// 9000000+ カスタム選手IDのカウンタ（セッション全体で共有）
+// canonical-aware 選手ID解決のキャッシュ (セッション全体で共有)
+// 10000000+ 新規 canonical ID のカウンタ
 let nextCustomPlayerId = null
 async function ensurePlayerIdCounter() {
   if (nextCustomPlayerId != null) return
+  // 既存 9M+ + 10M+ どちらの最大値より大きい値から採番 (canonical model 統一のため 10M+ レンジ)
   const maxRes = await sql`
-    SELECT COALESCE(MAX(id), 8999999) AS max_id
-    FROM players_master WHERE id >= 9000000
+    SELECT GREATEST(
+      COALESCE((SELECT MAX(id) FROM players_master WHERE id >= 10000000), 9999999),
+      COALESCE((SELECT MAX(id) FROM players_master WHERE id >= 9000000 AND id < 10000000), 9999999)
+    ) AS max_id
   `
   nextCustomPlayerId = Number(maxRes[0].max_id) + 1
 }
 
-// 9000000+ カスタム選手の name_ja → id マップをセッションごとに1回だけロードしてキャッシュ
-// 新規追加時は resolvePlayer 経由でマップにも反映 (loadCustomPlayerCache 直後に同期)
-let customPlayerCache = null
-async function loadCustomPlayerCache() {
-  if (customPlayerCache) return customPlayerCache
-  const rows = await sql`SELECT id, name_ja FROM players_master WHERE id >= 9000000`
-  customPlayerCache = new Map()
-  for (const r of rows) customPlayerCache.set(r.name_ja, r.id)
-  console.log(`[cache] custom players preloaded: ${customPlayerCache.size}件`)
-  return customPlayerCache
-}
-
-// 全players_master の name_ja → [{id, position}] マップ
-// API-Football ID (id<9M) も含めて、移籍時に既存IDを再利用するための検索用
-let globalPlayerCache = null
-async function loadGlobalPlayerCache() {
-  if (globalPlayerCache) return globalPlayerCache
-  const rows = await sql`SELECT id, name_ja, position FROM players_master WHERE name_ja IS NOT NULL`
-  globalPlayerCache = new Map()
+// player_aliases から normalized → Set<canonical_id> マップを構築
+let aliasByNormCache = null
+async function loadAliasByNorm() {
+  if (aliasByNormCache) return aliasByNormCache
+  const rows = await sql`SELECT canonical_id, normalized FROM player_aliases`
+  aliasByNormCache = new Map()
   for (const r of rows) {
-    if (!globalPlayerCache.has(r.name_ja)) globalPlayerCache.set(r.name_ja, [])
-    globalPlayerCache.get(r.name_ja).push({ id: r.id, position: r.position })
+    if (!aliasByNormCache.has(r.normalized)) aliasByNormCache.set(r.normalized, new Set())
+    aliasByNormCache.get(r.normalized).add(r.canonical_id)
   }
-  console.log(`[cache] global players preloaded: ${rows.length}件 (${globalPlayerCache.size} 一意名)`)
-  return globalPlayerCache
+  console.log(`[cache] aliases preloaded: ${rows.length}件 (${aliasByNormCache.size} 一意 normalized)`)
+  return aliasByNormCache
 }
 
-// パイプライン実行中、直前の試合で割当てた選手IDをDB未コミットでも参照できるようにする
-const recentlyAllocatedPlayers = new Map()  // name_ja → id
+// players_master から id → row のマップを構築 (canonical 解決とチーム/ポジション絞込み用)
+let playerByIdCache = null
+async function loadPlayerById() {
+  if (playerByIdCache) return playerByIdCache
+  const rows = await sql`SELECT id, name_ja, team_id, position, canonical_id FROM players_master`
+  playerByIdCache = new Map(rows.map(r => [r.id, r]))
+  console.log(`[cache] players preloaded: ${rows.length}件`)
+  return playerByIdCache
+}
+
+// 名前正規化 (NFKC + 空白/中黒除去 + 小文字化)
+function normalizePlayerName(s) {
+  if (!s) return null
+  return s.normalize('NFKC').replace(/[\s　・]+/g, '').toLowerCase()
+}
+
+// パイプライン実行中、直前の試合で割当てた選手の name → canonical_id を共有
+// (DB未コミットでもセッション内で参照できる)
+const recentlyAllocatedPlayers = new Map()  // normalized → canonical_id
 
 // ─── 試合データを準備（fetch + parse + クエリ構築、DB書き込みは行わない）────
 async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, isCompleted = true }) {
@@ -446,55 +454,70 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, i
     return { dryRun: true, fixtureId, matchCardId, logLines }
   }
 
-  // 選手マップをまとめてプリロード (両チームの既存選手のみ毎回フェッチ; 9000000+ はキャッシュ参照)
+  // canonical-aware キャッシュをロード (起動時1回)
   await ensurePlayerIdCounter()
-  const customMap = await loadCustomPlayerCache()  // 起動時1回だけフェッチ、以降は同じMap参照
-  const globalMap = await loadGlobalPlayerCache()  // 全players_master (API-Football ID含む) name → [{id, position}]
-  const teamRows = await sql`
-    SELECT id, name_ja, team_id FROM players_master
-    WHERE team_id IN (${homeId}, ${awayId})
-  `
-  const playerByTeamName = new Map()  // `${team_id}:${name}` → id
-  const playerByName9M   = new Map(customMap)  // name → id (9000000+ フォールバック; キャッシュをコピーしてローカル変更を許容)
-  for (const r of teamRows) {
-    playerByTeamName.set(`${r.team_id}:${r.name_ja}`, r.id)
-  }
-  // パイプライン前段の試合で割り当てたが未コミットの選手IDをマージ
-  for (const [name, id] of recentlyAllocatedPlayers) {
-    if (!playerByName9M.has(name)) playerByName9M.set(name, id)
-  }
+  const aliasByNorm = await loadAliasByNorm()  // normalized → Set<canonical_id>
+  const playerById = await loadPlayerById()    // id → row
 
-  const newPlayerRows = []
+  // 選手解決: 同名でも canonical で正確に分離、移籍時の重複も防止
+  // 戻り値は canonical_id (alias の生IDではなく)
+  const newPlayerRows = []  // { canonical_id, name, teamId, pos } - 新規 canonical 作成分
   function resolvePlayer(name, teamId, pos) {
     if (!name || !teamId) return null
-    const k = `${teamId}:${name}`
-    // ① 同チーム×名前 完全一致 (最高精度)
-    if (playerByTeamName.has(k)) return playerByTeamName.get(k)
-    // ② 9000000+ カスタムIDキャッシュ (既存ロジック)
-    if (playerByName9M.has(name)) return playerByName9M.get(name)
-    // ③ 移籍時の重複防止: 全DBで name (+ position) 一意一致なら既存IDを再利用
-    //    例: API-Football管理の選手がJ2/J3移籍 → 同名の既存ID (id<9M) を再利用して重複回避
-    const allMatches = globalMap.get(name) ?? []
-    const posMatches = pos ? allMatches.filter(m => m.position === pos) : allMatches
-    const candidates = posMatches.length > 0 ? posMatches : allMatches
-    if (candidates.length === 1) {
-      const reuseId = candidates[0].id
-      playerByTeamName.set(k, reuseId)
-      // 9000000+の場合は既存キャッシュ参照済なので来ないが念のため
-      if (reuseId >= 9000000) playerByName9M.set(name, reuseId)
-      return reuseId
+    const norm = normalizePlayerName(name)
+    if (!norm) return null
+
+    // ① alias テーブルから候補 canonical 取得
+    //    候補は alias の canonical_id だが、後で merge されてる可能性があるので再 canonicalize
+    const aliasMatches = [...(aliasByNorm.get(norm) ?? new Set())]
+    const toCanonical = (id) => playerById.get(id)?.canonical_id ?? id
+    const candidateCanonicals = [...new Set(aliasMatches.map(toCanonical))]
+
+    // ② チーム履歴で絞り込み: alias行の team_id or canonical の team_id が一致
+    const teamMatched = candidateCanonicals.filter(canonical => {
+      // canonical 行自身が同チーム
+      if (playerById.get(canonical)?.team_id === teamId) return true
+      // canonical に紐づく alias 行のいずれかが同チーム
+      return aliasMatches.some(aid => {
+        const pm = playerById.get(aid)
+        return pm && toCanonical(aid) === canonical && pm.team_id === teamId
+      })
+    })
+
+    if (teamMatched.length === 1) return teamMatched[0]
+
+    // ③ team で複数 or 0件 → position で絞り込み (利用可能なら)
+    if (teamMatched.length > 1 && pos) {
+      const posMatched = teamMatched.filter(c => playerById.get(c)?.position === pos)
+      if (posMatched.length === 1) return posMatched[0]
     }
-    // ④ 該当なし or 複数候補で曖昧 → 新規 9000000+ ID 生成
-    const id = nextCustomPlayerId++
-    playerByTeamName.set(k, id)
-    playerByName9M.set(name, id)
-    customMap.set(name, id)  // モジュールキャッシュも同期 (次の試合のために)
-    // globalMap にも追加 (このセッションで以降の resolvePlayer に反映)
-    if (!globalMap.has(name)) globalMap.set(name, [])
-    globalMap.get(name).push({ id, position: pos })
-    recentlyAllocatedPlayers.set(name, id)
-    newPlayerRows.push({ id, name, teamId, pos })
-    return id
+
+    // ④ team match 0件で name 単独一致 → 移籍してきた可能性 (前所属の canonical 再利用)
+    if (teamMatched.length === 0 && candidateCanonicals.length === 1) {
+      return candidateCanonicals[0]
+    }
+
+    // ⑤ team match 0件で複数 + position 絞込み (移籍 + 同姓同名)
+    if (teamMatched.length === 0 && candidateCanonicals.length > 1 && pos) {
+      const posMatched = candidateCanonicals.filter(c => playerById.get(c)?.position === pos)
+      if (posMatched.length === 1) return posMatched[0]
+    }
+
+    // ⑥ パイプライン直前 (DB未コミット) で同名を割り当てた canonical があるか
+    if (recentlyAllocatedPlayers.has(norm)) {
+      return recentlyAllocatedPlayers.get(norm)
+    }
+
+    // ⑦ 完全に新規 → 10000000+ 新規 canonical 採番
+    //    players_master + player_aliases にも登録 (次回マッチで使えるように)
+    const newId = nextCustomPlayerId++
+    newPlayerRows.push({ id: newId, name, teamId, pos, normalized: norm })
+    // ローカルキャッシュにも反映 (このセッションで以降の resolve に効く)
+    playerById.set(newId, { id: newId, name_ja: name, team_id: teamId, position: pos, canonical_id: null })
+    if (!aliasByNorm.has(norm)) aliasByNorm.set(norm, new Set())
+    aliasByNorm.get(norm).add(newId)
+    recentlyAllocatedPlayers.set(norm, newId)
+    return newId
   }
 
   // ─── クエリ構築（JS 側で player_id を全て解決してから並べる）───
@@ -702,11 +725,21 @@ async function prepareMatch(matchCardId, { apply, league, skipDone, broadcast, i
   } // end if (isCompleted)
 
   // 新規選手 INSERT を先頭に挿入（他のINSERT/UPDATEが FK 参照する前にコミットされる必要あり）
-  const playerInserts = newPlayerRows.map(p => sql`
-    INSERT INTO players_master (id, name_ja, team_id, position, updated_at)
-    VALUES (${p.id}, ${p.name}, ${p.teamId}, ${p.pos ?? null}, NOW())
-    ON CONFLICT (id) DO NOTHING
-  `)
+  // canonical-aware: players_master + player_aliases 両方に登録
+  const playerInserts = []
+  for (const p of newPlayerRows) {
+    playerInserts.push(sql`
+      INSERT INTO players_master (id, name_ja, team_id, position, updated_at)
+      VALUES (${p.id}, ${p.name}, ${p.teamId}, ${p.pos ?? null}, NOW())
+      ON CONFLICT (id) DO NOTHING
+    `)
+    // alias も同時登録 (次回スクレイプで同名にヒットさせるため)
+    playerInserts.push(sql`
+      INSERT INTO player_aliases (canonical_id, name_ja, normalized, source)
+      VALUES (${p.id}, ${p.name}, ${p.normalized}, 'jleague-scraper')
+      ON CONFLICT (canonical_id, normalized) DO NOTHING
+    `)
+  }
   const allQueries = [...playerInserts, ...queries]
 
   return { matchCardId, fixtureId, logLines, queries: allQueries, newPlayerCount: newPlayerRows.length }
