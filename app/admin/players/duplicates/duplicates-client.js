@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { mergeCanonicals, skipDuplicate } from './actions'
+import { mergeCanonicals, skipDuplicate, reassignFixtureRecords } from './actions'
 
 const fmtDob = (d) => d ? new Date(new Date(d).getTime() + 9*3600*1000).toISOString().slice(0,10) : '-'
 
@@ -165,30 +165,110 @@ function DuplicateGroup({ rows, teamMap }) {
   )
 }
 
-function MultiTeamGroup({ row, teamMap }) {
-  const teams = (row.team_ids ?? []).map(id => teamMap[id]).filter(Boolean)
+function ReassignRow({ canonicalId, sourcePlayerId, teamId, teamMap, apps, seasons, isCanonicalTeam }) {
+  const [target, setTarget] = useState('')
+  const [pending, startTransition] = useTransition()
+  const [status, setStatus] = useState(null)
+  const team = teamMap[teamId]
+
+  function onReassign() {
+    if (!target.trim() || !/^-?\d+$/.test(target.trim())) {
+      setStatus({ type: 'error', text: 'target id は数字' })
+      return
+    }
+    if (!confirm(`#${sourcePlayerId} の ${team?.short_name ?? teamId} 記録 ${apps}件 を #${target} に reassign しますか?`)) return
+    startTransition(async () => {
+      const res = await reassignFixtureRecords({
+        sourcePlayerId, teamId, targetPlayerId: Number(target.trim()),
+        reason: 'duplicates_admin_reassign',
+      })
+      setStatus(res.ok ? { type: 'ok', text: res.message } : { type: 'error', text: res.error })
+    })
+  }
+
+  return (
+    <div style={{
+      display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px',
+      background: isCanonicalTeam ? 'rgba(61,158,80,0.08)' : 'rgba(0,0,0,0.2)',
+      borderRadius: 4, marginBottom: 4,
+    }}>
+      <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)' }}>
+        #{sourcePlayerId}
+      </span>
+      <span style={{ fontSize: 12, color: team?.color_primary ?? '#ccc', minWidth: 70 }}>
+        {team?.short_name ?? `team_id=${teamId}`}
+      </span>
+      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+        {apps}試合 ({(seasons ?? []).join(',')})
+      </span>
+      {isCanonicalTeam && (
+        <span style={{ fontSize: 9, color: '#3d9e50', padding: '1px 4px', background: 'rgba(61,158,80,0.2)', borderRadius: 2 }}>
+          canonical 所属
+        </span>
+      )}
+      <input
+        type="text"
+        placeholder="target id"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+        style={{
+          width: 90, padding: '4px 6px', fontSize: 11,
+          background: 'rgba(0,0,0,0.4)', color: '#fff',
+          border: '1px solid rgba(255,255,255,0.2)', borderRadius: 3,
+        }}
+        disabled={pending}
+      />
+      <button
+        onClick={onReassign}
+        disabled={pending}
+        style={{
+          padding: '4px 10px', fontSize: 11, background: '#e67e22', color: '#fff',
+          border: 'none', borderRadius: 3, cursor: pending ? 'wait' : 'pointer',
+        }}
+      >
+        reassign
+      </button>
+      {status && (
+        <span style={{ fontSize: 10, color: status.type === 'ok' ? '#3d9e50' : '#e74c3c', maxWidth: 400 }}>
+          {status.text}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function MultiTeamGroup({ canonical, teamMap }) {
+  const canonicalTeam = teamMap[canonical.canonical_team_id]
   return (
     <div style={{ padding: 12, marginBottom: 8, background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>#{row.canonical_id}</span>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>#{canonical.canonical_id}</span>
         <span style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>
-          <Link href={`/player/${row.canonical_id}`} target="_blank" style={{ color: '#fff', textDecoration: 'none' }}>
-            {row.name_ja}
+          <Link href={`/player/${canonical.canonical_id}`} target="_blank" style={{ color: '#fff', textDecoration: 'none' }}>
+            {canonical.name_ja}
           </Link>
         </span>
         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-          {row.position ?? '-'} / dob {fmtDob(row.dob)}
+          現所属: {canonicalTeam?.short_name ?? `team_id=${canonical.canonical_team_id}`}
         </span>
       </div>
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
-        2026 シーズンの所属: {teams.map(t => (
-          <span key={t.id} style={{ display: 'inline-block', padding: '2px 8px', marginRight: 4, background: t.color_primary, color: '#fff', borderRadius: 3 }}>
-            {t.short_name}
-          </span>
+      <div style={{ marginLeft: 12 }}>
+        {canonical.records.map((r, i) => (
+          <ReassignRow
+            key={i}
+            canonicalId={canonical.canonical_id}
+            sourcePlayerId={r.source_player_id}
+            teamId={r.team_id}
+            teamMap={teamMap}
+            apps={r.apps}
+            seasons={r.seasons}
+            isCanonicalTeam={r.team_id === canonical.canonical_team_id}
+          />
         ))}
       </div>
-      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
-        ※ シーズン中の移籍なら正常。別人共有疑いなら split 対応 (Phase 9b 予定、現状は記録のみ)
+      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+        汚染記録 (誤マッチで別人の試合が混入) を target canonical に再割当てできます。
+        移籍が正しい場合は何もしないで OK。
       </p>
     </div>
   )
@@ -247,11 +327,11 @@ export default function DuplicatesClient({ kanjiVariants, sameNameMulti, oneIdMu
       {tab === 'multi-team' && (
         <div>
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>
-            1つの canonical が同シーズン複数チームの fixture_lineups に登場。シーズン中移籍なら正常、
-            別人共有なら split 必要 (現状は記録のみ)。
+            1canonical が複数チームの fixture 記録あり (season≥2024)。シーズン中移籍なら正常、
+            別人の試合が誤って混入してたら reassign で正しい canonical に再割当て。
           </p>
           {oneIdMultiTeams.length === 0 ? <p style={{ color: 'rgba(255,255,255,0.4)' }}>なし 🎉</p> :
-            oneIdMultiTeams.map((row, i) => <MultiTeamGroup key={i} row={row} teamMap={teamMap} />)
+            oneIdMultiTeams.map((c, i) => <MultiTeamGroup key={i} canonical={c} teamMap={teamMap} />)
           }
         </div>
       )}

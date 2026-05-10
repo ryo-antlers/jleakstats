@@ -73,22 +73,66 @@ async function getSameNameMultiCanonical() {
   `.catch(() => [])
 }
 
-// ③ 1ID が同シーズンで複数チーム → in-season 移籍 OR 別人共有疑い
+// ③ 1canonical が複数チームの fixture 記録 → in-season 移籍 OR 別人共有疑い
+//    breakdown を per (raw_player_id, team_id) で取って reassign の対象候補にする
 async function getOneIdMultipleTeams() {
-  return await sql`
-    SELECT
-      COALESCE(pm.canonical_id, pm.id) AS canonical_id,
-      pm.name_ja, pm.dob, pm.position,
-      COUNT(DISTINCT fl.team_id)::int AS distinct_teams,
-      ARRAY_AGG(DISTINCT fl.team_id) AS team_ids
+  // canonicals that have fixture records at multiple teams in season >= 2024
+  const targetCanonicals = await sql`
+    SELECT DISTINCT COALESCE(pm.canonical_id, pm.id) AS canonical_id
     FROM fixture_lineups fl
     JOIN fixtures f ON f.id = fl.fixture_id
     JOIN players_master pm ON pm.id = fl.player_id
-    WHERE f.season = 2026
-    GROUP BY COALESCE(pm.canonical_id, pm.id), pm.name_ja, pm.dob, pm.position
+    WHERE f.season >= 2024
+    GROUP BY COALESCE(pm.canonical_id, pm.id)
     HAVING COUNT(DISTINCT fl.team_id) > 1
-    ORDER BY distinct_teams DESC, canonical_id
   `.catch(() => [])
+
+  if (targetCanonicals.length === 0) return []
+  const ids = targetCanonicals.map(r => r.canonical_id)
+
+  // breakdown
+  const breakdowns = await sql`
+    SELECT
+      COALESCE(pm.canonical_id, pm.id) AS canonical_id,
+      pm.name_ja AS canonical_name,
+      cpm.team_id AS canonical_team_id,
+      fl.player_id AS source_player_id,
+      fl.team_id,
+      COUNT(*)::int AS apps,
+      ARRAY_AGG(DISTINCT f.season ORDER BY f.season) AS seasons,
+      MIN(f.date)::date AS first_match,
+      MAX(f.date)::date AS last_match
+    FROM fixture_lineups fl
+    JOIN fixtures f ON f.id = fl.fixture_id
+    JOIN players_master pm ON pm.id = fl.player_id
+    LEFT JOIN players_master cpm ON cpm.id = COALESCE(pm.canonical_id, pm.id)
+    WHERE f.season >= 2024
+      AND COALESCE(pm.canonical_id, pm.id) = ANY(${ids})
+    GROUP BY canonical_id, pm.name_ja, cpm.team_id, fl.player_id, fl.team_id
+    ORDER BY canonical_id, source_player_id, fl.team_id
+  `.catch(() => [])
+
+  // group by canonical
+  const byCanonical = new Map()
+  for (const r of breakdowns) {
+    if (!byCanonical.has(r.canonical_id)) {
+      byCanonical.set(r.canonical_id, {
+        canonical_id: r.canonical_id,
+        name_ja: r.canonical_name,
+        canonical_team_id: r.canonical_team_id,
+        records: [],
+      })
+    }
+    byCanonical.get(r.canonical_id).records.push({
+      source_player_id: r.source_player_id,
+      team_id: r.team_id,
+      apps: r.apps,
+      seasons: r.seasons,
+      first_match: r.first_match,
+      last_match: r.last_match,
+    })
+  }
+  return [...byCanonical.values()]
 }
 
 // 関連チームの情報を一括取得
@@ -111,7 +155,10 @@ export default async function DuplicatesPage() {
   const allTeamIds = new Set()
   for (const g of kanjiVariants) for (const r of (g.rows ?? [])) if (r.team_id) allTeamIds.add(r.team_id)
   for (const g of sameNameMulti) for (const r of (g.rows ?? [])) if (r.team_id) allTeamIds.add(r.team_id)
-  for (const g of oneIdMultiTeams) for (const t of (g.team_ids ?? [])) if (t) allTeamIds.add(t)
+  for (const c of oneIdMultiTeams) {
+    if (c.canonical_team_id) allTeamIds.add(c.canonical_team_id)
+    for (const r of (c.records ?? [])) if (r.team_id) allTeamIds.add(r.team_id)
+  }
   const teams = await getTeamsByIds([...allTeamIds])
   const teamMap = Object.fromEntries(teams.map(t => [t.id, t]))
 
