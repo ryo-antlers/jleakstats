@@ -10,14 +10,10 @@
 //   4. 既存エントリ → alias 更新のみ (Idempotent)
 //   5. 結果を JSON で stdout に出力 (GitHub Actions で email body 用)
 
-import { Pool, neonConfig } from '@neondatabase/serverless'
+import { neon } from '@neondatabase/serverless'
 import * as cheerio from 'cheerio'
-import ws from 'ws'
 
-// Node.js 環境では WebSocket をパッケージで明示 (GitHub Actions Node 20 で必要)
-neonConfig.webSocketConstructor = ws
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const sql = neon(process.env.DATABASE_URL)
 const DRY_RUN = process.argv.includes('--dry-run')
 
 const NEW_CANONICAL_ID_START = 10_000_000
@@ -80,28 +76,26 @@ console.error(`  ✓ SFIX03 取得: ${sfixPlayers.length}人 (${Date.now() - t0}
 
 // ─── 既存 DB 状態のロード ──────────────────────────
 const existingExtIds = new Set(
-  (await pool.query(`SELECT external_id FROM player_external_ids WHERE source='j-league'`))
-    .rows.map(r => r.external_id)
+  (await sql`SELECT external_id FROM player_external_ids WHERE source='j-league'`)
+    .map(r => r.external_id)
 )
 console.error(`  ✓ 既存紐付け: ${existingExtIds.size}件`)
 
-// 新規 SFIX03 (= 既存 ext_ids にない) のみ抽出
 const newSfix = sfixPlayers.filter(p => !existingExtIds.has(p.jleague_id))
 console.error(`  → 新規候補: ${newSfix.length}件`)
 
 if (newSfix.length === 0) {
   console.error('\n変更なし。終了。')
   console.log(JSON.stringify({
-    summary: { sfix_total: sfixPlayers.length, new_candidates: 0, new_canonicals: 0, new_links: 0 },
+    summary: { sfix_total: sfixPlayers.length, new_candidates: 0, new_canonicals: 0, new_links: 0, errors: 0 },
     new_canonicals: [],
     new_links: [],
   }, null, 2))
-  await pool.end()
   process.exit(0)
 }
 
 // ─── マッチング ────────────────────────────────────
-const teamRows = (await pool.query(`SELECT id, name_ja, short_name, abbr FROM teams_master`)).rows
+const teamRows = await sql`SELECT id, name_ja, short_name, abbr FROM teams_master`
 const teamByNormName = new Map()
 for (const t of teamRows) {
   for (const v of [t.name_ja, t.short_name, t.abbr]) {
@@ -110,17 +104,17 @@ for (const t of teamRows) {
   }
 }
 
-const aliasRows = (await pool.query(`SELECT canonical_id, normalized FROM player_aliases`)).rows
+const aliasRows = await sql`SELECT canonical_id, normalized FROM player_aliases`
 const canonicalsByNorm = new Map()
 for (const r of aliasRows) {
   if (!canonicalsByNorm.has(r.normalized)) canonicalsByNorm.set(r.normalized, new Set())
   canonicalsByNorm.get(r.normalized).add(r.canonical_id)
 }
-const pmRows = (await pool.query(`SELECT id, name_ja, dob, team_id, canonical_id FROM players_master`)).rows
+const pmRows = await sql`SELECT id, name_ja, dob, team_id, canonical_id FROM players_master`
 const playerById = new Map(pmRows.map(r => [r.id, r]))
 
-const maxId = Number((await pool.query(`SELECT COALESCE(MAX(id), ${NEW_CANONICAL_ID_START - 1}) AS m FROM players_master WHERE id >= ${NEW_CANONICAL_ID_START}`)).rows[0].m)
-let nextCanonicalId = maxId + 1
+const maxIdRow = await sql`SELECT COALESCE(MAX(id), ${NEW_CANONICAL_ID_START - 1}) AS m FROM players_master WHERE id >= ${NEW_CANONICAL_ID_START}`
+let nextCanonicalId = Number(maxIdRow[0].m) + 1
 
 const newCanonicals = []
 const newLinks = []
@@ -129,8 +123,6 @@ const errors = []
 for (const sp of newSfix) {
   const teamId = teamByNormName.get(normalize(sp.last_team)) ?? null
   const norm = normalize(sp.name_ja)
-
-  // 候補 canonical 探索
   const aliasMatches = [...(canonicalsByNorm.get(norm) ?? [])]
   const toCanonical = (id) => playerById.get(id)?.canonical_id ?? id
   const candidateCanonicals = [...new Set(aliasMatches.map(toCanonical))]
@@ -138,7 +130,6 @@ for (const sp of newSfix) {
   let canonicalId = null
 
   if (teamId && candidateCanonicals.length > 0) {
-    // チーム一致で絞り込み
     const teamMatched = candidateCanonicals.filter(canonical =>
       aliasMatches.some(aid => {
         const pm = playerById.get(aid)
@@ -159,10 +150,8 @@ for (const sp of newSfix) {
   }
 
   if (!canonicalId && candidateCanonicals.length === 1) {
-    // チーム不明だが name 単独一致 → 移籍/新規ユーザーの可能性
     canonicalId = candidateCanonicals[0]
   } else if (!canonicalId && candidateCanonicals.length > 1 && sp.dob) {
-    // dob で絞り込み
     const dobMatched = candidateCanonicals.filter(c => {
       const pm = playerById.get(c)
       if (!pm?.dob) return false
@@ -177,7 +166,6 @@ for (const sp of newSfix) {
       errors.push({ jleague_id: sp.jleague_id, name: sp.name_ja, reason: `ambiguous (${candidateCanonicals.length}件), pending review` })
       continue
     }
-    // 新規 canonical
     canonicalId = nextCanonicalId++
     newCanonicals.push({
       id: canonicalId,
@@ -214,92 +202,63 @@ const summary = {
 if (DRY_RUN) {
   console.error('\n[DRY-RUN] DB変更なし')
   console.log(JSON.stringify({ summary, new_canonicals: newCanonicals, new_links: newLinks, errors }, null, 2))
-  await pool.end()
   process.exit(0)
 }
 
-// ─── APPLY ────────────────────────────────────────
-const client = await pool.connect()
-try {
-  await client.query('BEGIN')
+// ─── APPLY: sql.transaction で 1 トランザクション ────
+const queries = []
 
-  // (a) 新規 canonical INSERT
-  for (let i = 0; i < newCanonicals.length; i += 200) {
-    const batch = newCanonicals.slice(i, i + 200)
-    const values = []; const params = []
-    for (const c of batch) {
-      const off = params.length
-      values.push(`($${off+1}, $${off+2}, $${off+3}, $${off+4}, $${off+5}, $${off+6}, $${off+7}, false, NOW())`)
-      params.push(c.id, c.name_ja, c.name_en, c.position, c.dob, c.team_id, c.size)
-    }
-    await client.query(
-      `INSERT INTO players_master (id, name_ja, name_en, position, dob, team_id, size, is_active, updated_at)
-       VALUES ${values.join(',')} ON CONFLICT (id) DO NOTHING`,
-      params
-    )
-  }
+// (a) 新規 canonical INSERT (ON CONFLICT DO NOTHING)
+for (const c of newCanonicals) {
+  queries.push(sql`
+    INSERT INTO players_master (id, name_ja, name_en, position, dob, team_id, size, is_active, updated_at)
+    VALUES (${c.id}, ${c.name_ja}, ${c.name_en}, ${c.position}, ${c.dob}, ${c.team_id}, ${c.size}, false, NOW())
+    ON CONFLICT (id) DO NOTHING
+  `)
+}
 
-  // (b) external_ids
-  const allExtInserts = [
-    ...newLinks.map(r => ({ canonical_id: r.canonical_id, jleague_id: r.jleague_id })),
-    ...newCanonicals.map(c => ({ canonical_id: c.id, jleague_id: c.jleague_id })),
-  ]
-  for (let i = 0; i < allExtInserts.length; i += 500) {
-    const batch = allExtInserts.slice(i, i + 500)
-    const values = []; const params = []
-    for (const r of batch) {
-      const off = params.length
-      values.push(`($${off+1}, 'j-league', $${off+2})`)
-      params.push(r.canonical_id, r.jleague_id)
-    }
-    await client.query(
-      `INSERT INTO player_external_ids (canonical_id, source, external_id) VALUES ${values.join(',')}
-       ON CONFLICT (source, external_id) DO NOTHING`, params
-    )
-  }
+// (b) external_ids
+const allExtInserts = [
+  ...newLinks.map(r => ({ canonical_id: r.canonical_id, jleague_id: r.jleague_id })),
+  ...newCanonicals.map(c => ({ canonical_id: c.id, jleague_id: c.jleague_id })),
+]
+for (const r of allExtInserts) {
+  queries.push(sql`
+    INSERT INTO player_external_ids (canonical_id, source, external_id)
+    VALUES (${r.canonical_id}, 'j-league', ${r.jleague_id})
+    ON CONFLICT (source, external_id) DO NOTHING
+  `)
+}
 
-  // (c) aliases
-  const allAliases = []
-  for (const c of newCanonicals) {
-    for (const name of [c.name_ja, ...c.aliases]) {
-      const norm = normalize(name)
-      if (norm) allAliases.push({ canonical_id: c.id, name_ja: name, normalized: norm })
-    }
+// (c) aliases
+const allAliases = []
+for (const c of newCanonicals) {
+  for (const name of [c.name_ja, ...c.aliases]) {
+    const norm = normalize(name)
+    if (norm) allAliases.push({ canonical_id: c.id, name_ja: name, normalized: norm })
   }
-  for (const r of newLinks) {
-    const norm = normalize(r.name_ja)
-    if (norm) allAliases.push({ canonical_id: r.canonical_id, name_ja: r.name_ja, normalized: norm })
-  }
-  for (let i = 0; i < allAliases.length; i += 500) {
-    const batch = allAliases.slice(i, i + 500)
-    const values = []; const params = []
-    for (const a of batch) {
-      const off = params.length
-      values.push(`($${off+1}, $${off+2}, $${off+3}, 'sfix03-weekly')`)
-      params.push(a.canonical_id, a.name_ja, a.normalized)
-    }
-    if (values.length === 0) continue
-    await client.query(
-      `INSERT INTO player_aliases (canonical_id, name_ja, normalized, source) VALUES ${values.join(',')}
-       ON CONFLICT (canonical_id, normalized) DO NOTHING`, params
-    )
-  }
+}
+for (const r of newLinks) {
+  const norm = normalize(r.name_ja)
+  if (norm) allAliases.push({ canonical_id: r.canonical_id, name_ja: r.name_ja, normalized: norm })
+}
+for (const a of allAliases) {
+  queries.push(sql`
+    INSERT INTO player_aliases (canonical_id, name_ja, normalized, source)
+    VALUES (${a.canonical_id}, ${a.name_ja}, ${a.normalized}, 'sfix03-weekly')
+    ON CONFLICT (canonical_id, normalized) DO NOTHING
+  `)
+}
 
-  // (d) audit log
-  await client.query(
-    `INSERT INTO canonical_audit_log (action, payload, actor) VALUES ('weekly_sync_sfix03', $1::jsonb, 'cron')`,
-    [JSON.stringify(summary)]
-  )
+// (d) audit log
+queries.push(sql`
+  INSERT INTO canonical_audit_log (action, payload, actor)
+  VALUES ('weekly_sync_sfix03', ${JSON.stringify(summary)}::jsonb, 'cron')
+`)
 
-  await client.query('COMMIT')
-  console.error('  ✓ COMMIT 成功')
-} catch (e) {
-  await client.query('ROLLBACK')
-  console.error('  ✗ ROLLBACK:', e.message)
-  process.exit(1)
-} finally {
-  client.release()
+if (queries.length > 0) {
+  await sql.transaction(queries)
+  console.error(`  ✓ COMMIT 成功 (${queries.length} queries)`)
 }
 
 console.log(JSON.stringify({ summary, new_canonicals: newCanonicals, new_links: newLinks, errors }, null, 2))
-await pool.end()
