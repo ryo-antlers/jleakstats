@@ -1,0 +1,190 @@
+name: Weekly Player Sync
+
+on:
+  schedule:
+    # 毎日 3am JST = 18:00 UTC (前日)
+    - cron: '0 18 * * *'
+  workflow_dispatch:  # 手動trigger (テスト用)
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ─── SFIX03 同期 (5桁ID) ────────────────────
+      - name: Sync SFIX03
+        id: sfix03
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -o pipefail
+          node scripts/weekly_sync_sfix03.mjs > sfix03_result.json
+          echo "--- SFIX03 sync summary ---"
+          jq '.summary' sfix03_result.json
+
+          NEW_CANONICALS=$(jq -r '.summary.new_canonicals // 0' sfix03_result.json)
+          NEW_LINKS=$(jq -r '.summary.new_links // 0' sfix03_result.json)
+          ERRORS=$(jq -r '.summary.errors // 0' sfix03_result.json)
+          echo "new_canonicals=$NEW_CANONICALS" >> $GITHUB_OUTPUT
+          echo "new_links=$NEW_LINKS" >> $GITHUB_OUTPUT
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+
+      # ─── CSV 同期 (7桁ID + activeマーキング) ──────
+      - name: Sync CSV
+        id: csv
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -o pipefail
+          # スクリプトは exit 2 を「抹消閾値超過 abort」、exit 1 を「障害」、exit 0 を「正常」にしている
+          set +e
+          node scripts/weekly_sync_csv.mjs > csv_result.json
+          EXIT_CODE=$?
+          set -e
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+          if [ ! -s csv_result.json ]; then
+            echo '{"summary":{"error":"no_output"}}' > csv_result.json
+          fi
+
+          echo "--- CSV sync summary ---"
+          jq '.summary' csv_result.json || echo "(JSON parse failed)"
+
+          NEW_CANONICALS=$(jq -r '.summary.new_canonicals // 0' csv_result.json)
+          ACTIVATIONS=$(jq -r '.summary.activations // 0' csv_result.json)
+          TRANSFERS=$(jq -r '.summary.transfers // 0' csv_result.json)
+          ABOLISHED=$(jq -r '.summary.abolished // 0' csv_result.json)
+          ABORTED=$(jq -r '.summary.aborted // false' csv_result.json)
+          SKIPPED=$(jq -r '.summary.skipped // false' csv_result.json)
+          ERRORS=$(jq -r '.summary.errors // 0' csv_result.json)
+
+          echo "new_canonicals=$NEW_CANONICALS" >> $GITHUB_OUTPUT
+          echo "activations=$ACTIVATIONS" >> $GITHUB_OUTPUT
+          echo "transfers=$TRANSFERS" >> $GITHUB_OUTPUT
+          echo "abolished=$ABOLISHED" >> $GITHUB_OUTPUT
+          echo "aborted=$ABORTED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+
+          # exit 2 (abort) でも email 送信のため、ここでは exit しない
+          # ただし unexpected error (exit code 1 や その他) は失敗扱い
+          if [ "$EXIT_CODE" -ne 0 ] && [ "$EXIT_CODE" -ne 2 ]; then
+            exit $EXIT_CODE
+          fi
+
+      # ─── メール本文を組み立て ────────────────────
+      - name: Build email
+        id: email
+        if: always()
+        run: |
+          ABORTED="${{ steps.csv.outputs.aborted }}"
+          SKIPPED="${{ steps.csv.outputs.skipped }}"
+          SFIX_NEW_CANO="${{ steps.sfix03.outputs.new_canonicals }}"
+          SFIX_NEW_LINK="${{ steps.sfix03.outputs.new_links }}"
+          CSV_NEW_CANO="${{ steps.csv.outputs.new_canonicals }}"
+          CSV_ACTIV="${{ steps.csv.outputs.activations }}"
+          CSV_TRANS="${{ steps.csv.outputs.transfers }}"
+          CSV_ABOL="${{ steps.csv.outputs.abolished }}"
+          CSV_ERR="${{ steps.csv.outputs.errors }}"
+          SFIX_ERR="${{ steps.sfix03.outputs.errors }}"
+
+          # 通知判定
+          NEEDS_EMAIL="false"
+          SUBJECT=""
+
+          if [ "${{ job.status }}" = "failure" ] || [ "${{ steps.csv.outputs.exit_code }}" = "1" ]; then
+            NEEDS_EMAIL="true"
+            SUBJECT="[J.Leak Stats] ⚠️ 週次同期エラー"
+          elif [ "$ABORTED" = "true" ]; then
+            NEEDS_EMAIL="true"
+            SUBJECT="[J.Leak Stats] ⚠️ 週次同期: 抹消閾値超過で中止 ($CSV_ABOL件)"
+          else
+            TOTAL_CHANGES=$((SFIX_NEW_CANO + SFIX_NEW_LINK + CSV_NEW_CANO + CSV_ACTIV + CSV_TRANS + CSV_ABOL))
+            if [ "$TOTAL_CHANGES" -gt 0 ]; then
+              NEEDS_EMAIL="true"
+              SUBJECT="[J.Leak Stats] 週次選手同期: 変更 ${TOTAL_CHANGES}件"
+            fi
+          fi
+
+          echo "needs_email=$NEEDS_EMAIL" >> $GITHUB_OUTPUT
+          echo "subject=$SUBJECT" >> $GITHUB_OUTPUT
+
+          # 本文 (HTML)
+          NEW_CANONICAL_NAMES=$(jq -r '[.new_canonicals[]?.name_ja] | .[0:10] | join(", ")' csv_result.json 2>/dev/null || echo "")
+          TRANSFER_NAMES=$(jq -r '[.transfers[]? | "\(.name_ja) → team \(.to_team_id)"] | .[0:10] | join("<br>")' csv_result.json 2>/dev/null || echo "")
+          ABOLISH_NAMES=$(jq -r '[.abolishCandidates[]?.name_ja] | .[0:10] | join(", ")' csv_result.json 2>/dev/null || echo "")
+          SFIX_NEW_NAMES=$(jq -r '[.new_canonicals[]?.name_ja] | .[0:10] | join(", ")' sfix03_result.json 2>/dev/null || echo "")
+
+          {
+            echo "body<<EMAILEOF"
+            echo "<h2>週次選手同期レポート</h2>"
+            echo "<p>実行: $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')</p>"
+            if [ "$SKIPPED" = "true" ]; then
+              echo "<p>CSV 変更なし (スキップ)</p>"
+            fi
+            if [ "$ABORTED" = "true" ]; then
+              echo "<p style='color:red;'><b>⚠️ 抹消候補が ${CSV_ABOL}件 (閾値超過) のため CSV同期を中止</b></p>"
+              echo "<p>CSV 破損の疑い。ログを確認の上、問題なければ手動で:<br>"
+              echo "<code>node --env-file=.env.local scripts/weekly_sync_csv.mjs --force-abolish --apply</code></p>"
+            fi
+            echo "<h3>SFIX03 (5桁ID)</h3>"
+            echo "<ul>"
+            echo "<li>新規 canonical: ${SFIX_NEW_CANO}件 ${SFIX_NEW_NAMES:+($SFIX_NEW_NAMES)}</li>"
+            echo "<li>新規紐付け: ${SFIX_NEW_LINK}件</li>"
+            echo "<li>エラー: ${SFIX_ERR}件</li>"
+            echo "</ul>"
+            echo "<h3>CSV (7桁ID + activeマーキング)</h3>"
+            echo "<ul>"
+            echo "<li>新規 canonical: ${CSV_NEW_CANO}件 ${NEW_CANONICAL_NAMES:+($NEW_CANONICAL_NAMES)}</li>"
+            echo "<li>activations (新加入/復帰): ${CSV_ACTIV}件</li>"
+            echo "<li>transfers (移籍): ${CSV_TRANS}件</li>"
+            if [ -n "$TRANSFER_NAMES" ]; then echo "<p>${TRANSFER_NAMES}</p>"; fi
+            echo "<li>抹消: ${CSV_ABOL}件 ${ABOLISH_NAMES:+($ABOLISH_NAMES)}</li>"
+            echo "<li>エラー: ${CSV_ERR}件</li>"
+            echo "</ul>"
+            echo "<p>詳細: <a href='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'>GitHub Actions ログ</a></p>"
+            echo "EMAILEOF"
+          } >> $GITHUB_OUTPUT
+
+      # ─── メール送信 (変更があった時のみ) ──────────
+      - name: Send notification email
+        if: steps.email.outputs.needs_email == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASS }}
+          subject: ${{ steps.email.outputs.subject }}
+          to: ${{ secrets.GMAIL_USER }}
+          from: J.Leak Stats Bot <${{ secrets.GMAIL_USER }}>
+          html_body: ${{ steps.email.outputs.body }}
+
+      # ─── 失敗時 (Step 自体エラー) も通知 ──────────
+      - name: Send failure email
+        if: failure() && steps.email.outputs.needs_email != 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASS }}
+          subject: '[J.Leak Stats] ⚠️ 週次同期 障害'
+          to: ${{ secrets.GMAIL_USER }}
+          from: J.Leak Stats Bot <${{ secrets.GMAIL_USER }}>
+          body: |
+            週次同期 GitHub Actions が失敗しました。
+            ログ: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
