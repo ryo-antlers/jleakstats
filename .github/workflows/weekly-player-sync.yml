@@ -87,6 +87,32 @@ jobs:
             exit $EXIT_CODE
           fi
 
+      # ─── API-Football オーファン紐付け (Phase 8) ────
+      - name: Link API-Football orphans
+        id: orphans
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: |
+          set -o pipefail
+          set +e
+          node scripts/link_api_football_orphans.mjs > orphan_result.json
+          EXIT_CODE=$?
+          set -e
+
+          if [ ! -s orphan_result.json ]; then
+            echo '{"summary":{"orphans":0,"auto_linked":0,"pending":0}}' > orphan_result.json
+          fi
+
+          jq '.summary' orphan_result.json || echo "(JSON parse failed)"
+
+          AUTO_LINKED=$(jq -r '.summary.auto_linked // 0' orphan_result.json)
+          PENDING=$(jq -r '.summary.pending // 0' orphan_result.json)
+          ORPHANS=$(jq -r '.summary.orphans // 0' orphan_result.json)
+          echo "auto_linked=$AUTO_LINKED" >> $GITHUB_OUTPUT
+          echo "pending=$PENDING" >> $GITHUB_OUTPUT
+          echo "orphans=$ORPHANS" >> $GITHUB_OUTPUT
+
       # ─── メール本文を組み立て ────────────────────
       - name: Build email
         id: email
