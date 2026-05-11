@@ -83,24 +83,6 @@ async function getPlayerCareer(canonicalId) {
   `.catch(() => [])
 }
 
-// 全出場試合リスト（全出場タブ用）
-async function getPlayerAppearances(playerIds) {
-  return await sql`
-    SELECT
-      fl.fixture_id, fl.team_id, fl.is_starter, fl.position, fl.number,
-      f.season, f.date, f.league_id, f.home_team_id, f.away_team_id,
-      f.home_score, f.away_score, f.home_penalty, f.away_penalty, f.status,
-      ht.name_ja AS home, ht.abbr AS home_abbr, ht.color_primary AS home_color,
-      at.name_ja AS away, at.abbr AS away_abbr, at.color_primary AS away_color
-    FROM fixture_lineups fl
-    JOIN fixtures f ON fl.fixture_id = f.id
-    LEFT JOIN teams_master ht ON f.home_team_id = ht.id
-    LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE fl.player_id = ANY(${playerIds})
-    ORDER BY f.date DESC
-  `.catch(() => [])
-}
-
 // 全ゴールイベント（ゴールタブ用、OGは除外）
 async function getPlayerGoals(playerIds) {
   return await sql`
@@ -228,12 +210,11 @@ export default async function PlayerPage({ params }) {
   if (!player) notFound()
   // canonical 解決: alias URL でも全 alias の記録を統合
   const { ids: playerIds, canonicalId: playerId } = await resolveCanonicalPlayerIds(urlPlayerId)
-  const [matches, teamStats, gwPoints, career, appearances, goals] = await Promise.all([
+  const [matches, teamStats, gwPoints, career, goals] = await Promise.all([
     getPlayerMatches(playerIds),
     getTeamPlayersStats(player.team_id),
     getPlayerGwPoints(playerIds),
     getPlayerCareer(playerId),
-    getPlayerAppearances(playerIds),
     getPlayerGoals(playerIds),
   ])
   const gwMap = new Map(gwPoints.map(g => [g.gw_number, Number(g.points)]))
@@ -513,67 +494,6 @@ export default async function PlayerPage({ params }) {
     </div>
   ) : null
 
-  // === 全出場タブ ===
-  const appearancesJsx = appearances.length > 0 ? (
-    <div style={{ marginBottom: 40 }}>
-      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: 12 }}>
-        ALL APPEARANCES ({appearances.length})
-      </p>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%', whiteSpace: 'nowrap' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <th style={thStyle('left')}>DATE</th>
-              <th style={thStyle()}>H/A</th>
-              <th style={thStyle('left')}>OPP</th>
-              <th style={thStyle()}>SCORE</th>
-              <th style={thStyle()}>START</th>
-              <th style={thStyle()}>POS</th>
-              <th style={thStyle()}>#</th>
-            </tr>
-          </thead>
-          <tbody>
-            {appearances.map((m, i) => {
-              const isHome = Number(m.home_team_id) === Number(m.team_id)
-              const myScore = isHome ? Number(m.home_score) : Number(m.away_score)
-              const oppScore = isHome ? Number(m.away_score) : Number(m.home_score)
-              const isPK = m.status === 'PEN' && m.home_penalty != null
-              const result = myScore > oppScore ? 'W' : myScore < oppScore ? 'L'
-                : isPK ? ((isHome ? m.home_penalty : m.away_penalty) > (isHome ? m.away_penalty : m.home_penalty) ? 'W' : 'L') : 'D'
-              const oppName = isHome ? m.away : m.home
-              const oppColor = isHome ? m.away_color : m.home_color
-              const oppId = isHome ? m.away_team_id : m.home_team_id
-              const d = new Date(m.date)
-              const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`
-              const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'
-              const resultColor = result === 'W' ? '#3d9e50' : result === 'L' ? '#666' : '#888'
-              return (
-                <tr key={m.fixture_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: rowBg }}>
-                  <td style={{ padding: '6px 8px', color: 'rgba(255,255,255,0.6)' }}>{dateStr}</td>
-                  <td style={tdStyle()}>{isHome ? 'H' : 'A'}</td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <Link href={`/team/${oppId}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: oppColor ?? '#555', flexShrink: 0 }} />
-                      <span style={{ color: '#fff' }}>{oppName}</span>
-                    </Link>
-                  </td>
-                  <td style={tdStyle()}>
-                    <Link href={`/fixture/${m.fixture_id}`} style={{ textDecoration: 'none', color: resultColor, fontWeight: 700 }}>
-                      {myScore}-{oppScore}{isPK ? ' (PK)' : ''}
-                    </Link>
-                  </td>
-                  <td style={tdStyle()}>{m.is_starter ? '●' : '○'}</td>
-                  <td style={tdStyle()}>{m.position ?? '-'}</td>
-                  <td style={tdStyle()}>{m.number ?? '-'}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  ) : null
-
   // === ゴールタブ ===
   const goalsJsx = goals.length > 0 ? (
     <div style={{ marginBottom: 40 }}>
@@ -637,10 +557,9 @@ export default async function PlayerPage({ params }) {
 
       <PlayerTabs
         tabs={[
-          { key: 'current',     label: '今季',   content: current2026Jsx },
-          { key: 'career',      label: '経歴',   content: careerJsx },
-          { key: 'appearances', label: '全出場', content: appearancesJsx },
-          { key: 'goals',       label: 'ゴール', content: goalsJsx },
+          { key: 'current', label: '今季',   content: current2026Jsx },
+          { key: 'career',  label: '経歴',   content: careerJsx },
+          { key: 'goals',   label: 'ゴール', content: goalsJsx },
         ]}
         defaultKey={matches.length > 0 ? 'current' : 'career'}
       />
