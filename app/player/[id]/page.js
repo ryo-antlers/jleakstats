@@ -74,12 +74,14 @@ async function getPlayerGwPoints(playerIds) {
 async function getPlayerCareer(canonicalId) {
   return await sql`
     SELECT
-      season, season_year, team_name_sfix, team_id, league,
-      league_apps, league_goals,
-      cs_league_apps, cs_league_goals
-    FROM player_career_summary
-    WHERE canonical_id = ${canonicalId}
-    ORDER BY season_year DESC, league
+      pcs.season, pcs.season_year, pcs.team_name_sfix, pcs.team_id, pcs.league,
+      pcs.league_apps, pcs.league_goals,
+      pcs.cs_league_apps, pcs.cs_league_goals,
+      tm.color_primary AS team_color
+    FROM player_career_summary pcs
+    LEFT JOIN teams_master tm ON pcs.team_id = tm.id
+    WHERE pcs.canonical_id = ${canonicalId}
+    ORDER BY pcs.season_year DESC, pcs.league
   `.catch(() => [])
 }
 
@@ -482,7 +484,16 @@ export default async function PlayerPage({ params }) {
             return (
               <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td style={{ padding: '8px', color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>{seasonLabel}</td>
-                <td style={{ padding: '8px', color: '#fff' }}>{c.team_name_sfix}</td>
+                <td style={{ padding: '8px' }}>
+                  {c.team_id ? (
+                    <Link href={`/team/${c.team_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.team_color ?? '#555' }} />
+                      <span style={{ color: '#fff' }}>{c.team_name_sfix}</span>
+                    </Link>
+                  ) : (
+                    <span style={{ color: '#fff' }}>{c.team_name_sfix}</span>
+                  )}
+                </td>
                 <td style={tdStyle('rgba(255,255,255,0.6)')}>{c.league}</td>
                 <td style={tdStyle('rgba(255,255,255,0.8)')}>{apps != null ? apps : '-'}</td>
                 <td style={tdStyle(goals > 0 ? '#3d9e50' : undefined, goals > 0)}>{goals != null && goals > 0 ? goals : '-'}</td>
