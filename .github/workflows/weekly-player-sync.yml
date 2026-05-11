@@ -5,10 +5,6 @@ on:
     # 毎日 3am JST = 18:00 UTC (前日)
     - cron: '0 18 * * *'
   workflow_dispatch:  # 手動trigger (テスト用)
-  push:
-    branches: [main]
-    paths:
-      - 'data/players-active-2026.csv'  # CSV更新で即座に同期
 
 jobs:
   sync:
@@ -44,8 +40,10 @@ jobs:
           echo "new_links=$NEW_LINKS" >> $GITHUB_OUTPUT
           echo "errors=$ERRORS" >> $GITHUB_OUTPUT
 
-      # ─── CSV 同期 (7桁ID + activeマーキング) ──────
-      - name: Sync CSV
+      # ─── jleague.jp API 同期 (7桁ID + activeマーキング) ─
+      # 旧 CSV ベース sync (weekly_sync_csv.mjs) を置き換え、
+      # data/players-active-2026.csv の手動更新不要に
+      - name: Sync jleague API
         id: csv
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -53,7 +51,7 @@ jobs:
           set -o pipefail
           # スクリプトは exit 2 を「抹消閾値超過 abort」、exit 1 を「障害」、exit 0 を「正常」にしている
           set +e
-          node scripts/weekly_sync_csv.mjs > csv_result.json
+          node scripts/weekly_sync_jleague_active.mjs > csv_result.json
           EXIT_CODE=$?
           set -e
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
@@ -62,7 +60,7 @@ jobs:
             echo '{"summary":{"error":"no_output"}}' > csv_result.json
           fi
 
-          echo "--- CSV sync summary ---"
+          echo "--- jleague API sync summary ---"
           jq '.summary' csv_result.json || echo "(JSON parse failed)"
 
           NEW_CANONICALS=$(jq -r '.summary.new_canonicals // 0' csv_result.json)
