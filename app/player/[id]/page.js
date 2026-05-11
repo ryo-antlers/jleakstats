@@ -69,34 +69,17 @@ async function getPlayerGwPoints(playerIds) {
   `.catch(() => [])
 }
 
-// シーズン × チーム単位で出場数・先発数・ゴール数を集計（キャリア経歴タブ用）
-// canonical 経由で全 alias IDs を統合 (移籍前後の別IDも合算)
-async function getPlayerCareer(playerIds) {
+// SFIX04 由来の年度別経歴 (player_career_summary)
+// 2026特別シーズンは cs_league (百年構想L) を出場/得点として扱う
+async function getPlayerCareer(canonicalId) {
   return await sql`
     SELECT
-      f.season,
-      fl.team_id,
-      tm.name_ja AS team_name,
-      tm.color_primary AS team_color,
-      tm.abbr AS team_abbr,
-      COUNT(*)::int AS apps,
-      COUNT(*) FILTER (WHERE fl.is_starter)::int AS starts,
-      (
-        SELECT COUNT(*)::int FROM fixture_events fe
-        WHERE fe.player_id = ANY(${playerIds})
-          AND fe.team_id = fl.team_id
-          AND fe.type = 'Goal'
-          AND fe.detail <> 'Own Goal'
-          AND fe.fixture_id IN (
-            SELECT f2.id FROM fixtures f2 WHERE f2.season = f.season
-          )
-      ) AS goals
-    FROM fixture_lineups fl
-    JOIN fixtures f ON fl.fixture_id = f.id
-    LEFT JOIN teams_master tm ON fl.team_id = tm.id
-    WHERE fl.player_id = ANY(${playerIds})
-    GROUP BY f.season, fl.team_id, tm.name_ja, tm.color_primary, tm.abbr
-    ORDER BY f.season DESC, fl.team_id
+      season, season_year, team_name_sfix, team_id, league,
+      league_apps, league_goals,
+      cs_league_apps, cs_league_goals
+    FROM player_career_summary
+    WHERE canonical_id = ${canonicalId}
+    ORDER BY season_year DESC, league
   `.catch(() => [])
 }
 
@@ -249,7 +232,7 @@ export default async function PlayerPage({ params }) {
     getPlayerMatches(playerIds),
     getTeamPlayersStats(player.team_id),
     getPlayerGwPoints(playerIds),
-    getPlayerCareer(playerIds),
+    getPlayerCareer(playerId),
     getPlayerAppearances(playerIds),
     getPlayerGoals(playerIds),
   ])
@@ -495,7 +478,8 @@ export default async function PlayerPage({ params }) {
     </>
   ) : null
 
-  // === 経歴タブ: シーズン×チーム単位の集計 ===
+  // === 経歴タブ: SFIX04 年度別 (リーグ戦) ===
+  // 2026特別シーズンは 百年構想L の出場/得点を使い、SEASON 表示も「百年構想」に置換
   const careerJsx = career.length > 0 ? (
     <div style={{ overflowX: 'auto', marginBottom: 40 }}>
       <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
@@ -503,26 +487,27 @@ export default async function PlayerPage({ params }) {
           <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
             <th style={thStyle('left')}>SEASON</th>
             <th style={thStyle('left')}>TEAM</th>
+            <th style={thStyle()}>LEAGUE</th>
             <th style={thStyle()}>GAMES</th>
-            <th style={thStyle()}>START</th>
             <th style={thStyle()}>G</th>
           </tr>
         </thead>
         <tbody>
-          {career.map((c, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <td style={{ padding: '8px', color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>{c.season}</td>
-              <td style={{ padding: '8px' }}>
-                <Link href={`/team/${c.team_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c.team_color ?? '#555' }} />
-                  <span style={{ color: '#fff' }}>{c.team_name ?? `Team #${c.team_id}`}</span>
-                </Link>
-              </td>
-              <td style={tdStyle('rgba(255,255,255,0.8)')}>{c.apps}</td>
-              <td style={tdStyle()}>{c.starts}</td>
-              <td style={tdStyle(c.goals > 0 ? '#3d9e50' : undefined, c.goals > 0)}>{c.goals > 0 ? c.goals : '-'}</td>
-            </tr>
-          ))}
+          {career.map((c, i) => {
+            const isSpecial = c.season === '2026特別'
+            const seasonLabel = isSpecial ? '百年構想' : c.season
+            const apps = isSpecial ? c.cs_league_apps : c.league_apps
+            const goals = isSpecial ? c.cs_league_goals : c.league_goals
+            return (
+              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <td style={{ padding: '8px', color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>{seasonLabel}</td>
+                <td style={{ padding: '8px', color: '#fff' }}>{c.team_name_sfix}</td>
+                <td style={tdStyle('rgba(255,255,255,0.6)')}>{c.league}</td>
+                <td style={tdStyle('rgba(255,255,255,0.8)')}>{apps != null ? apps : '-'}</td>
+                <td style={tdStyle(goals > 0 ? '#3d9e50' : undefined, goals > 0)}>{goals != null && goals > 0 ? goals : '-'}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
