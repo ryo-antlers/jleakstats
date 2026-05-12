@@ -15,7 +15,17 @@ export default function PrivacyPage() {
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>2. 広告について</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>2. 運営者情報</h2>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
+          当サイトは個人によって運営されているJリーグファンサイトです。公益社団法人日本プロサッカーリーグ（Jリーグ）および各クラブとは一切関係ありません。
+        </p>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 8 }}>
+          ご連絡は<a href="/contact" style={{ color: 'var(--accent)' }}>お問い合わせページ</a>よりお願いします。
+        </p>
+      </section>
+
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>3. 広告について</h2>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
           当サイトはGoogle AdSenseを利用しており、Googleおよびそのパートナーが広告の配信に際してCookieを使用することがあります。Cookieを使用することにより、ユーザーが当サイトや他のサイトを訪れた際の情報に基づいて適切な広告が表示されます。
         </p>
@@ -25,28 +35,28 @@ export default function PrivacyPage() {
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>3. アクセス解析</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>4. アクセス解析</h2>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
           当サイトはアクセス解析ツールを使用することがあります。これらのツールはトラフィックデータの収集のためにCookieを使用しますが、個人を特定する情報は含まれません。
         </p>
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>4. 免責事項</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>5. 免責事項</h2>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
           当サイトに掲載する情報は可能な限り正確を期していますが、その正確性・完全性を保証するものではありません。当サイトの情報を利用したことによって生じるいかなる損害についても、当サイトは責任を負いかねます。
         </p>
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>5. 著作権</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>6. 著作権</h2>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
           当サイトに掲載されているコンテンツの著作権は当サイトに帰属します。無断転載・複製を禁じます。試合データはAPI-FOOTBALLより提供されています。
         </p>
       </section>
 
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>6. お問い合わせ</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.7)' }}>7. お問い合わせ</h2>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
           本ポリシーに関するお問い合わせは<a href="/contact" style={{ color: 'var(--accent)' }}>お問い合わせページ</a>よりご連絡ください。
         </p>
