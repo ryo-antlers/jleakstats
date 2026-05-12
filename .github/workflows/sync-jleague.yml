@@ -8,7 +8,7 @@ name: Sync J-League Official Records
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # 15分ごと
+    - cron: '*/10 * * * *'  # 10分ごと
   workflow_dispatch:           # 手動実行も可能
 
 jobs:
