@@ -318,6 +318,32 @@ async function getExactScoreOdds(fixtureId) {
   return rows
 }
 
+// 選手別のユーザー採点平均と件数
+async function getUserRatings(fixtureId) {
+  return await sql`
+    SELECT player_id,
+      ROUND(AVG(score)::numeric, 1) AS avg_score,
+      COUNT(*) FILTER (WHERE NOT skipped)::int AS rate_count
+    FROM ratings
+    WHERE fixture_id = ${fixtureId}
+      AND skipped = false
+      AND score IS NOT NULL
+    GROUP BY player_id
+  `.catch(() => [])
+}
+
+// チーム単位のユニーク採点者数 (採点したことがあるユーザー数)
+async function getUserRaterCounts(fixtureId) {
+  return await sql`
+    SELECT fl.team_id, COUNT(DISTINCT r.clerk_user_id)::int AS rater_count
+    FROM ratings r
+    JOIN fixture_lineups fl
+      ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
+    WHERE r.fixture_id = ${fixtureId}
+    GROUP BY fl.team_id
+  `.catch(() => [])
+}
+
 
 async function getRefereeAliases(refereeEn) {
   if (!refereeEn) return [refereeEn]
@@ -745,6 +771,125 @@ function StatBar({ label, homeVal, awayVal, homeColor, awayColor }) {
   )
 }
 
+// ユーザー採点タブ - チーム1列分 (チーム名 + 採点参加人数 + ポジ別バー一覧)
+const POS_LABEL_MAP = { G: 'GK', D: 'DF', M: 'MF', F: 'FW' }
+function UserRatingsTeamColumn({ teamName, raterCount, starters, subs, teamColor, ratingMap, subInMap }) {
+  const groups = { G: [], D: [], M: [], F: [] }
+  for (const p of starters) {
+    const pos = String(p.position ?? '').toUpperCase().slice(0, 1)
+    if (groups[pos]) groups[pos].push(p)
+    else groups.F.push(p)
+  }
+  const playedSubs = (subs ?? []).filter(p => subInMap?.[p.player_id])
+
+  return (
+    <div>
+      {/* チーム名 + 採点参加人数 */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+        marginBottom: 12, paddingBottom: 6,
+        borderBottom: `1px solid ${teamColor}`,
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: '0.04em' }}>
+          {teamName}
+        </span>
+        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em' }}>
+          採点参加人数: {raterCount}人
+        </span>
+      </div>
+      {['G', 'D', 'M', 'F'].map(pos => {
+        const list = groups[pos]
+        if (!list?.length) return null
+        return (
+          <UserRatingsPositionGroup
+            key={pos}
+            label={POS_LABEL_MAP[pos]}
+            players={list}
+            teamColor={teamColor}
+            ratingMap={ratingMap}
+          />
+        )
+      })}
+      {playedSubs.length > 0 && (
+        <UserRatingsPositionGroup
+          label="SUB"
+          players={playedSubs}
+          teamColor={teamColor}
+          ratingMap={ratingMap}
+        />
+      )}
+    </div>
+  )
+}
+
+function UserRatingsPositionGroup({ label, players, teamColor, ratingMap }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+        <span style={{ display: 'inline-block', width: 3, height: 12, backgroundColor: teamColor, flexShrink: 0 }} />
+        <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', letterSpacing: '0.16em' }}>{label}</span>
+      </div>
+      {players.map(p => (
+        <UserRatingPlayerBar
+          key={p.player_id}
+          player={p}
+          rating={ratingMap?.[p.player_id]}
+          teamColor={teamColor}
+        />
+      ))}
+    </div>
+  )
+}
+
+function UserRatingPlayerBar({ player, rating, teamColor }) {
+  const avg = rating?.avg ?? null
+  const t = avg == null ? 0 : Math.max(0, Math.min(1, (avg - 4.0) / (8.5 - 4.0)))
+  const name = player.name_ja ?? player.player_name_en ?? '-'
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      marginBottom: 10, fontSize: 12,
+    }}>
+      <span style={{
+        fontSize: 10, color: 'rgba(255,255,255,0.4)',
+        minWidth: 16, textAlign: 'right',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {player.number ?? ''}
+      </span>
+      <span style={{
+        fontSize: 12, color: '#fff', fontWeight: 700,
+        minWidth: 90, maxWidth: 90,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {name}
+      </span>
+      <div style={{
+        flex: 1, height: 6,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {avg != null && (
+          <div style={{
+            position: 'absolute',
+            top: 0, bottom: 0, left: 0,
+            width: `${t * 100}%`,
+            backgroundColor: teamColor,
+            opacity: 0.85,
+          }} />
+        )}
+      </div>
+      <span style={{
+        fontSize: 12, fontWeight: 900, color: '#fff',
+        minWidth: 32, textAlign: 'right',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {avg != null ? avg.toFixed(1) : '−'}
+      </span>
+    </div>
+  )
+}
+
 export default async function FixturePage({ params }) {
   const { id } = await params
   const fixture = await getFixture(id)
@@ -758,14 +903,28 @@ export default async function FixturePage({ params }) {
   // J2J3 (league_id=2): API-Footballデータがないので試合スタッツ・選手スタッツ・レーダーは出さない
   const isJ2J3 = Number(fixture.league_id) === 2
 
-  const [stats, events, lineups, playerStats, odds, exactScoreOdds] = await Promise.all([
+  const [stats, events, lineups, playerStats, odds, exactScoreOdds, userRatings, userRaterCounts] = await Promise.all([
     isFinished ? getStatistics(fixture.id) : Promise.resolve([]),
     isFinished ? getEvents(fixture.id) : Promise.resolve([]),
     getLineups(fixture.id),
     isFinished ? getPlayerStats(fixture.id) : Promise.resolve([]),
     getOdds(fixture.id),
     !isFinished ? getExactScoreOdds(fixture.id) : Promise.resolve([]),
+    isFinished ? getUserRatings(fixture.id) : Promise.resolve([]),
+    isFinished ? getUserRaterCounts(fixture.id) : Promise.resolve([]),
   ])
+  // ユーザー採点タブ用のマップ
+  const userRatingMap = {}
+  for (const r of userRatings) {
+    userRatingMap[r.player_id] = {
+      avg: Number(r.avg_score),
+      count: Number(r.rate_count),
+    }
+  }
+  const userRaterCountMap = {}
+  for (const r of userRaterCounts) {
+    userRaterCountMap[r.team_id] = Number(r.rater_count)
+  }
 
   // 審判キー: 公式記録 (referee_ja_official) > 試合前スクレイプ (referee_ja) の優先順位
   // 試合前 referee_ja は J.League ajax_live.json から取得した日本語フルネーム (半角空白区切り)、
@@ -2488,6 +2647,38 @@ export default async function FixturePage({ params }) {
 
         const ratingsJsx = ratingsChartsJsx
 
+        // ユーザー採点タブ (試合終了済 + 出場選手ありの場合)
+        // スマホでは ha-stack-mobile で縦積み (ホーム上 / アウェイ下)
+        const userRatingsJsx = (isFinished && (homeStarters.length > 0 || awayStarters.length > 0)) ? (
+          <section style={{ marginBottom: 24 }}>
+            <div className="ha-stack-mobile user-ratings-cols" style={{ display: 'flex', position: 'relative' }}>
+              <div className="user-ratings-divider" style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
+              <div className="user-ratings-half" style={{ flex: 1, paddingRight: 12 }}>
+                <UserRatingsTeamColumn
+                  teamName={fixture.home_name}
+                  raterCount={userRaterCountMap[fixture.home_team_id] ?? 0}
+                  starters={homeStarters}
+                  subs={homeSubs}
+                  teamColor={homeColor}
+                  ratingMap={userRatingMap}
+                  subInMap={subInMap}
+                />
+              </div>
+              <div className="user-ratings-half" style={{ flex: 1, paddingLeft: 12 }}>
+                <UserRatingsTeamColumn
+                  teamName={fixture.away_name}
+                  raterCount={userRaterCountMap[fixture.away_team_id] ?? 0}
+                  starters={awayStarters}
+                  subs={awaySubs}
+                  teamColor={awayColor}
+                  ratingMap={userRatingMap}
+                  subInMap={subInMap}
+                />
+              </div>
+            </div>
+          </section>
+        ) : null
+
         const postsJsx = <PostsSection fixtureId={parseInt(id)} homeAbbr={fixture.home_abbr} awayAbbr={fixture.away_abbr} />
 
         // 未開催試合: H2H(+データ) / Winner / 選手スタッツ / 掲示板 / 審判
@@ -2539,27 +2730,31 @@ export default async function FixturePage({ params }) {
           )
         }
 
-        // J2J3 試合中・終了済: メンバー / 掲示板 / 審判 のみ (API-Footballスタッツなし)
+        // J2J3 試合中・終了済: メンバー / ユーザー採点 / 掲示板 / 審判
         if (useTabs && hasStarted && isJ2J3) {
           return (
             <MatchTabs
               tabs={[
-                { key: 'members', label: 'メンバー', content: lineupJsx },
-                { key: 'posts',   label: '掲示板',   content: postsJsx },
-                { key: 'referee', label: '審判',     content: refereeHistoryJsx },
+                { key: 'members',     label: 'メンバー',     content: lineupJsx },
+                { key: 'userRatings', label: 'ユーザー採点', content: userRatingsJsx },
+                { key: 'posts',       label: '掲示板',      content: postsJsx },
+                { key: 'referee',     label: '審判',        content: refereeHistoryJsx },
               ]}
             />
           )
         }
 
-        // J1 試合中・終了済 + J公式記録あり: 既存5タブ
+        // J1 試合中・終了済 + J公式記録あり: メンバー / ユーザー採点 / 試合スタッツ / 選手スタッツ / 掲示板 / 審判
         return useTabs ? (
           <MatchTabs
-            members={lineupJsx}
-            ratings={ratingsJsx}
-            stats={statsJsx}
-            posts={postsJsx}
-            referee={refereeHistoryJsx}
+            tabs={[
+              { key: 'members',     label: 'メンバー',     content: lineupJsx },
+              { key: 'userRatings', label: 'ユーザー採点', content: userRatingsJsx },
+              { key: 'stats',       label: '試合スタッツ', content: statsJsx },
+              { key: 'ratings',     label: '選手スタッツ', content: ratingsJsx },
+              { key: 'posts',       label: '掲示板',       content: postsJsx },
+              { key: 'referee',     label: '審判',         content: refereeHistoryJsx },
+            ]}
           />
         ) : lineupJsx
       })()}
