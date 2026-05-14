@@ -69,6 +69,15 @@ a:active {
 .scatter-dot .scatter-label { visibility: hidden; }
 .scatter-dot:hover .scatter-label { visibility: visible; }
 
+/* 試合ページ MatchTabs の nav: 横スクロール時のスクロールバーを非表示 */
+.fixture-page nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.fixture-page nav::-webkit-scrollbar {
+  display: none;
+}
+
 /* 採点スライダー (細く、つまみがクラブカラー) */
 input[type="range"].rating-slider {
   -webkit-appearance: none !important;
@@ -294,8 +303,9 @@ input[type="range"].rating-slider::-moz-range-thumb {
 
   /* タブヘッダー (メンバー/試合スタッツ/選手スタッツ/掲示板/審判) を更にコンパクトに */
   .fixture-page nav button[data-key] {
+    flex: 0 0 auto !important;
     font-size: 10px !important;
-    padding: 10px 2px !important;
+    padding: 10px 12px !important;
     letter-spacing: 0 !important;
     min-width: 0 !important;
     white-space: nowrap !important;
