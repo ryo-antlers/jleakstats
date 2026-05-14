@@ -298,6 +298,7 @@ input[type="range"].rating-slider::-moz-range-thumb {
     padding: 10px 2px !important;
     letter-spacing: 0 !important;
     min-width: 0 !important;
+    white-space: nowrap !important;
   }
 
   /* メンバータブ: LINE UP の選手リスト高さを揃えて BENCH 開始位置を一致させる */
