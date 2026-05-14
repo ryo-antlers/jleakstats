@@ -333,7 +333,7 @@ function ResultsSection({ hasFilter, results, total, page, totalPages, baseQuery
           </span>
         )}
       </div>
-      <ul style={{
+      <ul className="search-results-grid" style={{
         listStyle: 'none', padding: 0, margin: 0,
         display: 'grid',
         gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
@@ -511,7 +511,7 @@ function ResultRow({ f }) {
         }}
       >
         {/* 上: 日付 + カテゴリー */}
-        <div style={{
+        <div className="search-card-header" style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
           padding: '12px 12px 10px',
         }}>
@@ -534,15 +534,15 @@ function ResultRow({ f }) {
 
         {/* 中央: クラブカラー50/50 (敗者は半透明) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-          <div style={halfStyle(homeColor, homeText, awayWin)}>
-            <span style={teamNameStyle(homeText)}>{homeName}</span>
-            <span style={scoreStyle(homeText)}>{f.home_score}</span>
-            {isPK && <span style={pkStyle(homeText)}>PK {f.home_penalty}</span>}
+          <div className="search-card-half" style={halfStyle(homeColor, homeText, awayWin)}>
+            <span className="search-card-team" style={teamNameStyle(homeText)}>{homeName}</span>
+            <span className="search-card-score" style={scoreStyle(homeText)}>{f.home_score}</span>
+            {isPK && <span className="search-card-pk" style={pkStyle(homeText)}>PK {f.home_penalty}</span>}
           </div>
-          <div style={halfStyle(awayColor, awayText, homeWin)}>
-            <span style={teamNameStyle(awayText)}>{awayName}</span>
-            <span style={scoreStyle(awayText)}>{f.away_score}</span>
-            {isPK && <span style={pkStyle(awayText)}>PK {f.away_penalty}</span>}
+          <div className="search-card-half" style={halfStyle(awayColor, awayText, homeWin)}>
+            <span className="search-card-team" style={teamNameStyle(awayText)}>{awayName}</span>
+            <span className="search-card-score" style={scoreStyle(awayText)}>{f.away_score}</span>
+            {isPK && <span className="search-card-pk" style={pkStyle(awayText)}>PK {f.away_penalty}</span>}
           </div>
         </div>
 

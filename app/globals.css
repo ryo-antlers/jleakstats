@@ -92,6 +92,7 @@ a:active {
   .deco-circle-white {
     width: 66px !important;
     height: 66px !important;
+    font-size: 12px !important;
   }
 
   .deco-circle-red {
@@ -99,6 +100,16 @@ a:active {
     height: 66px !important;
     top: 47px !important;
     right: 47px !important;
+  }
+  /* 未ログイン時 "Sign in" (fontSize:16) → 12px */
+  .deco-circle-red[style*="font-size:16px"],
+  .deco-circle-red[style*="font-size: 16px"] {
+    font-size: 12px !important;
+  }
+  /* ログイン後 ユーザーアバター (fontSize:18) → 16px */
+  .deco-circle-red[style*="font-size:18px"],
+  .deco-circle-red[style*="font-size: 18px"] {
+    font-size: 16px !important;
   }
 
   .grid-charts-2col {
@@ -108,6 +119,53 @@ a:active {
 
   .grid-fixtures-5col {
     gap: 2px !important;
+  }
+
+  /* 試合検索ページ: 5列 → 3列 (スマホ) */
+  .search-results-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  /* 試合検索ページ: フィルター 3カラム → 1カラム 縦積み (スマホ) */
+  .search-filter-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* 採点ページ: テーブルだけ親 main の px-4 (16px) を打ち消して画面全幅にする */
+  .rating-table-wrap {
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+  }
+
+  /* 試合検索カード: スマホ用調整 */
+  /* 日付 + カテゴリーを左揃え二段 */
+  .search-card-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    padding: 8px 8px 6px !important;
+  }
+  /* クラブカラー箱: 高さと余白を縮小 */
+  .search-card-half {
+    min-height: 62px !important;
+    padding: 6px 4px 14px !important;
+  }
+  /* クラブ略称 (元 fontSize 13) */
+  .search-card-team {
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+  }
+  /* スコア (元 fontSize 26) */
+  .search-card-score {
+    font-size: 22px !important;
+  }
+  /* PK スコア (元 fontSize 12) */
+  .search-card-pk {
+    font-size: 10px !important;
+    bottom: 2px !important;
+    letter-spacing: 0.04em !important;
   }
 
   .fixture-abbr {
@@ -123,5 +181,67 @@ a:active {
   .fixture-upcoming-tile {
     height: 28px !important;
     font-size: 6px !important;
+  }
+}
+
+/* 試合ページ専用: 狭い画面 (スマホ + タブレット縦 + Mac で狭めたウィンドウ) */
+@media (max-width: 820px) {
+  /* ホーム/アウェイ 2カラムを上下にスタック (審判タブ等) */
+  .ha-stack-mobile {
+    flex-direction: column !important;
+  }
+
+  /* 全体フォント縮小 (インラインスタイル font-size をサイズ別に上書き) */
+  /* SSR は "font-size:Npx" (スペース無)、ハイドレーション後は "font-size: Npx" (スペース有) の場合があるので両方対応 */
+  .fixture-page [style*="font-size:8px"],
+  .fixture-page [style*="font-size: 8px"] { font-size: 7px !important; }
+  .fixture-page [style*="font-size:9px"],
+  .fixture-page [style*="font-size: 9px"] { font-size: 7px !important; }
+  .fixture-page [style*="font-size:10px"],
+  .fixture-page [style*="font-size: 10px"] { font-size: 8px !important; }
+  .fixture-page [style*="font-size:11px"],
+  .fixture-page [style*="font-size: 11px"] { font-size: 9px !important; }
+  .fixture-page [style*="font-size:12px"],
+  .fixture-page [style*="font-size: 12px"] { font-size: 8px !important; }
+  .fixture-page [style*="font-size:13px"],
+  .fixture-page [style*="font-size: 13px"] { font-size: 9px !important; }
+  .fixture-page [style*="font-size:14px"],
+  .fixture-page [style*="font-size: 14px"] { font-size: 9px !important; }
+  .fixture-page [style*="font-size:15px"],
+  .fixture-page [style*="font-size: 15px"] { font-size: 11px !important; }
+  .fixture-page [style*="font-size:16px"],
+  .fixture-page [style*="font-size: 16px"] { font-size: 12px !important; }
+  .fixture-page [style*="font-size:18px"],
+  .fixture-page [style*="font-size: 18px"] { font-size: 13px !important; }
+  .fixture-page [style*="font-size:20px"],
+  .fixture-page [style*="font-size: 20px"] { font-size: 14px !important; }
+  .fixture-page [style*="font-size:22px"],
+  .fixture-page [style*="font-size: 22px"] { font-size: 15px !important; }
+  .fixture-page [style*="font-size:28px"],
+  .fixture-page [style*="font-size: 28px"] { font-size: 18px !important; }
+  .fixture-page [style*="font-size:30px"],
+  .fixture-page [style*="font-size: 30px"] { font-size: 20px !important; }
+  .fixture-page [style*="font-size:32px"],
+  .fixture-page [style*="font-size: 32px"] { font-size: 22px !important; }
+
+  /* タブヘッダー (メンバー/試合スタッツ/選手スタッツ/掲示板/審判) を更にコンパクトに */
+  .fixture-page nav button[data-key] {
+    font-size: 10px !important;
+    padding: 10px 2px !important;
+    letter-spacing: 0 !important;
+    min-width: 0 !important;
+  }
+
+  /* メンバータブ: LINE UP の選手リスト高さを揃えて BENCH 開始位置を一致させる */
+  /* 11人ぶん + 改行2人ぶんの余裕 (font-size 8px × line-height ~1.4 + marginBottom 4 = ~15px × 13 = ~200px) */
+  .fixture-page .lineup-starters {
+    min-height: 200px;
+  }
+
+  /* Winner タブ「過去対戦のスコア傾向」: 右側 TOP10 リストを下に積む */
+  .fixture-page .score-trend-right {
+    margin-left: 0 !important;
+    margin-top: 16px !important;
+    max-width: 100% !important;
   }
 }

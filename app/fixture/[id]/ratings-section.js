@@ -6,18 +6,58 @@ import RatingsView from './ratings-view'
 export default async function RatingsSection({ fixtureId }) {
   const { userId } = await auth()
 
+  // 先にプロフィール (推しクラブ) を取得 — fixture.ratable 判定に supportedClubId を使う
+  let profile = null
+  if (userId) {
+    const profiles = await sql`
+      SELECT
+        up.clerk_user_id,
+        up.display_name,
+        up.supported_club_id,
+        t.name_ja      AS club_name_ja,
+        t.color_primary AS club_color
+      FROM user_profiles up
+      LEFT JOIN teams_master t ON t.id = up.supported_club_id
+      WHERE up.clerk_user_id = ${userId}
+    `
+    profile = profiles[0] ?? null
+  }
+
+  const supportedClubId = profile?.supported_club_id ?? null
+
+  // 採点期限: 推しクラブの次戦キックオフまで (次戦が無ければ無期限)
+  // 未ログイン or 推しクラブ未設定: 終了済かどうかだけ判定 (ratable は false)
   const [fixtureRows, lineups, aggregated] = await Promise.all([
     sql`
       SELECT
-        id,
-        finished_at,
-        (finished_at IS NOT NULL
-         AND finished_at + INTERVAL '48 hours' > NOW()) AS ratable,
-        (finished_at IS NOT NULL
-         AND finished_at + INTERVAL '48 hours' <= NOW()) AS closed,
-        (finished_at + INTERVAL '48 hours') AS deadline_at
-      FROM fixtures
-      WHERE id = ${fixtureId}
+        f.id,
+        f.finished_at,
+        ${supportedClubId}::int IS NOT NULL
+          AND f.finished_at IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM fixtures f2
+            WHERE (f2.home_team_id = ${supportedClubId} OR f2.away_team_id = ${supportedClubId})
+              AND f2.date > f.date
+              AND f2.date <= NOW()
+          )
+          AS ratable,
+        ${supportedClubId}::int IS NOT NULL
+          AND f.finished_at IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM fixtures f2
+            WHERE (f2.home_team_id = ${supportedClubId} OR f2.away_team_id = ${supportedClubId})
+              AND f2.date > f.date
+              AND f2.date <= NOW()
+          )
+          AS closed,
+        -- 締切=次戦キックオフ時刻 (次戦未確定なら NULL)
+        (
+          SELECT MIN(f2.date) FROM fixtures f2
+          WHERE (f2.home_team_id = ${supportedClubId} OR f2.away_team_id = ${supportedClubId})
+            AND f2.date > f.date
+        ) AS deadline_at
+      FROM fixtures f
+      WHERE f.id = ${fixtureId}
     `,
     sql`
       SELECT
@@ -55,30 +95,14 @@ export default async function RatingsSection({ fixtureId }) {
 
   const fixture = fixtureRows[0] ?? null
 
-  let profile = null
   let myRatings = []
-  if (userId) {
-    const profiles = await sql`
-      SELECT
-        up.clerk_user_id,
-        up.display_name,
-        up.supported_club_id,
-        t.name_ja      AS club_name_ja,
-        t.color_primary AS club_color
-      FROM user_profiles up
-      LEFT JOIN teams_master t ON t.id = up.supported_club_id
-      WHERE up.clerk_user_id = ${userId}
+  if (userId && profile) {
+    myRatings = await sql`
+      SELECT player_id, score, skipped
+      FROM ratings
+      WHERE clerk_user_id = ${userId}
+        AND fixture_id = ${fixtureId}
     `
-    profile = profiles[0] ?? null
-
-    if (profile) {
-      myRatings = await sql`
-        SELECT player_id, score, skipped
-        FROM ratings
-        WHERE clerk_user_id = ${userId}
-          AND fixture_id = ${fixtureId}
-      `
-    }
   }
 
   return (

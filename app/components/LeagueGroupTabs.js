@@ -44,7 +44,9 @@ const TABS_DEF = [
   { key: 'j2j3WestB',  label: 'J2J3 WEST-B' },
 ]
 
-export default function LeagueGroupTabs({ groups, standings }) {
+export default function LeagueGroupTabs({ groups, standings, rateableIds, myProfile }) {
+  const rateableSet = useMemo(() => new Set((rateableIds ?? []).map(Number)), [rateableIds])
+  const supportedColor = color(myProfile?.club_color)
   const [active, setActive] = useState('j1East')
   const navRef = useRef(null)
   const [underline, setUnderline] = useState({ left: 0, width: 0 })
@@ -119,7 +121,7 @@ export default function LeagueGroupTabs({ groups, standings }) {
       </nav>
 
       {/* タイムライン */}
-      <FixtureTimeline fixtures={fixtures} key={active} />
+      <FixtureTimeline fixtures={fixtures} rateableSet={rateableSet} supportedColor={supportedColor} key={active} />
 
       {/* アクティブタブの順位表 */}
       {standings && (
@@ -138,7 +140,7 @@ export default function LeagueGroupTabs({ groups, standings }) {
 // =====================================================
 // 横スクロールタイムライン (日付でグルーピング)
 // =====================================================
-function FixtureTimeline({ fixtures }) {
+function FixtureTimeline({ fixtures, rateableSet, supportedColor }) {
   const scrollRef = useRef(null)
   const today = todayJST()
 
@@ -205,6 +207,7 @@ function FixtureTimeline({ fixtures }) {
           .lgt-card-score { font-size: 15px !important; }
           .lgt-card-pk { font-size: 10px !important; }
           .lgt-card-status { font-size: 8px !important; }
+          .lgt-card-ratable { font-size: 9px !important; padding: 5px 3px !important; }
           .lgt-round { font-size: 8px !important; }
           .lgt-date { font-size: 14px !important; }
         }
@@ -222,7 +225,7 @@ function FixtureTimeline({ fixtures }) {
         }}
       >
         {dateGroups.map(g => (
-          <DateGroupBlock key={g.date} group={g} isToday={g.date === today} />
+          <DateGroupBlock key={g.date} group={g} isToday={g.date === today} rateableSet={rateableSet} supportedColor={supportedColor} />
         ))}
       </div>
     </>
@@ -232,7 +235,7 @@ function FixtureTimeline({ fixtures }) {
 // =====================================================
 // 日付グループ (日付ヘッダー + そのカードたち)
 // =====================================================
-function DateGroupBlock({ group, isToday }) {
+function DateGroupBlock({ group, isToday, rateableSet, supportedColor }) {
   const [, m, d] = group.date.split('-')
   // 同日グループの代表として最初の試合の節 (混在ケースは稀だが先頭優先)
   const round = group.fixtures.find(f => f.round_number != null)?.round_number ?? null
@@ -264,7 +267,14 @@ function DateGroupBlock({ group, isToday }) {
 
       {/* 試合カード (横並び) */}
       <div style={{ display: 'flex', gap: 10 }}>
-        {group.fixtures.map(f => <FixtureCardCompact key={f.id} fixture={f} />)}
+        {group.fixtures.map(f => (
+          <FixtureCardCompact
+            key={f.id}
+            fixture={f}
+            isRateable={rateableSet?.has(Number(f.id)) ?? false}
+            supportedColor={supportedColor}
+          />
+        ))}
       </div>
     </div>
   )
@@ -273,7 +283,7 @@ function DateGroupBlock({ group, isToday }) {
 // =====================================================
 // 1試合カード (クラブカラータイルでスコア表示)
 // =====================================================
-function FixtureCardCompact({ fixture: f }) {
+function FixtureCardCompact({ fixture: f, isRateable, supportedColor }) {
   const isFinished = FINISHED.has(f.status)
   const isLive = LIVE.has(f.status)
   const time = isoToJSTHHMM(f.date)
@@ -282,13 +292,12 @@ function FixtureCardCompact({ fixture: f }) {
   const awayC = color(f.away_color)
 
   return (
+    <div className="lgt-card-link" style={{ flexShrink: 0, width: 116 }}>
     <Link
       href={`/fixture/${f.id}`}
-      className="lgt-card-link"
       style={{
-        flexShrink: 0,
-        width: 116,
         textDecoration: 'none', color: 'inherit',
+        display: 'block',
       }}
     >
       <article style={{
@@ -363,6 +372,26 @@ function FixtureCardCompact({ fixture: f }) {
         )}
       </article>
     </Link>
+
+    {/* 採点可能バッジ — クラブカラー塗りつぶし、クリックで /rating/[id] へ */}
+    {isRateable && (
+      <Link
+        href={`/rating/${f.id}`}
+        className="lgt-card-ratable"
+        style={{
+          marginTop: 5, display: 'block', textAlign: 'center',
+          fontSize: 11, fontWeight: 900,
+          backgroundColor: supportedColor ?? '#fff',
+          color: textColor(supportedColor),
+          letterSpacing: '0.06em',
+          padding: '8px 4px',
+          textDecoration: 'none',
+        }}
+      >
+        採点可能
+      </Link>
+    )}
+    </div>
   )
 }
 

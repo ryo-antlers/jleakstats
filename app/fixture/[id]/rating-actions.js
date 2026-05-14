@@ -16,8 +16,6 @@ function isValidScore(n) {
   return Math.abs(n * 10 - Math.round(n * 10)) < 1e-9
 }
 
-const RATING_DEADLINE_HOURS = 48
-
 /**
  * 採点をまとめて保存する Server Action。
  *
@@ -29,7 +27,7 @@ const RATING_DEADLINE_HOURS = 48
  *   1. ログイン済み (Clerk)
  *   2. user_profiles にプロフィールあり
  *   3. 試合終了済み (fixtures.finished_at IS NOT NULL)
- *   4. 終了から 48 時間以内
+ *   4. 推しクラブの「次の試合のキックオフ」前 (次戦未開催)
  *   5. 推しクラブがこの試合に出場
  *   6. 採点対象選手は推しクラブの fixture_lineups に存在
  */
@@ -53,17 +51,22 @@ export async function saveRatings(_prev, formData) {
   }
   const supportedClubId = profiles[0].supported_club_id
 
-  // 試合情報（締切判定）
+  // 試合情報（締切判定: 推しクラブの次戦キックオフ前）
   const fixtures = await sql`
     SELECT
-      id,
-      finished_at,
+      f.id,
+      f.finished_at,
       (
-        finished_at IS NOT NULL
-        AND finished_at + INTERVAL '48 hours' > NOW()
+        f.finished_at IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM fixtures f2
+          WHERE (f2.home_team_id = ${supportedClubId} OR f2.away_team_id = ${supportedClubId})
+            AND f2.date > f.date
+            AND f2.date <= NOW()
+        )
       ) AS ratable
-    FROM fixtures
-    WHERE id = ${fixtureId}
+    FROM fixtures f
+    WHERE f.id = ${fixtureId}
   `
   if (fixtures.length === 0) {
     return { error: '試合が見つかりません' }
@@ -74,7 +77,7 @@ export async function saveRatings(_prev, formData) {
   }
   if (!f.ratable) {
     return {
-      error: `採点締切を過ぎました（試合終了から${RATING_DEADLINE_HOURS}時間以内）`,
+      error: '採点締切を過ぎました（推しクラブの次の試合のキックオフまで）',
     }
   }
 
@@ -147,7 +150,7 @@ export async function saveRatings(_prev, formData) {
 }
 
 /**
- * 採点を削除（自分のだけ、採点締切内のみ）。
+ * 採点を削除（自分のだけ、採点締切内のみ＝推しクラブの次戦キックオフ前）。
  */
 export async function deleteRating(_prev, formData) {
   const { userId } = await auth()
@@ -159,14 +162,30 @@ export async function deleteRating(_prev, formData) {
     return { error: 'パラメータが無効です' }
   }
 
+  // 削除も推しクラブの次戦キックオフを基準にするため supported_club_id が必要
+  const profiles = await sql`
+    SELECT supported_club_id
+    FROM user_profiles
+    WHERE clerk_user_id = ${userId}
+  `
+  if (profiles.length === 0) {
+    return { error: 'プロフィール未設定です', need_profile: true }
+  }
+  const supportedClubId = profiles[0].supported_club_id
+
   const fixtures = await sql`
     SELECT
       (
-        finished_at IS NOT NULL
-        AND finished_at + INTERVAL '48 hours' > NOW()
+        f.finished_at IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM fixtures f2
+          WHERE (f2.home_team_id = ${supportedClubId} OR f2.away_team_id = ${supportedClubId})
+            AND f2.date > f.date
+            AND f2.date <= NOW()
+        )
       ) AS ratable
-    FROM fixtures
-    WHERE id = ${fixtureId}
+    FROM fixtures f
+    WHERE f.id = ${fixtureId}
   `
   if (fixtures.length === 0 || !fixtures[0].ratable) {
     return { error: '採点締切を過ぎたため削除できません' }
