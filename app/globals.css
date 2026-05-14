@@ -294,8 +294,9 @@ input[type="range"].rating-slider::-moz-range-thumb {
 
   /* タブヘッダー (メンバー/試合スタッツ/選手スタッツ/掲示板/審判) を更にコンパクトに */
   .fixture-page nav button[data-key] {
+    flex: 0 0 auto !important;
     font-size: 10px !important;
-    padding: 10px 2px !important;
+    padding: 10px 12px !important;
     letter-spacing: 0 !important;
     min-width: 0 !important;
     white-space: nowrap !important;
