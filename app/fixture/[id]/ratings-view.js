@@ -104,7 +104,7 @@ function StatusMessages({
   if (!isFinished) {
     messages.push({ tone: 'info', text: '試合終了後に採点できます' })
   } else if (isClosed) {
-    messages.push({ tone: 'info', text: '採点は試合終了から 48 時間以内です（締切済み）' })
+    messages.push({ tone: 'info', text: '採点は推しクラブの次戦キックオフまで（締切済み）' })
   } else if (!userId) {
     messages.push({
       tone: 'action',

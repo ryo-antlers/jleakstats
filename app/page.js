@@ -51,6 +51,44 @@ async function getMyRatedKeys() {
   return rows.map(r => `${r.fixture_id}-${r.team_id}`)
 }
 
+// 現在採点可能 (= 推しクラブ参加 + 終了済 + 次戦キックオフ前 + 未採点) な fixture_id の配列
+async function getRateableFixtureIds() {
+  const { userId } = await auth()
+  if (!userId) return []
+  const rows = await sql`
+    WITH p AS (
+      SELECT supported_club_id
+      FROM user_profiles
+      WHERE clerk_user_id = ${userId}
+    ),
+    rated AS (
+      SELECT DISTINCT r.fixture_id, fl.team_id
+      FROM ratings r
+      JOIN fixture_lineups fl
+        ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
+      WHERE r.clerk_user_id = ${userId}
+    )
+    SELECT f.id
+    FROM fixtures f, p
+    WHERE p.supported_club_id IS NOT NULL
+      AND f.finished_at IS NOT NULL
+      AND (f.home_team_id = p.supported_club_id OR f.away_team_id = p.supported_club_id)
+      -- 推しクラブの次戦がまだ開催されていない
+      AND NOT EXISTS (
+        SELECT 1 FROM fixtures f2
+        WHERE (f2.home_team_id = p.supported_club_id OR f2.away_team_id = p.supported_club_id)
+          AND f2.date > f.date
+          AND f2.date <= NOW()
+      )
+      -- 推しクラブを未採点
+      AND NOT EXISTS (
+        SELECT 1 FROM rated r
+        WHERE r.fixture_id = f.id AND r.team_id = p.supported_club_id
+      )
+  `.catch(() => [])
+  return rows.map(r => Number(r.id))
+}
+
 const TEAM_ORDER = [
   290, 281, 287, 292, 294, 296, 303, 305, 306, 301, // EAST
   282, 283, 285, 288, 289, 291, 293, 302, 310, 316,  // WEST
@@ -347,8 +385,8 @@ function UpcomingFixtureCard({ fixture }) {
 // ---- メインページ ----
 
 export default async function HomePage() {
-  const [roundInfo, myProfile, ratedKeys] = await Promise.all([
-    getRoundInfo(), getMyProfile(), getMyRatedKeys(),
+  const [roundInfo, myProfile, ratedKeys, rateableIds] = await Promise.all([
+    getRoundInfo(), getMyProfile(), getMyRatedKeys(), getRateableFixtureIds(),
   ])
   if (roundInfo.length === 0) {
     return (
@@ -451,6 +489,7 @@ export default async function HomePage() {
         }}
         myProfile={myProfile}
         ratedKeys={ratedKeys}
+        rateableIds={rateableIds}
       />
     </div>
   )

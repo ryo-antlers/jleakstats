@@ -97,7 +97,7 @@ export default function RefereeSection({
 }) {
   const [openKey, setOpenKey] = useState(null)
   return (
-    <div style={{ display: 'flex', gap: 16 }}>
+    <div className="ha-stack-mobile" style={{ display: 'flex', gap: 16 }}>
       <Column
         align="left" teamId={homeTeamId} clubColor={homeColor}
         record={homeRecord} firstMatch={homeFirst} history={homeHistory}

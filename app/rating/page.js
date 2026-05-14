@@ -10,8 +10,8 @@ export const metadata = {
   title: '採点 | J.Leak Stats',
 }
 
-// 採点期限: キックオフから26時間 / 推しクラブのみ
-const RATING_DEADLINE_HOURS = 26
+// 採点期限: 推しクラブの「次の試合のキックオフ」まで (次がなければ無期限)
+// テストモード時のみ旧26時間ルールを維持
 const TEST_MODE_ALL_CLUBS = false
 
 function normalizeColor(raw) {
@@ -132,8 +132,14 @@ export default async function RatingIndexPage() {
         LEFT JOIN teams_master ht ON ht.id = f.home_team_id
         LEFT JOIN teams_master at ON at.id = f.away_team_id
         WHERE f.finished_at IS NOT NULL
-          AND f.date + INTERVAL '26 hours' > NOW()
           AND (f.home_team_id = ${supportedClubId} OR f.away_team_id = ${supportedClubId})
+          -- 推しクラブの「次の試合のキックオフ」がまだ来ていない (= 次戦未開催) 試合のみ採点可能
+          AND NOT EXISTS (
+            SELECT 1 FROM fixtures f2
+            WHERE (f2.home_team_id = ${supportedClubId} OR f2.away_team_id = ${supportedClubId})
+              AND f2.date > f.date
+              AND f2.date <= NOW()
+          )
         ORDER BY f.date DESC
       `
 
@@ -676,7 +682,7 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
           {sorted.length}名
         </span>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="rating-table-wrap" style={{ overflowX: 'auto' }}>
         <table style={{
           borderCollapse: 'separate', borderSpacing: 0,
           fontFamily: 'inherit',
@@ -684,9 +690,9 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
           <thead>
             {/* 上段: 左列は空、右はクラブカラー箱 */}
             <tr>
-              <th style={{ ...headStyle, minWidth: 36, padding: 0, borderBottom: 'none' }} />
-              <th style={{ ...headStyle, minWidth: 32, padding: 0, borderBottom: 'none' }} />
-              <th style={{ ...headStyle, minWidth: 120, padding: 0, borderBottom: 'none' }} />
+              <th style={{ ...headStyle, ...stickyTopLeft(0), minWidth: 36, padding: 0, borderBottom: 'none' }} />
+              <th style={{ ...headStyle, ...stickyTopLeft(36), minWidth: 32, padding: 0, borderBottom: 'none' }} />
+              <th style={{ ...headStyle, ...stickyTopLeft(68), minWidth: 120, padding: 0, borderBottom: 'none' }} />
               <th style={{ ...headStyle, minWidth: 56, padding: 0, borderBottom: 'none' }} />
               {rounds.map(r => {
                 const oppColor = r.oppColor && r.oppColor.startsWith('#') ? r.oppColor : (r.oppColor ? `#${r.oppColor}` : '#888')
@@ -709,11 +715,11 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
             {/* 下段: 列ラベル */}
             <tr>
               <th style={{
-                ...headStyle, top: 22,
+                ...headStyle, ...stickyTopLeft(0), top: 22,
                 minWidth: 36, textAlign: 'left', paddingLeft: 8,
               }}>POS</th>
-              <th style={{ ...headStyle, top: 22, minWidth: 32 }}>#</th>
-              <th style={{ ...headStyle, top: 22, minWidth: 120, textAlign: 'left' }}>選手</th>
+              <th style={{ ...headStyle, ...stickyTopLeft(36), top: 22, minWidth: 32 }}>#</th>
+              <th style={{ ...headStyle, ...stickyTopLeft(68), top: 22, minWidth: 120, textAlign: 'left' }}>選手</th>
               <th style={{ ...headStyle, top: 22, minWidth: 56, color: '#00ff87' }}>平均</th>
               {rounds.map(r => (
                 <th key={r.round} style={{ ...headStyle, minWidth: 44, fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.55)' }}>
@@ -730,20 +736,23 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
               return (
                 <tr key={p.player_id}>
                   <td style={{
-                    ...cellStyleBase, minWidth: 36, textAlign: 'left', paddingLeft: 8,
+                    ...cellStyleBase, ...stickyLeft(0),
+                    minWidth: 36, textAlign: 'left', paddingLeft: 8,
                     color: POS_COLOR[p.position] ?? '#888',
                     fontWeight: 800, fontSize: 10, letterSpacing: '0.04em',
                   }}>
                     {p.position ?? ''}
                   </td>
                   <td style={{
-                    ...cellStyleBase, minWidth: 32,
+                    ...cellStyleBase, ...stickyLeft(36),
+                    minWidth: 32,
                     color: 'rgba(255,255,255,0.6)', fontWeight: 700,
                   }}>
                     {p.number ?? ''}
                   </td>
                   <td style={{
-                    ...cellStyleBase, minWidth: 120, textAlign: 'left',
+                    ...cellStyleBase, ...stickyLeft(68),
+                    minWidth: 120, textAlign: 'left',
                     color: '#fff', fontWeight: 700, fontSize: 12,
                     overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200,
                   }}>

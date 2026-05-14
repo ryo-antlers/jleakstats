@@ -70,7 +70,7 @@ export default function SearchForm({ teams, referees, initial }) {
   const hasAny = team1 || team2 || referee
 
   return (
-    <div style={{
+    <div className="search-filter-row" style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(3, 1fr)',
       gap: 18,

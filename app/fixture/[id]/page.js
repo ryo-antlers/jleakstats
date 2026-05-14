@@ -893,7 +893,7 @@ export default async function FixturePage({ params }) {
 
   return (
     <>
-    <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
+    <div className="fixture-page" style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
 
       {/* サイトロゴ (中央寄せ、トップへ戻る) */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
@@ -1325,6 +1325,7 @@ export default async function FixturePage({ params }) {
               <div style={{ backgroundColor: homeColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
                 <span style={{ fontSize: 10, fontWeight: 900, color: textColor(homeColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
+              <div className="lineup-starters">
               {homeStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
                 const card = cardMap[p.player_id]
@@ -1339,6 +1340,7 @@ export default async function FixturePage({ params }) {
                   </div>
                 )
               })}
+              </div>
               {homeSubs.length > 0 && (
                 <>
                   <div style={{ backgroundColor: homeColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
@@ -1370,6 +1372,7 @@ export default async function FixturePage({ params }) {
               <div style={{ backgroundColor: awayColor, height: 20, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
                 <span style={{ fontSize: 10, fontWeight: 900, color: textColor(awayColor), letterSpacing: '0.12em', lineHeight: 1 }}>LINE UP</span>
               </div>
+              <div className="lineup-starters">
               {awayStarters.slice(0, 11).map((p, i) => {
                 const subOut = subOutMap[p.player_id]
                 const card = cardMap[p.player_id]
@@ -1384,6 +1387,7 @@ export default async function FixturePage({ params }) {
                   </div>
                 )
               })}
+              </div>
               {awaySubs.length > 0 && (
                 <>
                   <div style={{ backgroundColor: awayColor, height: 20, marginTop: 12, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 8 }}>
@@ -1793,7 +1797,7 @@ export default async function FixturePage({ params }) {
           }
           return (
             <section style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div className="ha-stack-mobile" style={{ display: 'flex', gap: 16 }}>
                 <div style={{ flex: 1, minWidth: 0, borderTop: `1px solid ${homeColor}`, paddingTop: 10 }}>
                   {homeRecentForm.length > 0
                     ? homeRecentForm.map(f => renderRow(f, fixture.home_team_id, homeColor))
@@ -1961,6 +1965,7 @@ export default async function FixturePage({ params }) {
                 <div style={{ flex: 1, height: 6, overflow: 'hidden' }}>
                   <div style={{ width: `${widthPct}%`, height: '100%', backgroundColor: barColor, opacity: 0.9 }} />
                 </div>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.83)', fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right' }}>{n}回</span>
               </div>
             )
           }
@@ -2013,8 +2018,8 @@ export default async function FixturePage({ params }) {
 
           return (
             <section style={{ marginBottom: 24 }}>
-              {/* 上段: 2カラム (今シーズンのスコア傾向 + 4得点以上の試合数) */}
-              <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
+              {/* 上段: 2カラム (今シーズンのスコア傾向 + 4得点以上の試合数) — スマホでは縦積み */}
+              <div className="ha-stack-mobile" style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
                 {[
                   { label: fixture.home_name ?? fixture.home_short ?? 'HOME', dist: homeDist, accent: homeColor },
                   { label: fixture.away_name ?? fixture.away_short ?? 'AWAY', dist: awayDist, accent: awayColor },
@@ -2083,55 +2088,58 @@ export default async function FixturePage({ params }) {
                   const cellSize = 44
                   return (
                     <>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        {/* Y軸ラベル (ホーム得点) */}
-                        <div style={{ display: 'flex', flexDirection: 'column', marginRight: 4 }}>
-                          <div style={{ width: 24, height: 22 }} />
-                          {Array.from({ length: SIZE }, (_, h) => (
-                            <div key={h} style={{ width: 24, height: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
-                              {h}
-                            </div>
-                          ))}
-                        </div>
-                        {/* グリッド + X軸ラベル */}
-                        <div>
-                          {/* X軸 (アウェイ得点) */}
-                          <div style={{ display: 'flex', height: 22 }}>
-                            {Array.from({ length: SIZE }, (_, a) => (
-                              <div key={a} style={{ width: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
-                                {a}
+                      <div className="ha-stack-mobile" style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        {/* ヒートマップ (Y軸 + グリッド) — スマホでは縦積みのため1ブロックにまとめる */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                          {/* Y軸ラベル (ホーム得点) */}
+                          <div style={{ display: 'flex', flexDirection: 'column', marginRight: 4 }}>
+                            <div style={{ width: 24, height: 22 }} />
+                            {Array.from({ length: SIZE }, (_, h) => (
+                              <div key={h} style={{ width: 24, height: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 4, fontSize: 11, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
+                                {h}
                               </div>
                             ))}
                           </div>
-                          {/* セル */}
-                          {Array.from({ length: SIZE }, (_, h) => (
-                            <div key={h} style={{ display: 'flex' }}>
-                              {Array.from({ length: SIZE }, (_, a) => {
-                                const count = grid[h][a]
-                                let bgColor = 'transparent'
-                                if (count > 0) {
-                                  if (h > a) bgColor = homeColor
-                                  else if (h < a) bgColor = awayColor
-                                  else bgColor = 'rgba(255,255,255,0.4)'
-                                }
-                                return (
-                                  <div key={a} style={{
-                                    width: cellSize, height: cellSize,
-                                    backgroundColor: bgColor,
-                                    opacity: count > 0 ? 0.85 : 1,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 11, fontWeight: 700, color: '#fff',
-                                    fontVariantNumeric: 'tabular-nums',
-                                  }}>
-                                    {count > 0 ? count : ''}
-                                  </div>
-                                )
-                              })}
+                          {/* グリッド + X軸ラベル */}
+                          <div>
+                            {/* X軸 (アウェイ得点) */}
+                            <div style={{ display: 'flex', height: 22 }}>
+                              {Array.from({ length: SIZE }, (_, a) => (
+                                <div key={a} style={{ width: cellSize, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>
+                                  {a}
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                            {/* セル */}
+                            {Array.from({ length: SIZE }, (_, h) => (
+                              <div key={h} style={{ display: 'flex' }}>
+                                {Array.from({ length: SIZE }, (_, a) => {
+                                  const count = grid[h][a]
+                                  let bgColor = 'transparent'
+                                  if (count > 0) {
+                                    if (h > a) bgColor = homeColor
+                                    else if (h < a) bgColor = awayColor
+                                    else bgColor = 'rgba(255,255,255,0.4)'
+                                  }
+                                  return (
+                                    <div key={a} style={{
+                                      width: cellSize, height: cellSize,
+                                      backgroundColor: bgColor,
+                                      opacity: count > 0 ? 0.85 : 1,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: 11, fontWeight: 700, color: '#fff',
+                                      fontVariantNumeric: 'tabular-nums',
+                                    }}>
+                                      {count > 0 ? count : ''}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        {/* 右側: 多いスコア TOP10 横棒バー */}
-                        <div style={{ marginLeft: 46, flex: 1, minWidth: 0, maxWidth: 280 }}>
+                        {/* 右側: 多いスコア TOP10 横棒バー (スマホでは下に縦積み) */}
+                        <div className="score-trend-right" style={{ marginLeft: 46, flex: 1, minWidth: 0, maxWidth: 280 }}>
                           {h2hTopScores.map((s, i) => {
                             const [hh, aa] = s.score.split('-').map(Number)
                             const result = hh > aa ? 'W' : hh < aa ? 'L' : 'D'
@@ -2444,7 +2452,7 @@ export default async function FixturePage({ params }) {
 
           return (
             <section style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', gap: 20 }}>
+              <div className="ha-stack-mobile" style={{ display: 'flex', gap: 20 }}>
                 <TeamColumn
                   accent={homeColor}
                   sideHomeAway="ホーム"
