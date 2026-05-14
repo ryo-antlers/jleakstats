@@ -389,7 +389,7 @@ function Section({ title, count, children }) {
           {count}
         </span>
       </div>
-      <div style={{
+      <div className="rating-section-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
         gap: 20,
@@ -579,9 +579,10 @@ function RateableItem({ fixture, teamId, isHome }) {
 
 function PastItem({ row }) {
   const isHome = Number(row.rated_team_id) === Number(row.home_team_id)
+  // 採点履歴クリックで自分の採点を確認できるページへ (viewOnly モード)
   return (
     <MatchCard
-      fixtureHref={`/fixture/${row.id}`}
+      fixtureHref={`/rating/${row.id}`}
       ratingHref={null}
       fixture={row}
       isUserHome={isHome}

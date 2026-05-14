@@ -22,6 +22,8 @@ function WinRateDonut({ record, clubColor, align }) {
   }
   const wedge = (s, e) => {
     if (e - s <= 0) return ''
+    // 360°ちょうどは単一の SVG 弧で描けないので、ほぼ全周 (359.999°) にして閉じる
+    if (e - s >= 360) e = s + 359.999
     const [oxs, oys] = polar(s, R)
     const [oxe, oye] = polar(e, R)
     const [ixe, iye] = polar(e, r)

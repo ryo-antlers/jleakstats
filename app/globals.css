@@ -69,6 +69,58 @@ a:active {
 .scatter-dot .scatter-label { visibility: hidden; }
 .scatter-dot:hover .scatter-label { visibility: visible; }
 
+/* 採点スライダー (細く、つまみがクラブカラー) */
+input[type="range"].rating-slider {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+  width: 100% !important;
+  height: 10px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer;
+  outline: none;
+}
+input[type="range"].rating-slider:disabled { cursor: not-allowed; opacity: 0.3; }
+
+input[type="range"].rating-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  border-radius: 0.5px;
+}
+input[type="range"].rating-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  margin-top: -3.5px;
+  background: var(--score-color, #888);
+  border-radius: 50%;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+input[type="range"].rating-slider::-moz-range-track {
+  height: 1px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  border-radius: 0.5px;
+}
+input[type="range"].rating-slider::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  background: var(--score-color, #888);
+  border-radius: 50%;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
 @media (max-width: 640px) {
   .title-row {
     margin-bottom: 76px !important;
@@ -133,6 +185,12 @@ a:active {
     gap: 10px !important;
   }
 
+  /* 採点ページ: 採点可能/採点履歴 セクションのグリッド 5列 → 2列 (スマホ) */
+  .rating-section-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
   /* 採点ページ: テーブルだけ親 main の px-4 (16px) を打ち消して画面全幅にする */
   .rating-table-wrap {
     margin-left: -16px !important;
@@ -184,11 +242,21 @@ a:active {
   }
 }
 
-/* 試合ページ専用: 狭い画面 (スマホ + タブレット縦 + Mac で狭めたウィンドウ) */
-@media (max-width: 820px) {
+/* 試合ページ専用: スマホ表示のみ */
+@media (max-width: 640px) {
   /* ホーム/アウェイ 2カラムを上下にスタック (審判タブ等) */
   .ha-stack-mobile {
     flex-direction: column !important;
+  }
+
+  /* ユーザー採点タブ: スマホでは中央の区切り線を非表示 + パディング解除 */
+  .user-ratings-divider {
+    display: none !important;
+  }
+  .user-ratings-half {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-bottom: 24px !important;
   }
 
   /* 全体フォント縮小 (インラインスタイル font-size をサイズ別に上書き) */
