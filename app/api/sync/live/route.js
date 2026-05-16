@@ -1,5 +1,8 @@
 import sql from '@/lib/db'
-import { fetchLiveFixtures, API_LEAGUES_ALL } from '@/lib/api-football'
+import { fetchLiveFixtures, fetchFixturesByIds, API_LEAGUES_ALL } from '@/lib/api-football'
+
+// API-Football の LIVE 状態 (試合中) ステータスコード
+const LIVE_STATUSES = ['1H', '2H', 'HT', 'ET', 'P', 'BT', 'LIVE']
 
 // 進行中の試合のスコア・status のみ高頻度で同期する軽量エンドポイント
 // /api/sync/fixtures より絞った専用版 (live=all で進行中の試合のみAPIから返る)
@@ -62,10 +65,60 @@ export async function GET(request) {
       }
     }
 
+    // --- 終了したばかりの試合を検出して LIVE → FT/AET/PEN に切り替える ---
+    // DB で LIVE 扱いだが今回の live レスポンスに含まれていない fixture =
+    // たった今終了した試合 (API-Football は終了直後に live レスポンスから外す)
+    const liveIdsInResponse = new Set(allItems.map(i => Number(i.fixture.id)))
+    const stillLiveInDB = await sql`
+      SELECT id FROM fixtures WHERE status = ANY(${LIVE_STATUSES})
+    `.catch(() => [])
+    const missingIds = stillLiveInDB
+      .map(r => Number(r.id))
+      .filter(id => !liveIdsInResponse.has(id))
+
+    let finalized = 0
+    if (missingIds.length > 0) {
+      try {
+        const finished = await fetchFixturesByIds(missingIds)
+        for (const item of finished ?? []) {
+          const f = item.fixture
+          const goals = item.goals
+          const score = item.score
+          const teams = item.teams
+          const winner = teams.home.winner === true ? 'home'
+            : teams.away.winner === true ? 'away'
+            : teams.home.winner === false && teams.away.winner === false ? 'draw'
+            : null
+          // 終了ステータス (FT/AET/PEN) ならスコアと共に更新
+          if (['FT', 'AET', 'PEN'].includes(f.status.short)) {
+            await sql`
+              UPDATE fixtures SET
+                home_score    = ${goals.home},
+                away_score    = ${goals.away},
+                home_score_ht = ${score.halftime?.home ?? null},
+                away_score_ht = ${score.halftime?.away ?? null},
+                home_penalty  = ${score.penalty?.home ?? null},
+                away_penalty  = ${score.penalty?.away ?? null},
+                status        = ${f.status.short},
+                elapsed       = ${f.status.elapsed ?? null},
+                winner        = ${winner},
+                finished_at   = COALESCE(finished_at, NOW()),
+                updated_at    = NOW()
+              WHERE id = ${f.id}
+            `
+            finalized++
+          }
+        }
+      } catch (err) {
+        errors.push({ stage: 'finalize', error: err.message })
+      }
+    }
+
     return Response.json({
       ok: true,
       live: allItems.length,
       updated,
+      finalized,
       by_league: Object.fromEntries(responses.map(r => [r.league, r.items.length])),
       errors: errors.length > 0 ? errors : undefined,
     })
