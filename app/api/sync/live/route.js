@@ -21,15 +21,6 @@ export async function GET(request) {
     )
 
     const allItems = responses.flatMap(r => r.items)
-    if (allItems.length === 0) {
-      return Response.json({
-        ok: true,
-        live: 0,
-        updated: 0,
-        by_league: Object.fromEntries(responses.map(r => [r.league, 0])),
-      })
-    }
-
     let updated = 0
     const errors = []
 
