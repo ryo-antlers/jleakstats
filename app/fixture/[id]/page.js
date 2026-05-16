@@ -900,6 +900,9 @@ export default async function FixturePage({ params }) {
   const hasStarted = isFinished || isLive
   // J公式記録の取込完了フラグ。true でメンバー / タイムライン / 審判を解禁
   const hasJLeagueRecord = fixture.data_source === 'j-league'
+  // 試合終了済でも J 公式記録未取込なら試合前ビュー (順位表 + H2H/Winner/選手スタッツ/掲示板/審判)
+  // にフォールバックする。J 公式記録が入った時点で通常の試合後ビューに切り替わる。
+  const showPreMatchView = !hasStarted || !hasJLeagueRecord
   // J2J3 (league_id=2): API-Footballデータがないので試合スタッツ・選手スタッツ・レーダーは出さない
   const isJ2J3 = Number(fixture.league_id) === 2
 
@@ -946,7 +949,7 @@ export default async function FixturePage({ params }) {
       ])
     : [[], [], { w:0, d:0, l:0, total:0 }, { w:0, d:0, l:0, total:0 }, null, null, null]
 
-  const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows, h2hRows, teamHistory, homeGoalsVsAway, awayGoalsVsHome] = !hasStarted
+  const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows, h2hRows, teamHistory, homeGoalsVsAway, awayGoalsVsHome] = showPreMatchView
     ? await Promise.all([
         getSeasonAllFixtures(),
         getAllTeams(),
@@ -964,10 +967,10 @@ export default async function FixturePage({ params }) {
   const homeRecentForm = recentFormRows.filter(f => Number(f.home_team_id) === hid || Number(f.away_team_id) === hid).slice(0, 5)
   const awayRecentForm = recentFormRows.filter(f => Number(f.home_team_id) === aid || Number(f.away_team_id) === aid).slice(0, 5)
 
-  const homeSeasonStats = !hasStarted
+  const homeSeasonStats = showPreMatchView
     ? buildTeamSeasonStats(Number(fixture.home_team_id), seasonFixtures, seasonTeamStats, seasonPlayerStats)
     : null
-  const awaySeasonStats = !hasStarted
+  const awaySeasonStats = showPreMatchView
     ? buildTeamSeasonStats(Number(fixture.away_team_id), seasonFixtures, seasonTeamStats, seasonPlayerStats)
     : null
 
@@ -1719,7 +1722,7 @@ export default async function FixturePage({ params }) {
         ) : null
 
         // 未開催: タブ群の上に表示する 順位推移 (+ J1のみレーダー2個)
-        const rankAndRadarJsx = !hasStarted && seasonFixtures.length > 0 && (
+        const rankAndRadarJsx = showPreMatchView && seasonFixtures.length > 0 && (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, alignItems: 'center' }}>
             <div style={{ width: '100%' }}>
               <FixtureRankChart
@@ -1754,7 +1757,7 @@ export default async function FixturePage({ params }) {
         )
 
         // 未開催「選手スタッツ」タブ用: 散布図4種
-        const preMatchScattersJsx = !hasStarted && seasonPlayerStats.length > 0 ? (
+        const preMatchScattersJsx = showPreMatchView && seasonPlayerStats.length > 0 ? (
           <section style={{ display: 'flex', flexDirection: 'column', gap: 32, marginBottom: 24, alignItems: 'center' }}>
             <div style={{ width: '100%' }}>
               <SeasonRatingScatter players={seasonPlayerStats} homeTeamId={fixture.home_team_id} awayTeamId={fixture.away_team_id} homeColor={homeColor} awayColor={awayColor} />
@@ -1772,7 +1775,7 @@ export default async function FixturePage({ params }) {
         ) : null
 
         // 未開催「H2H」タブ: 通算成績 + 直近5試合
-        const h2hJsx = !hasStarted ? (() => {
+        const h2hJsx = showPreMatchView ? (() => {
           if (!h2hRows || h2hRows.length === 0) {
             return (
               <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
@@ -1903,7 +1906,7 @@ export default async function FixturePage({ params }) {
         })() : null
 
         // 未開催「審判」タブ: 各チームの直近5試合 + 各試合の主審名
-        const preMatchRefereeJsx = !hasStarted ? (() => {
+        const preMatchRefereeJsx = showPreMatchView ? (() => {
           if (homeRecentForm.length === 0 && awayRecentForm.length === 0) {
             return (
               <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 32 }}>
@@ -2064,7 +2067,7 @@ export default async function FixturePage({ params }) {
         })()
 
         // 未開催「Winner」タブ: クジ攻略ヒント
-        const winnerJsx = !hasStarted ? (() => {
+        const winnerJsx = showPreMatchView ? (() => {
           // 各チームの今季スコア分布 (チーム視点 my-opp)
           const computeTeamDist = (teamId) => {
             const counts = new Map()
@@ -2363,7 +2366,7 @@ export default async function FixturePage({ params }) {
         })() : null
 
         // 未開催「データ」タブ: 状況別成績 (ホーム/アウェイ・KO時刻・日付)
-        const dataJsx = !hasStarted ? (() => {
+        const dataJsx = showPreMatchView ? (() => {
           const hid = Number(fixture.home_team_id)
           const aid = Number(fixture.away_team_id)
           const currentSeason = Number(fixture.season ?? 2026)
@@ -2681,8 +2684,9 @@ export default async function FixturePage({ params }) {
 
         const postsJsx = <PostsSection fixtureId={parseInt(id)} homeAbbr={fixture.home_abbr} awayAbbr={fixture.away_abbr} />
 
-        // 未開催試合: H2H(+データ) / Winner / 選手スタッツ / 掲示板 / 審判
-        if (useTabs && !hasStarted) {
+        // 未開催試合 または 試合終了済だが J 公式記録未取込:
+        // どちらも H2H / Winner / 選手スタッツ / 掲示板 / 審判 + 順位表グラフ で表示
+        if (useTabs && showPreMatchView) {
           const h2hAndDataJsx = (
             <>
               {h2hJsx}
@@ -2718,17 +2722,8 @@ export default async function FixturePage({ params }) {
           )
         }
 
-        // 試合中・終了済 + J公式記録未取込 (J1のみ想定): 試合スタッツ / 選手スタッツのみ
-        if (useTabs && hasStarted && !hasJLeagueRecord && !isJ2J3) {
-          return (
-            <MatchTabs
-              tabs={[
-                { key: 'stats',   label: '試合スタッツ', content: statsJsx },
-                { key: 'ratings', label: '選手スタッツ', content: ratingsJsx },
-              ]}
-            />
-          )
-        }
+        // (旧: 試合中・終了済 + J公式記録未取込のスタッツのみ表示は
+        //  showPreMatchView 経由で試合前ビューに統合)
 
         // J2J3 試合中・終了済: メンバー / ユーザー採点 / 掲示板 / 審判
         if (useTabs && hasStarted && isJ2J3) {
