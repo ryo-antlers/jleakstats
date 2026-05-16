@@ -5,10 +5,12 @@ name: Sync J-League Official Records
 # - 試合のない時間帯は --skip-done が効いて10秒以内で終了 (サイト負荷ほぼ0)
 # - 未来試合の予定変更 (KO時刻、放送局等) も常時追従
 # 注: GitHub Actions cron は best-effort で 5-15分遅れることあり
+#     一度 */10 に短縮したが逆に間隔が大きく開く現象 (1-3h skip) が
+#     発生したため */15 に戻す
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 10分ごと
+    - cron: '*/15 * * * *'  # 15分ごと
   workflow_dispatch:           # 手動実行も可能
 
 jobs:
