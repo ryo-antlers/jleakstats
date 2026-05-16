@@ -1,0 +1,23 @@
+name: Sync Pre-Match Referees
+
+# 試合前の主審情報を J.League 公式 (jleague.jp) から取得
+# - 審判発表は試合の2時間前が定例 → 5分おきに張り込み
+# - 該当試合がなければクエリ1発で 0件返却するので負荷ほぼゼロ
+# - 試合後は J-league sync が referee_ja_official に上書きするので、
+#   これは「試合前のフライング表示」用
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15分ごと
+  workflow_dispatch:          # 手動実行も可能
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch referees from J.League
+        run: |
+          curl -f -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/referees
+        continue-on-error: true
