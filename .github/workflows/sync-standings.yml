@@ -1,0 +1,22 @@
+name: Sync Standings
+
+# API-Football から順位表 (standings テーブル) を更新
+# - 順位表メイン画面は fixtures から動的計算のため影響なし
+# - 主に Fantasy 機能の選手リストでチーム順位表示に使う
+# - 日 1 回で十分 (全試合終了後の翌朝)
+
+on:
+  schedule:
+    - cron: '0 19 * * *'  # 毎日 19:00 UTC (= JST 4:00 翌日朝)
+  workflow_dispatch:        # 手動実行も可能
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync standings
+        run: |
+          curl -f -s \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.jleakstats.com/api/sync/standings
+        continue-on-error: true
