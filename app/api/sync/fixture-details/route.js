@@ -234,7 +234,10 @@ export async function GET(request) {
         if (oddsRes.length > 0) {
           await sql`DELETE FROM fixture_odds WHERE fixture_id = ${id}`
           for (const bookmaker of oddsRes) {
+            // bets が無い bookmaker はスキップ (API-Football の仕様で空のことがある)
+            if (!Array.isArray(bookmaker.bets)) continue
             for (const bet of bookmaker.bets) {
+              if (!Array.isArray(bet.values)) continue
               for (const val of bet.values) {
                 await sql`
                   INSERT INTO fixture_odds (
