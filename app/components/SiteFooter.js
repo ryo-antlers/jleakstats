@@ -39,7 +39,10 @@ export default function SiteFooter() {
         </a>
         {' '}(CC BY-SA 4.0)
       </div>
-      <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 16 }}>
+      <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <Link href="/jlsp" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 700 }}>
+          JLSP診断
+        </Link>
         <a href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
           プライバシーポリシー
         </a>

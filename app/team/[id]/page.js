@@ -951,12 +951,23 @@ export default async function TeamPage({ params }) {
 
   return (
     <div>
-      {/* ① クラブ名 → カラー箱 */}
+      {/* ① クラブ名 → カラー箱 → JLSP診断バナー */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 0, letterSpacing: '0.03em' }}>
           {team.name_en ?? team.name_ja}
         </h1>
         <div style={{ backgroundColor: color, height: 6, borderRadius: 2 }} />
+        <Link
+          href="/jlsp"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            marginTop: 10, padding: '6px 12px', borderRadius: 999,
+            border: '1px solid var(--accent)', color: 'var(--accent)',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none',
+          }}
+        >
+          JLSP診断で相性チェック →
+        </Link>
       </div>
 
       <TeamTabs
