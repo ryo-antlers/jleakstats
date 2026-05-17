@@ -41,6 +41,23 @@ body {
   100% { transform: translateX(var(--marquee-amount, 0px)); }
 }
 
+/* JLSP: "あなたのクラブ" を J クラブ代表カラーでサイクル */
+@keyframes club-color-cycle {
+  0%   { color: #e60012; } /* 鹿島・名古屋 */
+  12%  { color: #f37a1f; } /* 新潟 */
+  25%  { color: #fcb116; } /* 柏 */
+  37%  { color: #00714a; } /* 東京V */
+  50%  { color: #2baae2; } /* 湘南 */
+  62%  { color: #0033a0; } /* 横浜FM */
+  75%  { color: #582c83; } /* 京都・広島 */
+  87%  { color: #d8127d; } /* セレッソ */
+  100% { color: #e60012; } /* loop */
+}
+
+.club-color-cycle {
+  animation: club-color-cycle 16s linear infinite;
+}
+
 .title-row {
   margin-bottom: 32px;
 }

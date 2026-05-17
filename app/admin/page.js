@@ -1,5 +1,27 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
+
+function JlspAdminLinks() {
+  return (
+    <div style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16 }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>JLSP診断</p>
+      <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>
+        16タイプ × 60クラブの相性診断 (<Link href="/jlsp" style={{ color: 'var(--accent)', textDecoration: 'none' }}>/jlsp</Link>)
+      </p>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <Link href="/admin/jlsp-vectors" style={{
+          padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+          backgroundColor: 'var(--accent)', color: '#000', textDecoration: 'none',
+        }}>4軸ベクトル編集</Link>
+        <Link href="/admin/jlsp-overrides" style={{
+          padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+          backgroundColor: 'var(--bg-tertiary)', color: 'var(--accent)', textDecoration: 'none', border: '1px solid var(--accent)',
+        }}>質問別 override</Link>
+      </div>
+    </div>
+  )
+}
 
 function SyncButton({ label, endpoint, description }) {
   const [status, setStatus] = useState(null)
@@ -424,6 +446,7 @@ export default function AdminPage() {
         <UnregisteredPlayersCheck />
         <FantasyGwActions />
         <GameweekManager />
+        <JlspAdminLinks />
         <BackupSync />
       </div>
     </div>
