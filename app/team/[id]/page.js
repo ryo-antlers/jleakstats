@@ -951,7 +951,7 @@ export default async function TeamPage({ params }) {
 
   return (
     <div>
-      {/* ① クラブ名 → カラー箱 → JLSP診断バナー */}
+      {/* ① クラブ名 → カラー箱 → FANTYPE診断バナー */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 0, letterSpacing: '0.03em' }}>
           {team.name_en ?? team.name_ja}

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-function JlspAdminLinks() {
+function FantypeAdminLinks() {
   return (
     <div style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16 }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>FANTYPE</p>
@@ -10,14 +10,14 @@ function JlspAdminLinks() {
         サポーター気質 16タイプ診断 (<Link href="/fantype" style={{ color: 'var(--accent)', textDecoration: 'none' }}>/fantype</Link>)
       </p>
       <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>
-        ※ 以下の管理ページは旧 JLSP のクラブ × 質問 期待値管理 (JLCL 用に流用予定)。FANTYPE 自体には使わない。
+        ※ クラブ × 質問 期待値マトリクス管理。FANTYPE 本体は使わないが、姉妹サイト用に保持。
       </p>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <Link href="/admin/jlsp-vectors" style={{
+        <Link href="/admin/fantype-vectors" style={{
           padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
           backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', textDecoration: 'none', border: '1px solid var(--border-color)',
         }}>4軸ベクトル編集 (legacy)</Link>
-        <Link href="/admin/jlsp-overrides" style={{
+        <Link href="/admin/fantype-overrides" style={{
           padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
           backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', textDecoration: 'none', border: '1px solid var(--border-color)',
         }}>質問別 override (legacy)</Link>
@@ -449,7 +449,7 @@ export default function AdminPage() {
         <UnregisteredPlayersCheck />
         <FantasyGwActions />
         <GameweekManager />
-        <JlspAdminLinks />
+        <FantypeAdminLinks />
         <BackupSync />
       </div>
     </div>

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CLUBS, BASE_VECTORS } from '@/lib/jlsp/clubs'
-import { AXES } from '@/lib/jlsp/axes'
+import { CLUBS, BASE_VECTORS } from '@/lib/fantype/clubs'
+import { AXES } from '@/lib/fantype/axes'
 
 const VALUES = [-2, -1, 0, 1, 2]
 
@@ -121,7 +121,7 @@ function ClubRow({ club, overrides, saving, saved, onSet, onResetClub }) {
   )
 }
 
-export default function JlspVectorsAdmin() {
+export default function FantypeVectorsAdmin() {
   const [overrides, setOverrides] = useState({})
   const [loading, setLoading] = useState(true)
   const [selectedDiv, setSelectedDiv] = useState('J1')
@@ -129,7 +129,7 @@ export default function JlspVectorsAdmin() {
   const [savedMap, setSavedMap] = useState({})
 
   useEffect(() => {
-    fetch('/api/jlsp/vectors')
+    fetch('/api/fantype/vectors')
       .then((r) => r.json())
       .then((data) => {
         setOverrides(data)
@@ -146,7 +146,7 @@ export default function JlspVectorsAdmin() {
   async function postVector(clubId, vector) {
     setSavingMap((p) => ({ ...p, [clubId]: true }))
     try {
-      const res = await fetch('/api/jlsp/vectors', {
+      const res = await fetch('/api/fantype/vectors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clubId, vector }),
@@ -217,7 +217,7 @@ export default function JlspVectorsAdmin() {
         <Link href="/admin" className="hover:text-white">
           ← 管理
         </Link>
-        <span className="text-zinc-600">/admin/jlsp-vectors</span>
+        <span className="text-zinc-600">/admin/fantype-vectors</span>
       </div>
 
       <h1 className="text-2xl font-bold mb-2 text-white">クラブ別 4軸ベクトル編集</h1>

@@ -19,7 +19,7 @@ export default function SaveButton({ code, answers }) {
 
   useEffect(() => {
     if (!isSignedIn) return
-    fetch('/api/jlsp/profile')
+    fetch('/api/fantype/profile')
       .then((r) => r.json())
       .then((d) => setSavedCode(d.code ?? null))
       .catch(() => setSavedCode(null))
@@ -28,7 +28,7 @@ export default function SaveButton({ code, answers }) {
   async function save() {
     setSaving(true)
     try {
-      const res = await fetch('/api/jlsp/profile', {
+      const res = await fetch('/api/fantype/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, answers }),

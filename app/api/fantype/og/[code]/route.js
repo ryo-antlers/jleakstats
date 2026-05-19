@@ -1,11 +1,10 @@
 import { ImageResponse } from '@vercel/og'
-import { TYPE_META } from '@/lib/jlsp/type-meta'
+import { TYPE_META } from '@/lib/fantype/type-meta'
 
 export const runtime = 'edge'
 
 // FANTYPE 結果ページの OGP 画像 (1200×630)
-// /api/jlsp/og/RWUO などにアクセスすると PNG を返す。
-// (API URL は内部実装上 jlsp パスのままで OK。表示テキストは FANTYPE)
+// /api/fantype/og/RWUO などにアクセスすると PNG を返す。
 export async function GET(_req, { params }) {
   const { code: rawCode } = await params
   const code = (rawCode ?? '').toUpperCase()

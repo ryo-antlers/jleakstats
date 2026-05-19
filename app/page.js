@@ -29,13 +29,13 @@ async function getMyProfile() {
   if (!userId) return null
   const rows = await sql`
     SELECT up.clerk_user_id, up.display_name, up.avatar_text, up.supported_club_id,
-      up.jlsp_type_code, up.jlsp_answers,
+      up.fantype_type_code, up.fantype_answers,
       t.color_primary AS club_color
     FROM user_profiles up
     LEFT JOIN teams_master t ON t.id = up.supported_club_id
     WHERE up.clerk_user_id = ${userId}
   `.catch(() => [])
-  return rows[0] ?? { clerk_user_id: userId, display_name: null, avatar_text: null, supported_club_id: null, club_color: null, jlsp_type_code: null, jlsp_answers: null }
+  return rows[0] ?? { clerk_user_id: userId, display_name: null, avatar_text: null, supported_club_id: null, club_color: null, fantype_type_code: null, fantype_answers: null }
 }
 
 // このユーザーが既に採点済みの (fixture_id, team_id) ペア (文字列配列で返す)
@@ -529,9 +529,9 @@ function ProfileBubble({ profile }) {
     const src = (profile.display_name ?? '?').trim()
     initial = [...src].slice(0, 2).join('') || '?'
   }
-  const fantypeCode = profile.jlsp_type_code
+  const fantypeCode = profile.fantype_type_code
   const fantypeHref = fantypeCode
-    ? `/fantype/result/${fantypeCode}${profile.jlsp_answers ? `?a=${profile.jlsp_answers}` : ''}`
+    ? `/fantype/result/${fantypeCode}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
     : '/fantype'
   return (
     <>
@@ -549,7 +549,7 @@ function ProfileBubble({ profile }) {
       </Link>
       <Link
         href={fantypeHref}
-        className="jlsp-chip"
+        className="fantype-chip"
         title={fantypeCode ? `FANTYPE ${fantypeCode}` : 'FANTYPE 診断を受ける'}
         style={{
           position: 'absolute',

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CLUBS, BASE_VECTORS } from '@/lib/jlsp/clubs'
-import { QUESTIONS } from '@/lib/jlsp/questions'
-import { AXES } from '@/lib/jlsp/axes'
+import { CLUBS, BASE_VECTORS } from '@/lib/fantype/clubs'
+import { QUESTIONS } from '@/lib/fantype/questions'
+import { AXES } from '@/lib/fantype/axes'
 
 const STEPS = [3, 2, 1, 0, -1, -2, -3]
 
@@ -27,7 +27,7 @@ function defaultExpected(effectiveVector, q) {
   return effectiveVector[q.axis] * q.direction
 }
 
-export default function JlspOverridesAdmin() {
+export default function FantypeOverridesAdmin() {
   const [all, setAll] = useState({})
   const [vectorOverrides, setVectorOverrides] = useState({})
   const [loading, setLoading] = useState(true)
@@ -38,8 +38,8 @@ export default function JlspOverridesAdmin() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/jlsp/overrides').then((r) => r.json()),
-      fetch('/api/jlsp/vectors').then((r) => r.json()),
+      fetch('/api/fantype/overrides').then((r) => r.json()),
+      fetch('/api/fantype/vectors').then((r) => r.json()),
     ])
       .then(([overridesData, vectorsData]) => {
         setAll(overridesData)
@@ -63,7 +63,7 @@ export default function JlspOverridesAdmin() {
     [selectedId],
   )
 
-  // 基準ベクトルに /admin/jlsp-vectors で設定された override を被せた「効果のあるベクトル」
+  // 基準ベクトルに /admin/fantype-vectors で設定された override を被せた「効果のあるベクトル」
   const effectiveVector = useMemo(() => {
     if (!selectedClub) return null
     return { ...BASE_VECTORS[selectedClub.id], ...(vectorOverrides[selectedClub.id] ?? {}) }
@@ -112,13 +112,13 @@ export default function JlspOverridesAdmin() {
     setSaving(true)
     setSavedMsg(null)
     try {
-      const res = await fetch('/api/jlsp/overrides', {
+      const res = await fetch('/api/fantype/overrides', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clubId: selectedClub.id, overrides: draft }),
       })
       if (!res.ok) throw new Error('save failed')
-      const fresh = await fetch('/api/jlsp/overrides').then((r) => r.json())
+      const fresh = await fetch('/api/fantype/overrides').then((r) => r.json())
       setAll(fresh)
       setSavedMsg('保存しました')
       window.setTimeout(() => setSavedMsg(null), 2200)
@@ -139,7 +139,7 @@ export default function JlspOverridesAdmin() {
         <Link href="/admin" className="hover:text-white">
           ← 管理
         </Link>
-        <span className="text-zinc-600">/admin/jlsp-overrides</span>
+        <span className="text-zinc-600">/admin/fantype-overrides</span>
       </div>
 
       <h1 className="text-2xl font-bold mb-2 text-white">クラブ別 override</h1>

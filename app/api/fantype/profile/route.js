@@ -1,10 +1,10 @@
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
-import { TYPE_META } from '@/lib/jlsp/type-meta'
-import { decodeAnswers } from '@/lib/jlsp/diagnose'
+import { TYPE_META } from '@/lib/fantype/type-meta'
+import { decodeAnswers } from '@/lib/fantype/diagnose'
 
 /**
- * GET: 現在ログイン中のユーザーの保存済み JLSP タイプ
+ * GET: 現在ログイン中のユーザーの保存済み FANTYPE タイプ
  *   → { code: 'RSWF', answers: '3_2_...', updated_at: ISO }
  *   未保存 / 未ログイン → 200 で { code: null }
  */
@@ -13,17 +13,17 @@ export async function GET() {
   if (!userId) return Response.json({ code: null })
 
   const rows = await sql`
-    SELECT jlsp_type_code, jlsp_answers, jlsp_updated_at
+    SELECT fantype_type_code, fantype_answers, fantype_updated_at
     FROM user_profiles
     WHERE clerk_user_id = ${userId}
   `.catch(() => [])
   const row = rows[0]
-  if (!row || !row.jlsp_type_code) return Response.json({ code: null })
+  if (!row || !row.fantype_type_code) return Response.json({ code: null })
 
   return Response.json({
-    code: row.jlsp_type_code,
-    answers: row.jlsp_answers,
-    updated_at: row.jlsp_updated_at,
+    code: row.fantype_type_code,
+    answers: row.fantype_answers,
+    updated_at: row.fantype_updated_at,
   })
 }
 
@@ -56,12 +56,12 @@ export async function POST(req) {
   // display_name は NOT NULL 制約あり。プロフィール未設定ユーザー用に「ゲスト」を初期値で入れる
   // (ON CONFLICT 時は display_name を上書きしないので、既存ユーザーの名前は保持される)
   await sql`
-    INSERT INTO user_profiles (clerk_user_id, display_name, jlsp_type_code, jlsp_answers, jlsp_updated_at)
+    INSERT INTO user_profiles (clerk_user_id, display_name, fantype_type_code, fantype_answers, fantype_updated_at)
     VALUES (${userId}, 'ゲスト', ${code}, ${answers}, NOW())
     ON CONFLICT (clerk_user_id) DO UPDATE
-      SET jlsp_type_code = EXCLUDED.jlsp_type_code,
-          jlsp_answers   = EXCLUDED.jlsp_answers,
-          jlsp_updated_at = NOW(),
+      SET fantype_type_code = EXCLUDED.fantype_type_code,
+          fantype_answers   = EXCLUDED.fantype_answers,
+          fantype_updated_at = NOW(),
           updated_at      = NOW()
   `
   return Response.json({ ok: true, code })
