@@ -1,11 +1,13 @@
--- JLSP診断 (J-League Supporter Personality) 用テーブル
+-- クラブ × 4軸/32問 期待値マトリクス
 -- 4軸ベクトル override と 質問単位 expected answer override を保持する。
--- 基準値 (RAW_CLUBS) は lib/jlsp/clubs.js に直書き、ここで上書き分のみ管理する。
+-- 基準値 (RAW_CLUBS) は lib/fantype/clubs.js に直書き、ここで上書き分のみ管理する。
+-- データは旧 JLSP 由来 (axis_id は旧軸 shoubu/soshiki/keiei/nekkyou)。FANTYPE 本体は不使用、
+-- 姉妹サイトのデータシード元として保持。管理 UI は /admin/fantype-vectors, /admin/fantype-overrides。
 
 -- 4軸ベクトル override
 --   axis_id: 'shoubu' | 'soshiki' | 'keiei' | 'nekkyou'
 --   value  : -2 ~ +2
-CREATE TABLE IF NOT EXISTS jlsp_vector_overrides (
+CREATE TABLE IF NOT EXISTS fantype_vector_overrides (
   club_id    TEXT    NOT NULL,
   axis_id    TEXT    NOT NULL,
   value      INTEGER NOT NULL CHECK (value BETWEEN -2 AND 2),
@@ -16,7 +18,7 @@ CREATE TABLE IF NOT EXISTS jlsp_vector_overrides (
 -- 質問単位 expected answer override
 --   question_id: 'q01' ~ 'q32'
 --   value      : -3 ~ +3 (Likert step)
-CREATE TABLE IF NOT EXISTS jlsp_question_overrides (
+CREATE TABLE IF NOT EXISTS fantype_question_overrides (
   club_id     TEXT    NOT NULL,
   question_id TEXT    NOT NULL,
   value       INTEGER NOT NULL CHECK (value BETWEEN -3 AND 3),

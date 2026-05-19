@@ -3,7 +3,7 @@ import { Building2, Flag, Users } from 'lucide-react'
 import sql from '@/lib/db'
 import Link from 'next/link'
 import TopLogo from '@/app/components/TopLogo'
-import { TYPE_META } from '@/lib/jlsp/type-meta'
+import { TYPE_META } from '@/lib/fantype/type-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,8 +68,8 @@ export default async function RatingIndexPage() {
       up.display_name,
       up.avatar_text,
       up.supported_club_id,
-      up.jlsp_type_code,
-      up.jlsp_answers,
+      up.fantype_type_code,
+      up.fantype_answers,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
       t.abbr AS club_abbr
@@ -267,9 +267,9 @@ export default async function RatingIndexPage() {
   const _clubColor = normalizeColor(profile.club_color) ?? '#444'
   const _clubText = textOn(_clubColor)
 
-  const fantypeMeta = profile.jlsp_type_code ? TYPE_META[profile.jlsp_type_code] : null
+  const fantypeMeta = profile.fantype_type_code ? TYPE_META[profile.fantype_type_code] : null
   const fantypeHref = fantypeMeta
-    ? `/fantype/result/${profile.jlsp_type_code}${profile.jlsp_answers ? `?a=${profile.jlsp_answers}` : ''}`
+    ? `/fantype/result/${profile.fantype_type_code}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
     : null
 
   return (
@@ -310,7 +310,7 @@ export default async function RatingIndexPage() {
                 padding: '4px 10px', borderRadius: 999,
                 color: '#000', backgroundColor: 'var(--accent)',
                 textDecoration: 'none',
-              }}>{profile.jlsp_type_code} {fantypeMeta.nickname}</Link>
+              }}>{profile.fantype_type_code} {fantypeMeta.nickname}</Link>
             )}
           </div>
         </div>

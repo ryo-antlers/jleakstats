@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import sql from '@/lib/db'
 import TopLogo from '@/app/components/TopLogo'
-import { TYPE_META } from '@/lib/jlsp/type-meta'
+import { TYPE_META } from '@/lib/fantype/type-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +36,7 @@ async function resolveUser(id) {
     rows = await sql`
       SELECT
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
-        up.supported_club_id, up.jlsp_type_code, up.jlsp_answers,
+        up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr
       FROM user_profiles up
       LEFT JOIN teams_master t ON t.id = up.supported_club_id
@@ -46,7 +46,7 @@ async function resolveUser(id) {
       rows = await sql`
         SELECT
           up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
-          up.supported_club_id, up.jlsp_type_code, up.jlsp_answers,
+          up.supported_club_id, up.fantype_type_code, up.fantype_answers,
           t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr
         FROM user_profiles up
         LEFT JOIN teams_master t ON t.id = up.supported_club_id
@@ -57,7 +57,7 @@ async function resolveUser(id) {
     rows = await sql`
       SELECT
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
-        up.supported_club_id, up.jlsp_type_code, up.jlsp_answers,
+        up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr
       FROM user_profiles up
       LEFT JOIN teams_master t ON t.id = up.supported_club_id
@@ -86,9 +86,9 @@ export default async function UserProfilePage({ params }) {
   const supportedClubId = user.supported_club_id ? Number(user.supported_club_id) : null
   const clubColor = normalizeColor(user.club_color)
   const clubText = textOn(clubColor)
-  const fantypeMeta = user.jlsp_type_code ? TYPE_META[user.jlsp_type_code] : null
+  const fantypeMeta = user.fantype_type_code ? TYPE_META[user.fantype_type_code] : null
   const fantypeHref = fantypeMeta
-    ? `/fantype/result/${user.jlsp_type_code}${user.jlsp_answers ? `?a=${user.jlsp_answers}` : ''}`
+    ? `/fantype/result/${user.fantype_type_code}${user.fantype_answers ? `?a=${user.fantype_answers}` : ''}`
     : null
 
   // アバター文字
@@ -194,7 +194,7 @@ export default async function UserProfilePage({ params }) {
                 padding: '4px 10px', borderRadius: 999,
                 color: '#000', backgroundColor: 'var(--accent)',
                 textDecoration: 'none',
-              }}>{user.jlsp_type_code} {fantypeMeta.nickname}</Link>
+              }}>{user.fantype_type_code} {fantypeMeta.nickname}</Link>
             )}
           </div>
         </div>

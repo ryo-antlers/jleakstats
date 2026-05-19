@@ -9,7 +9,7 @@ function isValidValue(n) {
  */
 export async function GET() {
   const rows = await sql`
-    SELECT club_id, question_id, value FROM jlsp_question_overrides
+    SELECT club_id, question_id, value FROM fantype_question_overrides
   `.catch(() => [])
   const out = {}
   for (const r of rows) {
@@ -57,17 +57,17 @@ export async function POST(req) {
   const sentQids = Object.keys(validated)
 
   if (sentQids.length === 0) {
-    await sql`DELETE FROM jlsp_question_overrides WHERE club_id = ${clubId}`
+    await sql`DELETE FROM fantype_question_overrides WHERE club_id = ${clubId}`
     return Response.json({ ok: true, clubId, deleted: 'all' })
   }
 
   await sql`
-    DELETE FROM jlsp_question_overrides
+    DELETE FROM fantype_question_overrides
     WHERE club_id = ${clubId} AND NOT (question_id = ANY(${sentQids}))
   `
   for (const [qid, val] of Object.entries(validated)) {
     await sql`
-      INSERT INTO jlsp_question_overrides (club_id, question_id, value)
+      INSERT INTO fantype_question_overrides (club_id, question_id, value)
       VALUES (${clubId}, ${qid}, ${val})
       ON CONFLICT (club_id, question_id) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
     `
