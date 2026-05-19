@@ -28,7 +28,7 @@ export default async function ProfileSetupPage({ searchParams }) {
       ORDER BY name_ja ASC
     `,
     sql`
-      SELECT display_name, supported_club_id, club_changed_at,
+      SELECT display_name, avatar_text, handle, supported_club_id, club_changed_at,
         jlsp_type_code, jlsp_answers, jlsp_updated_at
       FROM user_profiles
       WHERE clerk_user_id = ${userId}
@@ -38,6 +38,8 @@ export default async function ProfileSetupPage({ searchParams }) {
   const profile = profileRows[0]
     ? {
         display_name: profileRows[0].display_name,
+        avatar_text: profileRows[0].avatar_text,
+        handle: profileRows[0].handle,
         supported_club_id: profileRows[0].supported_club_id,
         club_changed_at: profileRows[0].club_changed_at,
       }

@@ -22,6 +22,7 @@ export default async function PostsSection({ fixtureId, homeAbbr, awayAbbr }) {
       p.updated_at,
       COALESCE(up.display_name, p.guest_name) AS display_name,
       up.avatar_text AS avatar_text,
+      up.handle      AS handle,
       up.supported_club_id,
       t.name_ja      AS club_name_ja,
       t.abbr         AS club_abbr,

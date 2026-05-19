@@ -75,6 +75,7 @@ export default function ProfileForm({ clubs, profile, next }) {
     const name = (profile?.display_name ?? '').trim()
     return [...name].slice(0, 2).join('')
   })
+  const [handle, setHandle] = useState(profile?.handle ?? '')
   const [clubId, setClubId] = useState(profile?.supported_club_id ?? null)
   const [activeTier, setActiveTier] = useState(1)
   const [error, setError] = useState(null)
@@ -137,6 +138,15 @@ export default function ProfileForm({ clubs, profile, next }) {
     return null
   })()
 
+  // URL ハンドルのバリデーション (空 / 3〜20文字、半角英数 + _ -)
+  const handleError = (() => {
+    const v = handle.trim()
+    if (v === '') return null
+    if (!/^[a-zA-Z0-9_-]+$/.test(v)) return '半角英数と _ - のみ使えます'
+    if (v.length < 3 || v.length > 20) return '3〜20文字で入力してください'
+    return null
+  })()
+
   // アイコン表示用の文字 (custom > display name の先頭2文字)
   const avatarDisplay = avatarText.trim() || [...displayName.trim()].slice(0, 2).join('')
   const selectedClubColor = selectedClub
@@ -160,6 +170,10 @@ export default function ProfileForm({ clubs, profile, next }) {
       setError(`アイコン文字: ${avatarTextError}`)
       return
     }
+    if (handleError) {
+      setError(`URLハンドル: ${handleError}`)
+      return
+    }
     if (!clubId) {
       setError('クラブを選んでください')
       return
@@ -173,6 +187,7 @@ export default function ProfileForm({ clubs, profile, next }) {
         body: JSON.stringify({
           display_name: trimmed,
           avatar_text: avatarText.trim() || null,
+          handle: handle.trim() || null,
           supported_club_id: clubId,
         }),
       })
@@ -210,6 +225,27 @@ export default function ProfileForm({ clubs, profile, next }) {
             required
             style={inputStyle}
           />
+        </Field>
+
+        {/* URL ハンドル (任意) */}
+        <Field label="URLハンドル (任意)">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>/u/</span>
+            <input
+              type="text"
+              value={handle}
+              onChange={e => setHandle(e.target.value)}
+              placeholder="例: marino_taro"
+              maxLength={20}
+              style={{ ...inputStyle, fontFamily: 'monospace' }}
+            />
+          </div>
+          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+            設定するとプロフィールページ URL が短く綺麗になります。半角英数 + _ - で 3〜20文字。
+          </p>
+          {handleError && (
+            <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{handleError}</p>
+          )}
         </Field>
 
         {/* あなたのクラブ */}

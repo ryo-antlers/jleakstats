@@ -56,6 +56,7 @@ export async function POST(request) {
   const displayName = String(body.display_name ?? '').trim()
   const supportedClubId = Number(body.supported_club_id)
   const avatarTextRaw = body.avatar_text == null ? null : String(body.avatar_text).trim()
+  const handleRaw = body.handle == null ? null : String(body.handle).trim()
 
   // display_name のバリデーション
   if (displayName.length < 1 || displayName.length > 12) {
@@ -77,6 +78,25 @@ export async function POST(request) {
     if (containsNG(avatarText)) {
       return Response.json({ error: 'アイコン文字に使用できない言葉が含まれています' }, { status: 400 })
     }
+  }
+
+  // handle のバリデーション (任意、3〜20文字、半角英数 + _-)
+  let handle = null
+  if (handleRaw && handleRaw.length > 0) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(handleRaw)) {
+      return Response.json({ error: 'URLハンドルは半角英数と _ - のみ使えます' }, { status: 400 })
+    }
+    if (handleRaw.length < 3 || handleRaw.length > 20) {
+      return Response.json({ error: 'URLハンドルは3〜20文字で入力してください' }, { status: 400 })
+    }
+    // 衝突チェック (自分以外で同じ handle を使ってる行があるか)
+    const dup = await sql`
+      SELECT clerk_user_id FROM user_profiles WHERE handle = ${handleRaw} AND clerk_user_id <> ${userId}
+    `
+    if (dup.length > 0) {
+      return Response.json({ error: 'そのURLハンドルは既に使われています' }, { status: 409 })
+    }
+    handle = handleRaw
   }
 
   // supported_club_id のバリデーション (J1/J2/J3 全グループ)
@@ -124,17 +144,19 @@ export async function POST(request) {
         UPDATE user_profiles SET
           display_name      = ${displayName},
           avatar_text       = ${avatarText},
+          handle            = ${handle},
           supported_club_id = ${supportedClubId},
           club_changed_at   = NOW(),
           updated_at        = NOW()
         WHERE clerk_user_id = ${userId}
       `
     } else {
-      // display_name と avatar_text のみ更新
+      // display_name, avatar_text, handle のみ更新
       await sql`
         UPDATE user_profiles SET
           display_name = ${displayName},
           avatar_text  = ${avatarText},
+          handle       = ${handle},
           updated_at   = NOW()
         WHERE clerk_user_id = ${userId}
       `
@@ -143,10 +165,10 @@ export async function POST(request) {
     // 新規作成
     await sql`
       INSERT INTO user_profiles (
-        clerk_user_id, display_name, avatar_text, supported_club_id,
+        clerk_user_id, display_name, avatar_text, handle, supported_club_id,
         club_changed_at, created_at, updated_at
       ) VALUES (
-        ${userId}, ${displayName}, ${avatarText}, ${supportedClubId},
+        ${userId}, ${displayName}, ${avatarText}, ${handle}, ${supportedClubId},
         NOW(), NOW(), NOW()
       )
     `
