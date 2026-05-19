@@ -3,6 +3,7 @@ import { Building2, Flag, Users } from 'lucide-react'
 import sql from '@/lib/db'
 import Link from 'next/link'
 import TopLogo from '@/app/components/TopLogo'
+import { TYPE_META } from '@/lib/jlsp/type-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,6 +68,8 @@ export default async function RatingIndexPage() {
       up.display_name,
       up.avatar_text,
       up.supported_club_id,
+      up.jlsp_type_code,
+      up.jlsp_answers,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
       t.abbr AS club_abbr
@@ -264,10 +267,15 @@ export default async function RatingIndexPage() {
   const _clubColor = normalizeColor(profile.club_color) ?? '#444'
   const _clubText = textOn(_clubColor)
 
+  const fantypeMeta = profile.jlsp_type_code ? TYPE_META[profile.jlsp_type_code] : null
+  const fantypeHref = fantypeMeta
+    ? `/fantype/result/${profile.jlsp_type_code}${profile.jlsp_answers ? `?a=${profile.jlsp_answers}` : ''}`
+    : null
+
   return (
     <div>
       <TopLogo />
-      {/* ユーザーヘッダー */}
+      {/* ユーザーヘッダー: 案A 並列バッジ */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 16,
         padding: '16px 0',
@@ -280,26 +288,31 @@ export default async function RatingIndexPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: _initial.length === 2 ? 22 : 28, fontWeight: 900,
           letterSpacing: '0.02em', flexShrink: 0,
-        }}>
-          {_initial}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
+        }}>{_initial}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
           <div style={{
-            fontSize: 18, fontWeight: 900, color: '#fff',
-            letterSpacing: '0.04em',
+            fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {profile.display_name ?? '名無し'}
           </div>
-          {profile.club_name_ja && (
-            <div style={{
-              fontSize: 12, fontWeight: 700,
-              color: _clubColor,
-              letterSpacing: '0.04em',
-            }}>
-              {profile.club_name_ja}
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {profile.club_name_ja && (
+              <span style={{
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
+                padding: '4px 10px', borderRadius: 999,
+                color: _clubText, backgroundColor: _clubColor,
+              }}>{profile.club_name_ja}</span>
+            )}
+            {fantypeMeta && (
+              <Link href={fantypeHref} style={{
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
+                padding: '4px 10px', borderRadius: 999,
+                color: '#000', backgroundColor: 'var(--accent)',
+                textDecoration: 'none',
+              }}>{profile.jlsp_type_code} {fantypeMeta.nickname}</Link>
+            )}
+          </div>
         </div>
         <Link href="/profile-setup?next=/rating" style={{
           fontSize: 11, fontWeight: 800, letterSpacing: '0.06em',
@@ -308,9 +321,7 @@ export default async function RatingIndexPage() {
           border: '1px solid rgba(255,255,255,0.2)',
           textDecoration: 'none',
           whiteSpace: 'nowrap',
-        }}>
-          プロフィール編集
-        </Link>
+        }}>プロフィール編集</Link>
       </div>
 
 

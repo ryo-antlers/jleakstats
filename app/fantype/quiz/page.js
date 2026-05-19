@@ -8,17 +8,51 @@ import { vectorToCode } from '@/lib/jlsp/type-meta'
 
 const QUESTIONS_PER_PAGE = 8
 
+// 反対 (左) → どちらでもない (中央) → 賛成 (右) の順に並べる
 const STEPS = [
-  { value: +3, label: '強く賛成' },
-  { value: +2, label: '賛成' },
-  { value: +1, label: 'やや賛成' },
-  { value: 0, label: 'どちらでもない' },
-  { value: -1, label: 'やや反対' },
-  { value: -2, label: '反対' },
   { value: -3, label: '強く反対' },
+  { value: -2, label: '反対' },
+  { value: -1, label: 'やや反対' },
+  { value: 0, label: 'どちらでもない' },
+  { value: +1, label: 'やや賛成' },
+  { value: +2, label: '賛成' },
+  { value: +3, label: '強く賛成' },
 ]
 
 const CENTER_INDEX = 3
+
+// 各ステップの塗りつぶし色 (選択時): 反対側=紫、中央=グレー、賛成側=緑
+const STEP_COLORS = [
+  '#9333ea', // 強く反対 (purple-600)
+  '#a855f7', // 反対 (purple-500)
+  '#c084fc', // やや反対 (purple-400)
+  '#6b7280', // どちらでもない (gray-500)
+  '#4ade80', // やや賛成 (green-400)
+  '#22c55e', // 賛成 (green-500)
+  '#16a34a', // 強く賛成 (green-600)
+]
+
+// 未選択時のボーダー色 (左右で色分け)
+const STEP_BORDER_COLORS = [
+  'rgba(168, 85, 247, 0.6)', // 反対側 (purple)
+  'rgba(168, 85, 247, 0.6)',
+  'rgba(168, 85, 247, 0.6)',
+  'rgb(91, 94, 100)',         // 中央 (gray)
+  'rgba(34, 197, 94, 0.6)',   // 賛成側 (green)
+  'rgba(34, 197, 94, 0.6)',
+  'rgba(34, 197, 94, 0.6)',
+]
+
+// 各ステップの箱サイズ: 中央が小さく、両端ほど大きく (=熱量の表現)
+const STEP_SIZE = [
+  'w-10 h-10 sm:w-12 sm:h-12', // 強く反対
+  'w-8 h-8 sm:w-10 sm:h-10',   // 反対
+  'w-7 h-7 sm:w-8 sm:h-8',     // やや反対
+  'w-6 h-6 sm:w-7 sm:h-7',     // どちらでもない
+  'w-7 h-7 sm:w-8 sm:h-8',     // やや賛成
+  'w-8 h-8 sm:w-10 sm:h-10',   // 賛成
+  'w-10 h-10 sm:w-12 sm:h-12', // 強く賛成
+]
 
 function axisLabel(axis) {
   switch (axis) {
@@ -37,24 +71,18 @@ function axisLabel(axis) {
 
 function LikertRow({ index, question, selected, onSelect }) {
   return (
-    <div
-      className="rounded-2xl border border-zinc-800 p-4 sm:p-5"
-      style={{ backgroundColor: 'var(--bg-secondary)' }}
-    >
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-xs text-zinc-500 font-mono">Q{index}</span>
-        <span className="text-[10px] uppercase tracking-wider text-zinc-500">
-          {axisLabel(question.axis)}
-        </span>
+    <div className="py-2 sm:py-3">
+      <div className="flex items-baseline gap-3 mb-8 sm:mb-10">
+        <span className="text-xs text-zinc-500 font-mono shrink-0">Q{index}</span>
+        <p className="text-sm sm:text-base font-semibold leading-relaxed text-white">
+          {question.statement}
+        </p>
       </div>
-      <p className="text-sm sm:text-base font-semibold leading-relaxed mb-5 text-white">
-        {question.statement}
-      </p>
       <div className="flex items-center gap-2 sm:gap-3 select-none">
-        <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 shrink-0 w-8">
-          賛成
+        <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 shrink-0">
+          反対
         </span>
-        <div className="flex-1 grid grid-cols-7 gap-1 sm:gap-1.5">
+        <div className="flex items-center" style={{ gap: '20px' }}>
           {STEPS.map((s, i) => {
             const selectedIdx =
               selected !== undefined ? STEPS.findIndex((x) => x.value === selected) : -1
@@ -68,6 +96,7 @@ function LikertRow({ index, question, selected, onSelect }) {
               }
             }
             const isExact = selected === s.value
+            const color = STEP_COLORS[i]
             return (
               <button
                 key={s.value}
@@ -76,22 +105,18 @@ function LikertRow({ index, question, selected, onSelect }) {
                 aria-label={s.label}
                 title={s.label}
                 aria-pressed={isExact}
-                style={
-                  isFilled
-                    ? {
-                        backgroundColor: isExact ? 'var(--accent)' : 'var(--accent-dark)',
-                      }
-                    : undefined
-                }
-                className={`h-9 sm:h-11 rounded transition-all duration-150 ${
-                  isFilled ? '' : 'bg-zinc-800 hover:bg-zinc-700'
-                }`}
+                style={{
+                  backgroundColor: isFilled ? color : 'transparent',
+                  border: `2px solid ${isFilled ? color : STEP_BORDER_COLORS[i]}`,
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+                className={`${STEP_SIZE[i]} rounded transition-all duration-150 hover:scale-105 cursor-pointer focus:outline-none focus-visible:outline-none active:outline-none`}
               />
             )
           })}
         </div>
-        <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 shrink-0 w-8 text-right">
-          反対
+        <span className="text-[10px] sm:text-xs font-semibold text-zinc-500 shrink-0">
+          賛成
         </span>
       </div>
     </div>
@@ -142,7 +167,7 @@ export default function JlspQuizPage() {
       const vector = scoreAnswers(payload)
       const code = vectorToCode(vector)
       const a = encodeAnswers(payload)
-      router.push(`/jlsp/result/${code}?a=${a}`)
+      router.push(`/fantype/result/${code}?a=${a}`)
     } else {
       setPageIndex(pageIndex + 1)
     }
@@ -173,7 +198,7 @@ export default function JlspQuizPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-6 sm:space-y-7">
         {currentPage.map((q, i) => (
           <LikertRow
             key={q.id}

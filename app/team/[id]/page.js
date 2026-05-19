@@ -958,7 +958,7 @@ export default async function TeamPage({ params }) {
         </h1>
         <div style={{ backgroundColor: color, height: 6, borderRadius: 2 }} />
         <Link
-          href="/jlsp"
+          href="/fantype"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             marginTop: 10, padding: '6px 12px', borderRadius: 999,
@@ -966,7 +966,7 @@ export default async function TeamPage({ params }) {
             fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none',
           }}
         >
-          JLSP診断で相性チェック →
+          FANTYPE で気質診断 →
         </Link>
       </div>
 
