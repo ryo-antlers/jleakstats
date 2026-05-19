@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import sql from '@/lib/db'
 import ProfileForm from './profile-form'
-import { TYPE_META } from '@/lib/jlsp/type-meta'
+import { TYPE_META } from '@/lib/fantype/type-meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +29,8 @@ export default async function ProfileSetupPage({ searchParams }) {
     `,
     sql`
       SELECT display_name, avatar_text, handle, supported_club_id, club_changed_at,
-        jlsp_type_code, jlsp_answers, jlsp_updated_at
+        jersey_number, favorite_player_id, prefecture, city, bio, supporter_since,
+        fantype_type_code, fantype_answers, fantype_updated_at
       FROM user_profiles
       WHERE clerk_user_id = ${userId}
     `,
@@ -42,27 +43,46 @@ export default async function ProfileSetupPage({ searchParams }) {
         handle: profileRows[0].handle,
         supported_club_id: profileRows[0].supported_club_id,
         club_changed_at: profileRows[0].club_changed_at,
+        jersey_number: profileRows[0].jersey_number,
+        favorite_player_id: profileRows[0].favorite_player_id,
+        prefecture: profileRows[0].prefecture,
+        city: profileRows[0].city,
+        bio: profileRows[0].bio,
+        supporter_since: profileRows[0].supporter_since,
       }
     : null
 
-  const jlsp = profileRows[0]?.jlsp_type_code
+  // 推しクラブが設定済みなら、その選手リストを事前取得 (推し選手 Select の初期表示用)
+  const initialPlayers = profile?.supported_club_id ? await sql`
+    SELECT pm.id, pm.name_ja, pm.name_en, pm.position, pm.no AS number
+    FROM players_master pm
+    WHERE pm.team_id = ${profile.supported_club_id}
+      AND pm.is_active = true
+      AND (pm.canonical_id IS NULL OR pm.canonical_id = pm.id)
+    ORDER BY
+      CASE pm.position WHEN 'GK' THEN 1 WHEN 'DF' THEN 2 WHEN 'MF' THEN 3 WHEN 'FW' THEN 4 ELSE 5 END,
+      pm.no ASC NULLS LAST,
+      pm.name_ja
+  ` : []
+
+  const jlsp = profileRows[0]?.fantype_type_code
     ? {
-        code: profileRows[0].jlsp_type_code,
-        answers: profileRows[0].jlsp_answers,
-        updated_at: profileRows[0].jlsp_updated_at,
-        meta: TYPE_META[profileRows[0].jlsp_type_code] ?? null,
+        code: profileRows[0].fantype_type_code,
+        answers: profileRows[0].fantype_answers,
+        updated_at: profileRows[0].fantype_updated_at,
+        meta: TYPE_META[profileRows[0].fantype_type_code] ?? null,
       }
     : null
 
   return (
     <>
-      <ProfileForm clubs={clubs} profile={profile} next={next} />
-      <JlspSection jlsp={jlsp} />
+      <ProfileForm clubs={clubs} profile={profile} initialPlayers={initialPlayers} next={next} />
+      <FantypeSection jlsp={jlsp} />
     </>
   )
 }
 
-function JlspSection({ jlsp }) {
+function FantypeSection({ jlsp }) {
   return (
     <section
       style={{

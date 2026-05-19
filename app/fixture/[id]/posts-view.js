@@ -24,6 +24,16 @@ function avatarLabel(name, avatarText) {
   return chars.slice(0, 2).join('') || '?'
 }
 
+// 背番号バッジ用: 推しクラブ色 (HEX) に対する読みやすい文字色
+function jerseyTextColor(clubColor) {
+  const h = String(clubColor ?? '').replace('#', '')
+  if (h.length < 6) return '#fff'
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
+}
+
 // ─────────────────────────────────────────────
 // 掲示板ビュー (Slack風)
 // ─────────────────────────────────────────────
@@ -395,6 +405,20 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
                   <span title={post.club_name_ja}>{post.club_abbr}</span>
                 </>
               )}
+            </span>
+          )}
+          {post.jersey_number != null && post.club_color && (
+            <span
+              style={{
+                fontSize: 9, fontWeight: 900, letterSpacing: '-0.02em',
+                padding: '1px 6px', borderRadius: 4,
+                backgroundColor: post.club_color.startsWith('#') ? post.club_color : `#${post.club_color}`,
+                color: jerseyTextColor(post.club_color),
+                lineHeight: 1.4,
+              }}
+              title={`背番号 ${post.jersey_number}`}
+            >
+              #{post.jersey_number}
             </span>
           )}
           {post.is_guest && (

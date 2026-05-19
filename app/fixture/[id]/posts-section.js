@@ -24,6 +24,7 @@ export default async function PostsSection({ fixtureId, homeAbbr, awayAbbr }) {
       up.avatar_text AS avatar_text,
       up.handle      AS handle,
       up.supported_club_id,
+      up.jersey_number AS jersey_number,
       t.name_ja      AS club_name_ja,
       t.abbr         AS club_abbr,
       t.color_primary AS club_color,
