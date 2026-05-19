@@ -320,6 +320,25 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
   const initial = avatarLabel(name, post.avatar_text)
   const avatarSize = isReply ? 28 : 36
 
+  // ゲスト以外はプロフィールページへリンク。handle 優先、無ければ clerk_user_id
+  const profileHref = (!post.is_guest && post.clerk_user_id)
+    ? `/u/${post.handle ?? post.clerk_user_id}`
+    : null
+
+  const avatarEl = (
+    <div style={{
+      width: avatarSize, height: avatarSize, borderRadius: '50%',
+      backgroundColor: avatarColor,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', fontWeight: 800,
+      fontSize: initial.length === 2 ? (isReply ? 11 : 13) : (isReply ? 13 : 16),
+      letterSpacing: initial.length === 2 ? '0.02em' : 0,
+      flexShrink: 0,
+    }}>
+      {initial}
+    </div>
+  )
+
   return (
     <div
       style={{
@@ -329,18 +348,14 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
         padding: isReply ? '6px 8px' : '10px 8px',
       }}
     >
-      {/* アバター (クラブカラー + 名前頭文字) */}
-      <div style={{
-        width: avatarSize, height: avatarSize, borderRadius: '50%',
-        backgroundColor: avatarColor,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontWeight: 800,
-        fontSize: initial.length === 2 ? (isReply ? 11 : 13) : (isReply ? 13 : 16),
-        letterSpacing: initial.length === 2 ? '0.02em' : 0,
-        flexShrink: 0,
-      }}>
-        {initial}
-      </div>
+      {/* アバター (プロフィールページへリンク。ゲストは非リンク) */}
+      {profileHref ? (
+        <Link href={profileHref} style={{ flexShrink: 0, lineHeight: 0 }} aria-label={`${name} のプロフィール`}>
+          {avatarEl}
+        </Link>
+      ) : (
+        avatarEl
+      )}
 
       {/* 内容 */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -355,18 +370,33 @@ function PostCard({ post, rank, isReply, userId, fixtureId }) {
               {rank}
             </span>
           )}
-          <span style={{
-            fontSize: isReply ? 12 : 13, fontWeight: 700, color: '#fff',
-            letterSpacing: '0.02em',
-          }}>
-            {name}
-            {post.club_abbr && (
-              <>
-                <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px', fontWeight: 500 }}>/</span>
-                <span title={post.club_name_ja}>{post.club_abbr}</span>
-              </>
-            )}
-          </span>
+          {profileHref ? (
+            <Link href={profileHref} style={{
+              fontSize: isReply ? 12 : 13, fontWeight: 700, color: '#fff',
+              letterSpacing: '0.02em', textDecoration: 'none',
+            }}>
+              {name}
+              {post.club_abbr && (
+                <>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px', fontWeight: 500 }}>/</span>
+                  <span title={post.club_name_ja}>{post.club_abbr}</span>
+                </>
+              )}
+            </Link>
+          ) : (
+            <span style={{
+              fontSize: isReply ? 12 : 13, fontWeight: 700, color: '#fff',
+              letterSpacing: '0.02em',
+            }}>
+              {name}
+              {post.club_abbr && (
+                <>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 4px', fontWeight: 500 }}>/</span>
+                  <span title={post.club_name_ja}>{post.club_abbr}</span>
+                </>
+              )}
+            </span>
+          )}
           {post.is_guest && (
             <span style={{
               fontSize: 8, color: 'rgba(255,255,255,0.45)',
