@@ -14,6 +14,24 @@ export async function GET(request) {
   }
 
   try {
+    // ── 早期 return: 試合のない時間帯はここで終了 (DB を scale-to-zero に入れるため) ──
+    // 条件:
+    //   1. DB に LIVE 状態の fixture がない (= finalize 対象なし)
+    //   2. 直近 ±30分以内にキックオフ予定の試合がない (= 開始直前/直後の捕捉余地なし)
+    // これにより試合のない時間帯は超軽量クエリ1発で即終了し、
+    // Neon の compute time を大幅削減 (毎分稼働 → 試合中のみ稼働)
+    const activity = await sql`
+      SELECT 1 FROM fixtures
+      WHERE status = ANY(${LIVE_STATUSES})
+         OR (status = 'NS'
+             AND date < NOW() + INTERVAL '10 minutes'
+             AND date > NOW() - INTERVAL '30 minutes')
+      LIMIT 1
+    `
+    if (activity.length === 0) {
+      return Response.json({ ok: true, skipped: 'no_active_fixtures' })
+    }
+
     const responses = await Promise.all(
       API_LEAGUES_ALL.map(league =>
         fetchLiveFixtures(league).then(r => ({ league, items: r ?? [] }))
