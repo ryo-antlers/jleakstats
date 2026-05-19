@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { Building2, Flag, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import sql from '@/lib/db'
 import TopLogo from '@/app/components/TopLogo'
@@ -11,7 +10,7 @@ export const dynamic = 'force-dynamic'
 // 公開ユーザープロフィールページ /u/[id]
 //   - id が handle 形式 (英数+_-, 3-20字) なら handle で resolve
 //   - そうでなければ clerk_user_id として resolve
-//   - 表示は /rating と同じ「選手別 採点」「採点履歴」スタイル
+//   - 表示は /rating と同じ「選手別 採点」スタイル
 // ───────────────────────────────────────────────
 
 function normalizeColor(raw) {
@@ -28,22 +27,6 @@ function textOn(hex) {
   const g = parseInt(h.slice(2, 4), 16)
   const b = parseInt(h.slice(4, 6), 16)
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
-}
-
-function leagueLabel(leagueId) {
-  switch (Number(leagueId)) {
-    case 1: return 'J1'
-    case 2: return 'J2'
-    case 98: return '百年構想'
-    case 100: return 'カップ'
-    default: return ''
-  }
-}
-
-function formatJST(iso) {
-  if (!iso) return ''
-  const d = new Date(new Date(iso).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
 
 async function resolveUser(id) {
@@ -90,7 +73,7 @@ export async function generateMetadata({ params }) {
   if (!user) return { title: 'ユーザーが見つかりません | J.Leak Stats' }
   return {
     title: `${user.display_name} | J.Leak Stats`,
-    description: `${user.display_name} さんのプロフィールページ。好きなクラブ・FANTYPE・採点履歴を見る。`,
+    description: `${user.display_name} さんのプロフィールページ。好きなクラブ・FANTYPE・選手別採点を見る。`,
   }
 }
 
@@ -167,29 +150,6 @@ export default async function UserProfilePage({ params }) {
       AND f.round_number IS NOT NULL
   `.catch(() => []) : []
 
-  // 過去採点履歴 (fixture+team ペアごと)
-  const pastRows = await sql`
-    SELECT
-      f.id, f.date, f.home_team_id, f.away_team_id, f.home_score, f.away_score,
-      f.home_penalty, f.away_penalty, f.status, f.league_id, f.round_number,
-      f.venue_name_ja, f.attendance, f.referee_ja_official,
-      ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr, ht.color_primary AS home_color,
-      at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr, at.color_primary AS away_color,
-      fl.team_id AS rated_team_id,
-      COUNT(*)::int AS rated_count,
-      MAX(r.updated_at) AS last_updated_at
-    FROM ratings r
-    JOIN fixture_lineups fl
-      ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
-    JOIN fixtures f ON f.id = r.fixture_id
-    LEFT JOIN teams_master ht ON ht.id = f.home_team_id
-    LEFT JOIN teams_master at ON at.id = f.away_team_id
-    WHERE r.clerk_user_id = ${clerkUserId}
-    GROUP BY f.id, fl.team_id, ht.id, at.id
-    ORDER BY MAX(r.updated_at) DESC
-    LIMIT 50
-  `.catch(() => [])
-
   return (
     <div>
       <TopLogo />
@@ -248,187 +208,12 @@ export default async function UserProfilePage({ params }) {
           ratings={userTeamRatings}
         />
       )}
-
-      {/* 採点履歴 */}
-      <Section title="採点履歴" count={pastRows.length}>
-        {pastRows.length === 0 ? (
-          <EmptyMessage>採点履歴はまだありません</EmptyMessage>
-        ) : (
-          pastRows.map(row => (
-            <PastItem key={`${row.id}-${row.rated_team_id}`} row={row} />
-          ))
-        )}
-      </Section>
     </div>
   )
 }
 
 // ───────────────────────────────────────────────
-// 以下、/rating と共通のコンポーネント (将来抽出予定)
-// ───────────────────────────────────────────────
-
-function Section({ title, count, children }) {
-  return (
-    <section style={{ marginBottom: 32 }}>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 10,
-        marginBottom: 10, paddingBottom: 6,
-        borderBottom: '1px solid #1a1a1a',
-      }}>
-        <h2 style={{
-          fontSize: 12, fontWeight: 800, color: '#fff',
-          letterSpacing: '0.18em', margin: 0, textTransform: 'uppercase',
-        }}>
-          {title}
-        </h2>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-          {count}
-        </span>
-      </div>
-      <div className="rating-section-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-        gap: 20,
-      }}>
-        {children}
-      </div>
-    </section>
-  )
-}
-
-function EmptyMessage({ children }) {
-  return (
-    <div style={{ gridColumn: '1 / -1', fontSize: 12, color: 'rgba(255,255,255,0.4)', padding: '8px 0' }}>
-      {children}
-    </div>
-  )
-}
-
-function PastItem({ row }) {
-  const isHome = Number(row.rated_team_id) === Number(row.home_team_id)
-  return (
-    <MatchCard
-      fixtureHref={`/fixture/${row.id}`}
-      fixture={row}
-      isUserHome={isHome}
-    />
-  )
-}
-
-function MatchCard({ fixtureHref, fixture, isUserHome }) {
-  const homeColor = normalizeColor(fixture.home_color)
-  const awayColor = normalizeColor(fixture.away_color)
-  const homeText = textOn(homeColor)
-  const awayText = textOn(awayColor)
-  const homeName = fixture.home_abbr || fixture.home_short || fixture.home_name || '-'
-  const awayName = fixture.away_abbr || fixture.away_short || fixture.away_name || '-'
-  const isPK = fixture.status === 'PEN' && fixture.home_penalty != null && fixture.away_penalty != null
-  const comp = leagueLabel(fixture.league_id)
-  const attendance = fixture.attendance != null ? Number(fixture.attendance).toLocaleString() : null
-  const venue = fixture.venue_name_ja || null
-
-  const halfStyle = (bg, txt, lose) => ({
-    backgroundColor: bg, color: txt,
-    opacity: lose ? 0.45 : 1,
-    padding: '8px 8px 18px',
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', gap: 2,
-    minWidth: 0, minHeight: 78,
-    position: 'relative',
-  })
-  const teamNameStyle = (txt) => ({
-    fontWeight: 900, fontSize: 13, color: txt,
-    letterSpacing: '0.04em',
-    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-    maxWidth: '100%',
-  })
-  const scoreStyle = (txt) => ({
-    fontWeight: 900, fontSize: 26, color: txt,
-    letterSpacing: '0.02em',
-  })
-  const pkStyle = (txt) => ({
-    position: 'absolute', bottom: 3, left: 0, right: 0,
-    textAlign: 'center', fontSize: 12, fontWeight: 800,
-    color: txt, letterSpacing: '0.06em',
-  })
-  const linkReset = {
-    display: 'block', textDecoration: 'none', color: 'inherit',
-  }
-
-  return (
-    <div
-      className="search-card"
-      style={{
-        display: 'flex', flexDirection: 'column',
-        color: '#fff', fontVariantNumeric: 'tabular-nums',
-        height: '100%', overflow: 'hidden',
-      }}
-    >
-      <Link href={fixtureHref} style={{ ...linkReset, display: 'flex', flexDirection: 'column' }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-          padding: '12px 12px 10px',
-        }}>
-          <span style={{ fontSize: 11, color: '#fff', fontWeight: 800, letterSpacing: '0.02em' }}>
-            {formatJST(fixture.date)}
-          </span>
-          {comp && (
-            <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
-              color: '#bbb', textTransform: 'uppercase',
-            }}>
-              {comp}{fixture.round_number ? ` 第${fixture.round_number}節` : ''}
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-          <div style={halfStyle(homeColor, homeText, !isUserHome)}>
-            <span style={teamNameStyle(homeText)}>{homeName}</span>
-            <span style={scoreStyle(homeText)}>{fixture.home_score}</span>
-            {isPK && <span style={pkStyle(homeText)}>PK {fixture.home_penalty}</span>}
-          </div>
-          <div style={halfStyle(awayColor, awayText, isUserHome)}>
-            <span style={teamNameStyle(awayText)}>{awayName}</span>
-            <span style={scoreStyle(awayText)}>{fixture.away_score}</span>
-            {isPK && <span style={pkStyle(awayText)}>PK {fixture.away_penalty}</span>}
-          </div>
-        </div>
-      </Link>
-      <div style={{ marginTop: 'auto' }}>
-        <Link href={fixtureHref} style={{ ...linkReset, padding: '10px 12px 12px' }}>
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 4,
-            fontSize: 10, fontWeight: 700, color: '#fff', minWidth: 0,
-          }}>
-            {venue && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', minWidth: 0 }}>
-                <Building2 size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{venue}</span>
-              </span>
-            )}
-            {attendance && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                <Users size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                <span>{attendance}人</span>
-              </span>
-            )}
-            {fixture.referee_ja_official && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', minWidth: 0 }}>
-                <Flag size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {fixture.referee_ja_official}
-                </span>
-              </span>
-            )}
-          </div>
-        </Link>
-      </div>
-    </div>
-  )
-}
-
-// ───────────────────────────────────────────────
-// 選手別 採点テーブル (節ごと)
+// 選手別 採点テーブル (節ごと、/rating と共通スタイル)
 // ───────────────────────────────────────────────
 const POS_ORDER = { GK: 1, DF: 2, MF: 3, FW: 4 }
 const POS_COLOR = { GK: '#fbbf24', DF: '#60a5fa', MF: '#34d399', FW: '#f87171' }
