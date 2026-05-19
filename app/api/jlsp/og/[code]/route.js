@@ -3,8 +3,9 @@ import { TYPE_META } from '@/lib/jlsp/type-meta'
 
 export const runtime = 'edge'
 
-// JLSP 結果ページの OGP 画像 (1200×630)
-// /api/jlsp/og/RSWF などにアクセスすると PNG を返す。
+// FANTYPE 結果ページの OGP 画像 (1200×630)
+// /api/jlsp/og/RWUO などにアクセスすると PNG を返す。
+// (API URL は内部実装上 jlsp パスのままで OK。表示テキストは FANTYPE)
 export async function GET(_req, { params }) {
   const { code: rawCode } = await params
   const code = (rawCode ?? '').toUpperCase()
@@ -44,7 +45,7 @@ export async function GET(_req, { params }) {
             fontWeight: 700,
           }}
         >
-          <span>JLSP診断</span>
+          <span>FANTYPE</span>
           <span style={{ color: '#444' }}>·</span>
           <span style={{ color: '#666', letterSpacing: '0.2em' }}>J.LEAGUE × 16 TYPES</span>
         </div>
@@ -129,7 +130,7 @@ export async function GET(_req, { params }) {
           }}
         >
           <span>あなたも診断してみよう</span>
-          <span style={{ color: '#00ff87' }}>jleakstats.com/jlsp</span>
+          <span style={{ color: '#00ff87' }}>jleakstats.com/fantype</span>
         </div>
       </div>
     ),

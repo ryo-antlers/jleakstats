@@ -1,9 +1,10 @@
 import Link from 'next/link'
+import DecodeText from './DecodeText'
 
 export const metadata = {
-  title: 'JLSP診断 | Jリーグ クラブ相性診断',
+  title: 'FANTYPE | サポーター気質 16タイプ診断',
   description:
-    'あなたのサポーター気質を 16タイプで診断、Jリーグ全60クラブから相性の高いクラブを発見できます。',
+    'あなたのサポーター気質を 16タイプで診断。サッカー観の自己分析、本格的なJ.LEAGUE版 MBTI。',
 }
 
 const AXES_DETAIL = [
@@ -16,47 +17,50 @@ const AXES_DETAIL = [
   },
   {
     num: '02',
-    label: '組織観',
-    left: { letter: 'S', name: '組織・規律' },
-    right: { letter: 'I', name: '個性・閃き' },
-    desc: '戦術か、スターか。',
+    label: '経営観',
+    left: { letter: 'W', name: '補強派' },
+    right: { letter: 'H', name: '育成派' },
+    desc: 'スター獲得か、生え抜きか。',
   },
   {
     num: '03',
-    label: '経営観',
-    left: { letter: 'W', name: 'マネー派' },
-    right: { letter: 'H', name: 'ハート派' },
-    desc: '補強か、育成か。',
+    label: '観戦観',
+    left: { letter: 'U', name: '熱狂派' },
+    right: { letter: 'A', name: '分析派' },
+    desc: 'チャントか、黙考か。',
   },
   {
     num: '04',
-    label: '熱狂度',
-    left: { letter: 'F', name: '穏やか派' },
-    right: { letter: 'U', name: '過激派' },
-    desc: 'じっくりか、熱狂か。',
+    label: '関心軸',
+    left: { letter: 'O', name: '試合派' },
+    right: { letter: 'F', name: 'カルチャー派' },
+    desc: '90分か、365日か。',
   },
 ]
 
-export default function JlspTopPage() {
+export default function FantypeTopPage() {
   return (
     <div>
       {/* Hero */}
       <section className="py-16 sm:py-24">
         <p className="text-xs tracking-[0.4em] font-semibold text-zinc-100 mb-6">
-          J.LEAGUE × 16 TYPES
+          FANTYPE × J.LEAGUE × 16 TYPES
         </p>
-        <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-[1.05] text-white">
-          日本にも、
-          <br />
-          <span className="club-color-cycle">あなたのクラブ</span>
-          がある。
+        <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-[1.1] text-white">
+          あなたの<br />
+          サポーター気質を、<br />
+          <DecodeText
+            text="解読する。"
+            intervalMs={3600}
+            style={{ color: 'var(--accent)' }}
+          />
         </h1>
         <p className="mt-6 text-sm sm:text-base text-zinc-400 leading-relaxed max-w-xl">
-          あなたのサポーター気質を 16タイプで診断、Jリーグ全60クラブから相性の高いクラブを発見できます。
+          あなたはどんなサッカーファン? 32問の質問から、勝負・経営・観戦・関心の 4 つの観点を測定。同じユニフォームを着ていても、応援の温度は 16 通りある。
         </p>
         <div className="mt-8 flex items-center gap-5 flex-wrap">
           <Link
-            href="/jlsp/quiz"
+            href="/fantype/quiz"
             style={{ backgroundColor: 'var(--accent)', color: '#000' }}
             className="inline-flex items-center justify-center rounded-full font-bold text-sm sm:text-base px-7 py-3.5 transition-opacity hover:opacity-90"
           >
@@ -79,10 +83,12 @@ export default function JlspTopPage() {
           {AXES_DETAIL.map((a) => (
             <article
               key={a.num}
-              className="group relative rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6 overflow-hidden transition-colors"
-              style={{ backgroundColor: 'var(--bg-secondary)' }}
+              className="group relative p-5 sm:p-6 overflow-hidden"
             >
-              <span className="absolute top-3 right-5 text-5xl sm:text-6xl font-black tracking-tighter select-none text-zinc-900">
+              <span
+                className="absolute top-3 right-5 text-5xl sm:text-6xl font-black tracking-tighter select-none"
+                style={{ color: 'rgba(255,255,255,0.12)' }}
+              >
                 {a.num}
               </span>
 
