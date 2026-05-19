@@ -15,7 +15,7 @@ function isValidAxis(s) {
  */
 export async function GET() {
   const rows = await sql`
-    SELECT club_id, axis_id, value FROM jlsp_vector_overrides
+    SELECT club_id, axis_id, value FROM fantype_vector_overrides
   `.catch(() => [])
   const out = {}
   for (const r of rows) {
@@ -67,18 +67,18 @@ export async function POST(req) {
 
   // 空 → 全削除
   if (sentAxes.length === 0) {
-    await sql`DELETE FROM jlsp_vector_overrides WHERE club_id = ${clubId}`
+    await sql`DELETE FROM fantype_vector_overrides WHERE club_id = ${clubId}`
     return Response.json({ ok: true, clubId, deleted: 'all' })
   }
 
   // 送られた軸を UPSERT、それ以外の軸は削除
   await sql`
-    DELETE FROM jlsp_vector_overrides
+    DELETE FROM fantype_vector_overrides
     WHERE club_id = ${clubId} AND NOT (axis_id = ANY(${sentAxes}))
   `
   for (const [axis, val] of Object.entries(validated)) {
     await sql`
-      INSERT INTO jlsp_vector_overrides (club_id, axis_id, value)
+      INSERT INTO fantype_vector_overrides (club_id, axis_id, value)
       VALUES (${clubId}, ${axis}, ${val})
       ON CONFLICT (club_id, axis_id) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
     `

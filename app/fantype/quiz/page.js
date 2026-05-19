@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { QUESTIONS } from '@/lib/jlsp/questions'
-import { scoreAnswers, encodeAnswers } from '@/lib/jlsp/diagnose'
-import { vectorToCode } from '@/lib/jlsp/type-meta'
+import { QUESTIONS } from '@/lib/fantype/questions'
+import { scoreAnswers, encodeAnswers } from '@/lib/fantype/diagnose'
+import { vectorToCode } from '@/lib/fantype/type-meta'
 
 const QUESTIONS_PER_PAGE = 8
 
@@ -123,7 +123,7 @@ function LikertRow({ index, question, selected, onSelect }) {
   )
 }
 
-export default function JlspQuizPage() {
+export default function FantypeQuizPage() {
   const router = useRouter()
   const pages = useMemo(() => {
     const out = []

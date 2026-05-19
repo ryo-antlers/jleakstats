@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
-import { TYPE_META } from '@/lib/jlsp/type-meta'
-import { AXES } from '@/lib/jlsp/axes'
+import { TYPE_META } from '@/lib/fantype/type-meta'
+import { AXES } from '@/lib/fantype/axes'
 import {
   decodeAnswers,
   scoreAnswers,
   syntheticAnswersFromVector,
   MAX_PER_AXIS,
-} from '@/lib/jlsp/diagnose'
+} from '@/lib/fantype/diagnose'
 import ShareButtons from './ShareButtons'
 import SaveButton from './SaveButton'
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }) {
   if (!type) return { title: 'FANTYPE' }
   const title = `${type.code} ${type.nickname} | FANTYPE`
   const description = `${type.tagline} - ${type.description}`
-  const ogImage = `/api/jlsp/og/${type.code}`
+  const ogImage = `/api/fantype/og/${type.code}`
   return {
     title,
     description,
