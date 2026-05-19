@@ -20,6 +20,15 @@ function normalizeColor(raw) {
   return v.startsWith('#') ? v : `#${v}`
 }
 
+// 場所・サポ歴などの中性的なメタ pill
+const subBadgeStyle = {
+  fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+  padding: '4px 10px', borderRadius: 999,
+  color: 'rgba(255,255,255,0.75)',
+  backgroundColor: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
 function textOn(hex) {
   const h = (hex ?? '').replace('#', '')
   if (h.length < 6) return '#fff'
@@ -37,9 +46,16 @@ async function resolveUser(id) {
       SELECT
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
-        t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr
+        up.jersey_number, up.favorite_player_id,
+        up.prefecture, up.city, up.bio, up.supporter_since,
+        t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
+        fp.name_ja AS favorite_player_name_ja,
+        fp.name_en AS favorite_player_name_en,
+        fp.position AS favorite_player_position,
+        fp.no AS favorite_player_number
       FROM user_profiles up
       LEFT JOIN teams_master t ON t.id = up.supported_club_id
+      LEFT JOIN players_master fp ON fp.id = up.favorite_player_id
       WHERE up.handle = ${id}
     `.catch(() => [])
     if (rows.length === 0) {
@@ -47,9 +63,16 @@ async function resolveUser(id) {
         SELECT
           up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
           up.supported_club_id, up.fantype_type_code, up.fantype_answers,
-          t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr
+          up.jersey_number, up.favorite_player_id,
+          up.prefecture, up.city, up.bio, up.supporter_since,
+          t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
+          fp.name_ja AS favorite_player_name_ja,
+          fp.name_en AS favorite_player_name_en,
+          fp.position AS favorite_player_position,
+          fp.no AS favorite_player_number
         FROM user_profiles up
         LEFT JOIN teams_master t ON t.id = up.supported_club_id
+        LEFT JOIN players_master fp ON fp.id = up.favorite_player_id
         WHERE up.clerk_user_id = ${id}
       `.catch(() => [])
     }
@@ -58,9 +81,16 @@ async function resolveUser(id) {
       SELECT
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
-        t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr
+        up.jersey_number, up.favorite_player_id,
+        up.prefecture, up.city, up.bio, up.supporter_since,
+        t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
+        fp.name_ja AS favorite_player_name_ja,
+        fp.name_en AS favorite_player_name_en,
+        fp.position AS favorite_player_position,
+        fp.no AS favorite_player_number
       FROM user_profiles up
       LEFT JOIN teams_master t ON t.id = up.supported_club_id
+      LEFT JOIN players_master fp ON fp.id = up.favorite_player_id
       WHERE up.clerk_user_id = ${id}
     `.catch(() => [])
   }
@@ -156,18 +186,35 @@ export default async function UserProfilePage({ params }) {
 
       {/* ユーザーヘッダー (案A 並列バッジ) */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 16,
+        display: 'flex', alignItems: 'flex-start', gap: 16,
         padding: '16px 0',
         borderBottom: '1px solid rgba(255,255,255,0.08)',
         marginBottom: 24,
       }}>
-        <div style={{
-          width: 60, height: 60, borderRadius: '50%',
-          backgroundColor: clubColor, color: clubText,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: initial.length === 2 ? 22 : 28, fontWeight: 900,
-          letterSpacing: '0.02em', flexShrink: 0,
-        }}>{initial}</div>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: '50%',
+            backgroundColor: clubColor, color: clubText,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: initial.length === 2 ? 22 : 28, fontWeight: 900,
+            letterSpacing: '0.02em',
+          }}>{initial}</div>
+          {user.jersey_number != null && (
+            <div style={{
+              position: 'absolute', bottom: -4, right: -4,
+              minWidth: 26, height: 26, padding: '0 6px',
+              borderRadius: 999,
+              backgroundColor: '#fff', color: clubColor,
+              border: `2px solid ${clubColor}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 900, letterSpacing: '-0.02em',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }} title={user.favorite_player_name_ja ? `推し: ${user.favorite_player_name_ja}` : `背番号 ${user.jersey_number}`}>
+              {user.jersey_number}
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
           <div style={{
             fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
@@ -196,7 +243,26 @@ export default async function UserProfilePage({ params }) {
                 textDecoration: 'none',
               }}>{user.fantype_type_code} {fantypeMeta.nickname}</Link>
             )}
+            {user.prefecture && (
+              <span style={subBadgeStyle}>
+                📍 {user.prefecture}{user.city ? ` ${user.city}` : ''}
+              </span>
+            )}
+            {user.supporter_since != null && (
+              <span style={subBadgeStyle}>
+                since {String(user.supporter_since).slice(-2)}&apos;
+              </span>
+            )}
           </div>
+          {user.bio && (
+            <div style={{
+              fontSize: 12, color: 'rgba(255,255,255,0.75)',
+              lineHeight: 1.5, marginTop: 4,
+              overflowWrap: 'anywhere',
+            }}>
+              {user.bio}
+            </div>
+          )}
         </div>
       </div>
 

@@ -3,6 +3,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk } from '@clerk/nextjs'
 import { containsNG } from '@/lib/ng-words'
+import { PREFECTURES } from '@/lib/jp/prefectures'
+import { municipalities } from '@/lib/jp/municipalities'
+
+const CURRENT_YEAR = new Date().getFullYear()
+const SUPPORTER_SINCE_MIN = 1993
+const BIO_MAX_LENGTH = 80
 
 const CLUB_CHANGE_COOLDOWN_DAYS = 7
 
@@ -56,7 +62,7 @@ function findClubByKey(pool, key) {
   return null
 }
 
-export default function ProfileForm({ clubs, profile, next }) {
+export default function ProfileForm({ clubs, profile, initialPlayers = [], next }) {
   const router = useRouter()
   const { signOut } = useClerk()
   const isEdit = Boolean(profile)
@@ -80,6 +86,22 @@ export default function ProfileForm({ clubs, profile, next }) {
   const [activeTier, setActiveTier] = useState(1)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+
+  // SNS 拡張フィールド
+  const [favoritePlayerId, setFavoritePlayerId] = useState(profile?.favorite_player_id ?? null)
+  const [jerseyNumber, setJerseyNumber] = useState(
+    profile?.jersey_number != null ? String(profile.jersey_number) : '',
+  )
+  const [prefecture, setPrefecture] = useState(profile?.prefecture ?? '')
+  const [city, setCity] = useState(profile?.city ?? '')
+  const [bio, setBio] = useState(profile?.bio ?? '')
+  const [supporterSince, setSupporterSince] = useState(
+    profile?.supporter_since != null ? String(profile.supporter_since) : '',
+  )
+
+  // 推しクラブの選手リスト (クラブ変更時に再取得)
+  const [players, setPlayers] = useState(initialPlayers)
+  const [playersLoading, setPlayersLoading] = useState(false)
 
   const cooldownSeconds = useMemo(() => {
     if (!profile?.club_changed_at) return 0
@@ -128,6 +150,63 @@ export default function ProfileForm({ clubs, profile, next }) {
     }
   }, [clubId, tierGroups])
 
+  // クラブ変更時の処理:
+  //   - 選手リストを再取得
+  //   - 推し選手 / 背番号 を null クリア (新クラブに無効な選手 ID を残さない)
+  //   - 初期表示クラブと一致する間は initialPlayers をそのまま使う
+  const originalClubIdRef = profile?.supported_club_id ?? null
+  useEffect(() => {
+    if (clubId == null) {
+      setPlayers([])
+      return
+    }
+    if (clubId === originalClubIdRef) {
+      setPlayers(initialPlayers)
+      return
+    }
+    // クラブが初期値と違う = ユーザーが切り替えた
+    setFavoritePlayerId(null)
+    setJerseyNumber('')
+    setPlayersLoading(true)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/clubs/${clubId}/players`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        if (!cancelled) setPlayers(data.players ?? [])
+      } catch {
+        if (!cancelled) setPlayers([])
+      } finally {
+        if (!cancelled) setPlayersLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [clubId, originalClubIdRef, initialPlayers])
+
+  // 推し選手選択時: その選手の背番号を自動入力 (既に入力済みでも上書きする)
+  const handleFavoritePlayerChange = (e) => {
+    const val = e.target.value
+    if (val === '') {
+      setFavoritePlayerId(null)
+      return
+    }
+    const id = Number(val)
+    setFavoritePlayerId(id)
+    const player = players.find(p => Number(p.id) === id)
+    if (player?.number != null) {
+      setJerseyNumber(String(player.number))
+    }
+  }
+
+  // 県変更時: 市区町村をリセット
+  const handlePrefectureChange = (e) => {
+    setPrefecture(e.target.value)
+    setCity('')
+  }
+
+  const cityOptions = prefecture ? (municipalities[prefecture] ?? []) : []
+
   // アイコン文字のバリデーション (空 / 1〜2文字、言語不問、NGワード不可)
   const avatarTextError = (() => {
     const v = avatarText.trim()
@@ -152,6 +231,22 @@ export default function ProfileForm({ clubs, profile, next }) {
   const selectedClubColor = selectedClub
     ? (normalizeColor(selectedClub.color_primary) ?? '#444')
     : '#444'
+
+  // bio / jersey / supporter_since のクライアントバリデーション
+  const bioError = (() => {
+    const v = bio.trim()
+    if (v === '') return null
+    if ([...v].length > BIO_MAX_LENGTH) return `${BIO_MAX_LENGTH}文字以内で入力してください`
+    if (containsNG(v)) return '使用できない言葉が含まれています'
+    return null
+  })()
+  const jerseyError = (() => {
+    const v = jerseyNumber.trim()
+    if (v === '') return null
+    const n = Number(v)
+    if (!Number.isInteger(n) || n < 1 || n > 99) return '1〜99の数字'
+    return null
+  })()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -178,6 +273,17 @@ export default function ProfileForm({ clubs, profile, next }) {
       setError('クラブを選んでください')
       return
     }
+    if (jerseyError) {
+      setError(`背番号: ${jerseyError}`)
+      return
+    }
+    if (bioError) {
+      setError(`ひとこと: ${bioError}`)
+      return
+    }
+
+    const jerseyToSend = jerseyNumber.trim() === '' ? null : Number(jerseyNumber)
+    const supporterSinceToSend = supporterSince.trim() === '' ? null : Number(supporterSince)
 
     setLoading(true)
     try {
@@ -189,6 +295,12 @@ export default function ProfileForm({ clubs, profile, next }) {
           avatar_text: avatarText.trim() || null,
           handle: handle.trim() || null,
           supported_club_id: clubId,
+          jersey_number: jerseyToSend,
+          favorite_player_id: favoritePlayerId,
+          prefecture: prefecture || null,
+          city: prefecture && city ? city : null,
+          bio: bio.trim() || null,
+          supporter_since: supporterSinceToSend,
         }),
       })
       const data = await res.json()
@@ -377,6 +489,111 @@ export default function ProfileForm({ clubs, profile, next }) {
           </div>
         </div>
 
+        {/* ───── プロフィール詳細 (任意) ───── */}
+        <div style={{
+          paddingTop: 16,
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', flexDirection: 'column', gap: 24,
+        }}>
+          <div style={groupLabelStyle}>プロフィール詳細 (任意)</div>
+
+          {/* 推し選手 */}
+          <Field label="推し選手">
+            <select
+              value={favoritePlayerId ?? ''}
+              onChange={handleFavoritePlayerChange}
+              disabled={!clubId || playersLoading}
+              style={selectStyle}
+            >
+              <option value="">
+                {!clubId ? 'まずクラブを選んでください' : playersLoading ? '読み込み中…' : '— 選択なし —'}
+              </option>
+              {players.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.number != null ? `#${p.number} ` : ''}{p.name_ja || p.name_en} ({p.position ?? '-'})
+                </option>
+              ))}
+            </select>
+            <p style={hintStyle}>選ぶと下の背番号に自動入力されます (上書き可)。</p>
+          </Field>
+
+          {/* 背番号 */}
+          <Field label="背番号">
+            <input
+              type="number"
+              min="1"
+              max="99"
+              value={jerseyNumber}
+              onChange={e => setJerseyNumber(e.target.value)}
+              placeholder="1〜99"
+              style={{ ...inputStyle, width: '6em' }}
+            />
+            {jerseyError && (
+              <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{jerseyError}</p>
+            )}
+          </Field>
+
+          {/* 住んでいる場所 */}
+          <Field label="住んでいる場所">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select
+                value={prefecture}
+                onChange={handlePrefectureChange}
+                style={{ ...selectStyle, flex: '1 1 140px', minWidth: 120 }}
+              >
+                <option value="">— 都道府県 —</option>
+                {PREFECTURES.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <select
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                disabled={!prefecture}
+                style={{ ...selectStyle, flex: '2 1 200px', minWidth: 160 }}
+              >
+                <option value="">{prefecture ? '— 市区町村 —' : '都道府県を選ぶと有効'}</option>
+                {cityOptions.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <p style={hintStyle}>後日「移動距離」表示に使う予定 (市区町村まで設定で精度向上)。</p>
+          </Field>
+
+          {/* サポ歴 */}
+          <Field label="サポ歴 (応援開始年)">
+            <select
+              value={supporterSince}
+              onChange={e => setSupporterSince(e.target.value)}
+              style={{ ...selectStyle, width: '8em' }}
+            >
+              <option value="">— 選択なし —</option>
+              {Array.from({ length: CURRENT_YEAR - SUPPORTER_SINCE_MIN + 1 }, (_, i) => CURRENT_YEAR - i).map(y => (
+                <option key={y} value={y}>{y}年〜</option>
+              ))}
+            </select>
+          </Field>
+
+          {/* ひとこと (Bio) */}
+          <Field label="ひとこと">
+            <input
+              type="text"
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+              maxLength={BIO_MAX_LENGTH}
+              placeholder="例: 毎節ゴール裏。新加入の◯◯に期待。"
+              style={inputStyle}
+            />
+            <p style={hintStyle}>
+              {[...bio].length}/{BIO_MAX_LENGTH}
+            </p>
+            {bioError && (
+              <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{bioError}</p>
+            )}
+          </Field>
+        </div>
+
         {error && (
           <div style={{
             fontSize: 11, color: '#ef5350',
@@ -472,4 +689,24 @@ const inputStyle = {
   outline: 'none',
   borderRadius: 0,
   fontFamily: 'inherit',
+}
+
+const selectStyle = {
+  ...inputStyle,
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
+  // 背景色だけ少し付けないと OS のデフォ option リストが白背景になる場合あり
+  backgroundColor: '#111',
+  backgroundImage:
+    'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path d=\'M1 1l4 4 4-4\' stroke=\'%23888\' fill=\'none\' stroke-width=\'1.4\'/></svg>")',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+  paddingRight: 32,
+}
+
+const hintStyle = {
+  fontSize: 10,
+  color: 'rgba(255,255,255,0.4)',
+  marginTop: 6,
 }

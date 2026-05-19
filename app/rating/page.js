@@ -67,14 +67,23 @@ export default async function RatingIndexPage() {
     SELECT
       up.display_name,
       up.avatar_text,
+      up.handle,
       up.supported_club_id,
       up.fantype_type_code,
       up.fantype_answers,
+      up.jersey_number,
+      up.favorite_player_id,
+      up.prefecture,
+      up.city,
+      up.bio,
+      up.supporter_since,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
-      t.abbr AS club_abbr
+      t.abbr AS club_abbr,
+      fp.name_ja AS favorite_player_name_ja
     FROM user_profiles up
     LEFT JOIN teams_master t ON t.id = up.supported_club_id
+    LEFT JOIN players_master fp ON fp.id = up.favorite_player_id
     WHERE up.clerk_user_id = ${userId}
   `
   const profile = profiles[0] ?? null
@@ -277,18 +286,35 @@ export default async function RatingIndexPage() {
       <TopLogo />
       {/* ユーザーヘッダー: 案A 並列バッジ */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 16,
+        display: 'flex', alignItems: 'flex-start', gap: 16,
         padding: '16px 0',
         borderBottom: '1px solid rgba(255,255,255,0.08)',
         marginBottom: 24,
       }}>
-        <div style={{
-          width: 60, height: 60, borderRadius: '50%',
-          backgroundColor: _clubColor, color: _clubText,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: _initial.length === 2 ? 22 : 28, fontWeight: 900,
-          letterSpacing: '0.02em', flexShrink: 0,
-        }}>{_initial}</div>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: '50%',
+            backgroundColor: _clubColor, color: _clubText,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: _initial.length === 2 ? 22 : 28, fontWeight: 900,
+            letterSpacing: '0.02em',
+          }}>{_initial}</div>
+          {profile.jersey_number != null && (
+            <div style={{
+              position: 'absolute', bottom: -4, right: -4,
+              minWidth: 26, height: 26, padding: '0 6px',
+              borderRadius: 999,
+              backgroundColor: '#fff', color: _clubColor,
+              border: `2px solid ${_clubColor}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 900, letterSpacing: '-0.02em',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }} title={profile.favorite_player_name_ja ? `推し: ${profile.favorite_player_name_ja}` : `背番号 ${profile.jersey_number}`}>
+              {profile.jersey_number}
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
           <div style={{
             fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
@@ -311,6 +337,24 @@ export default async function RatingIndexPage() {
                 color: '#000', backgroundColor: 'var(--accent)',
                 textDecoration: 'none',
               }}>{profile.fantype_type_code} {fantypeMeta.nickname}</Link>
+            )}
+            {profile.prefecture && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                padding: '4px 10px', borderRadius: 999,
+                color: 'rgba(255,255,255,0.75)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}>📍 {profile.prefecture}{profile.city ? ` ${profile.city}` : ''}</span>
+            )}
+            {profile.supporter_since != null && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                padding: '4px 10px', borderRadius: 999,
+                color: 'rgba(255,255,255,0.75)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}>since {String(profile.supporter_since).slice(-2)}&apos;</span>
             )}
           </div>
         </div>

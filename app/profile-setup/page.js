@@ -29,6 +29,7 @@ export default async function ProfileSetupPage({ searchParams }) {
     `,
     sql`
       SELECT display_name, avatar_text, handle, supported_club_id, club_changed_at,
+        jersey_number, favorite_player_id, prefecture, city, bio, supporter_since,
         fantype_type_code, fantype_answers, fantype_updated_at
       FROM user_profiles
       WHERE clerk_user_id = ${userId}
@@ -42,10 +43,29 @@ export default async function ProfileSetupPage({ searchParams }) {
         handle: profileRows[0].handle,
         supported_club_id: profileRows[0].supported_club_id,
         club_changed_at: profileRows[0].club_changed_at,
+        jersey_number: profileRows[0].jersey_number,
+        favorite_player_id: profileRows[0].favorite_player_id,
+        prefecture: profileRows[0].prefecture,
+        city: profileRows[0].city,
+        bio: profileRows[0].bio,
+        supporter_since: profileRows[0].supporter_since,
       }
     : null
 
-  const fantype = profileRows[0]?.fantype_type_code
+  // 推しクラブが設定済みなら、その選手リストを事前取得 (推し選手 Select の初期表示用)
+  const initialPlayers = profile?.supported_club_id ? await sql`
+    SELECT pm.id, pm.name_ja, pm.name_en, pm.position, pm.no AS number
+    FROM players_master pm
+    WHERE pm.team_id = ${profile.supported_club_id}
+      AND pm.is_active = true
+      AND (pm.canonical_id IS NULL OR pm.canonical_id = pm.id)
+    ORDER BY
+      CASE pm.position WHEN 'GK' THEN 1 WHEN 'DF' THEN 2 WHEN 'MF' THEN 3 WHEN 'FW' THEN 4 ELSE 5 END,
+      pm.no ASC NULLS LAST,
+      pm.name_ja
+  ` : []
+
+  const jlsp = profileRows[0]?.fantype_type_code
     ? {
         code: profileRows[0].fantype_type_code,
         answers: profileRows[0].fantype_answers,
@@ -56,13 +76,13 @@ export default async function ProfileSetupPage({ searchParams }) {
 
   return (
     <>
-      <ProfileForm clubs={clubs} profile={profile} next={next} />
-      <FantypeSection fantype={fantype} />
+      <ProfileForm clubs={clubs} profile={profile} initialPlayers={initialPlayers} next={next} />
+      <FantypeSection jlsp={jlsp} />
     </>
   )
 }
 
-function FantypeSection({ fantype }) {
+function FantypeSection({ jlsp }) {
   return (
     <section
       style={{
@@ -76,22 +96,22 @@ function FantypeSection({ fantype }) {
       <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '0.06em' }}>
         FANTYPE (サポーター気質診断)
       </h2>
-      {fantype ? (
+      {jlsp ? (
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent)', letterSpacing: '0.04em' }}>
-              {fantype.code}
+              {jlsp.code}
             </span>
             <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {fantype.meta?.nickname ?? ''}
+              {jlsp.meta?.nickname ?? ''}
             </span>
           </div>
-          {fantype.meta?.tagline && (
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>{fantype.meta.tagline}</p>
+          {jlsp.meta?.tagline && (
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>{jlsp.meta.tagline}</p>
           )}
           <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
             <Link
-              href={`/fantype/result/${fantype.code}${fantype.answers ? `?a=${fantype.answers}` : ''}`}
+              href={`/fantype/result/${jlsp.code}${jlsp.answers ? `?a=${jlsp.answers}` : ''}`}
               style={{
                 fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6,
                 backgroundColor: 'var(--bg-tertiary)', color: 'var(--accent)',
