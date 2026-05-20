@@ -43,6 +43,9 @@ export default function SiteFooter() {
         <Link href="/fantype" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 700 }}>
           FANTYPE
         </Link>
+        <Link href="/notes" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 700 }}>
+          観戦ノート
+        </Link>
         <a href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
           プライバシーポリシー
         </a>
