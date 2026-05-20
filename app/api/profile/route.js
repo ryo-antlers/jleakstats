@@ -27,7 +27,7 @@ export async function GET() {
       p.favorite_player_id,
       p.prefecture,
       p.city,
-      p.bio,
+      p.address_private,
       p.supporter_since,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
@@ -54,7 +54,8 @@ export async function GET() {
 //   - supported_club_id: teams_master に存在する EAST/WEST/A/B クラブのみ
 //   - 推しクラブ変更は 7 日間クールダウン
 //   - クラブ変更時は jersey_number / favorite_player_id を NULL クリア
-//   - jersey_number / favorite_player_id / prefecture / city / bio / supporter_since は任意
+//   - jersey_number / favorite_player_id / prefecture / city / supporter_since は任意
+//   - address_private (BOOL): true なら /u/[id] で住所を非表示
 export async function POST(request) {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -74,7 +75,7 @@ export async function POST(request) {
   const favoritePlayerRaw = body.favorite_player_id
   const prefectureRaw = body.prefecture == null ? null : String(body.prefecture).trim()
   const cityRaw = body.city == null ? null : String(body.city).trim()
-  const bioRaw = body.bio == null ? null : String(body.bio).trim()
+  const addressPrivate = Boolean(body.address_private)
   const supporterSinceRaw = body.supporter_since
 
   // display_name のバリデーション
@@ -174,18 +175,6 @@ export async function POST(request) {
   }
   // prefecture なしで city だけは不可 (片方クリアは prefecture もクリアと解釈)
 
-  // bio のバリデーション (任意、最大80字、NGワード弾く)
-  let bio = null
-  if (bioRaw && bioRaw.length > 0) {
-    if ([...bioRaw].length > 80) {
-      return Response.json({ error: 'ひとことは80文字以内で入力してください' }, { status: 400 })
-    }
-    if (containsNG(bioRaw)) {
-      return Response.json({ error: 'ひとことに使用できない言葉が含まれています' }, { status: 400 })
-    }
-    bio = bioRaw
-  }
-
   // supporter_since のバリデーション (任意、1993〜2030 の整数)
   let supporterSince = null
   if (supporterSinceRaw !== null && supporterSinceRaw !== undefined && supporterSinceRaw !== '') {
@@ -236,7 +225,7 @@ export async function POST(request) {
           favorite_player_id = ${favoritePlayerId},
           prefecture         = ${prefecture},
           city               = ${city},
-          bio                = ${bio},
+          address_private    = ${addressPrivate},
           supporter_since    = ${supporterSince},
           club_changed_at    = NOW(),
           updated_at         = NOW()
@@ -253,7 +242,7 @@ export async function POST(request) {
           favorite_player_id = ${favoritePlayerId},
           prefecture         = ${prefecture},
           city               = ${city},
-          bio                = ${bio},
+          address_private    = ${addressPrivate},
           supporter_since    = ${supporterSince},
           updated_at         = NOW()
         WHERE clerk_user_id = ${userId}
@@ -264,11 +253,11 @@ export async function POST(request) {
     await sql`
       INSERT INTO user_profiles (
         clerk_user_id, display_name, avatar_text, handle, supported_club_id,
-        jersey_number, favorite_player_id, prefecture, city, bio, supporter_since,
+        jersey_number, favorite_player_id, prefecture, city, address_private, supporter_since,
         club_changed_at, created_at, updated_at
       ) VALUES (
         ${userId}, ${displayName}, ${avatarText}, ${handle}, ${supportedClubId},
-        ${jerseyNumber}, ${favoritePlayerId}, ${prefecture}, ${city}, ${bio}, ${supporterSince},
+        ${jerseyNumber}, ${favoritePlayerId}, ${prefecture}, ${city}, ${addressPrivate}, ${supporterSince},
         NOW(), NOW(), NOW()
       )
     `

@@ -8,7 +8,6 @@ import { municipalities } from '@/lib/jp/municipalities'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const SUPPORTER_SINCE_MIN = 1993
-const BIO_MAX_LENGTH = 80
 
 const CLUB_CHANGE_COOLDOWN_DAYS = 7
 
@@ -94,7 +93,7 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
   )
   const [prefecture, setPrefecture] = useState(profile?.prefecture ?? '')
   const [city, setCity] = useState(profile?.city ?? '')
-  const [bio, setBio] = useState(profile?.bio ?? '')
+  const [addressPrivate, setAddressPrivate] = useState(Boolean(profile?.address_private))
   const [supporterSince, setSupporterSince] = useState(
     profile?.supporter_since != null ? String(profile.supporter_since) : '',
   )
@@ -232,14 +231,7 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
     ? (normalizeColor(selectedClub.color_primary) ?? '#444')
     : '#444'
 
-  // bio / jersey / supporter_since のクライアントバリデーション
-  const bioError = (() => {
-    const v = bio.trim()
-    if (v === '') return null
-    if ([...v].length > BIO_MAX_LENGTH) return `${BIO_MAX_LENGTH}文字以内で入力してください`
-    if (containsNG(v)) return '使用できない言葉が含まれています'
-    return null
-  })()
+  // jersey のクライアントバリデーション
   const jerseyError = (() => {
     const v = jerseyNumber.trim()
     if (v === '') return null
@@ -277,10 +269,6 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
       setError(`背番号: ${jerseyError}`)
       return
     }
-    if (bioError) {
-      setError(`ひとこと: ${bioError}`)
-      return
-    }
 
     const jerseyToSend = jerseyNumber.trim() === '' ? null : Number(jerseyNumber)
     const supporterSinceToSend = supporterSince.trim() === '' ? null : Number(supporterSince)
@@ -299,7 +287,7 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
           favorite_player_id: favoritePlayerId,
           prefecture: prefecture || null,
           city: prefecture && city ? city : null,
-          bio: bio.trim() || null,
+          address_private: addressPrivate,
           supporter_since: supporterSinceToSend,
         }),
       })
@@ -558,7 +546,22 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
                 ))}
               </select>
             </div>
-            <p style={hintStyle}>後日「移動距離」表示に使う予定 (市区町村まで設定で精度向上)。</p>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.85)',
+              cursor: prefecture ? 'pointer' : 'not-allowed',
+              opacity: prefecture ? 1 : 0.45,
+            }}>
+              <input
+                type="checkbox"
+                checked={addressPrivate}
+                onChange={e => setAddressPrivate(e.target.checked)}
+                disabled={!prefecture}
+                style={{ accentColor: '#00ff87' }}
+              />
+              他のユーザーには公開しない (距離計算には使われます)
+            </label>
+            <p style={hintStyle}>市区町村まで設定すると「今季の移動距離」の精度が上がります。</p>
           </Field>
 
           {/* サポ歴 */}
@@ -573,24 +576,6 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
                 <option key={y} value={y}>{y}年〜</option>
               ))}
             </select>
-          </Field>
-
-          {/* ひとこと (Bio) */}
-          <Field label="ひとこと">
-            <input
-              type="text"
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              maxLength={BIO_MAX_LENGTH}
-              placeholder="例: 毎節ゴール裏。新加入の◯◯に期待。"
-              style={inputStyle}
-            />
-            <p style={hintStyle}>
-              {[...bio].length}/{BIO_MAX_LENGTH}
-            </p>
-            {bioError && (
-              <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{bioError}</p>
-            )}
           </Field>
         </div>
 
