@@ -29,7 +29,7 @@ export default async function ProfileSetupPage({ searchParams }) {
     `,
     sql`
       SELECT display_name, avatar_text, handle, supported_club_id, club_changed_at,
-        jersey_number, favorite_player_id, prefecture, city, address_private, supporter_since,
+        jersey_number, favorite_player_id, prefecture, city, address_private, first_match_fixture_id,
         fantype_type_code, fantype_answers, fantype_updated_at
       FROM user_profiles
       WHERE clerk_user_id = ${userId}
@@ -48,7 +48,7 @@ export default async function ProfileSetupPage({ searchParams }) {
         prefecture: profileRows[0].prefecture,
         city: profileRows[0].city,
         address_private: profileRows[0].address_private,
-        supporter_since: profileRows[0].supporter_since,
+        first_match_fixture_id: profileRows[0].first_match_fixture_id,
       }
     : null
 
@@ -65,6 +65,33 @@ export default async function ProfileSetupPage({ searchParams }) {
       pm.name_ja
   ` : []
 
+  // 初観戦試合 (first_match_fixture_id) が設定済みなら、
+  // その試合の年と、その年の試合一覧を事前取得 (Select 初期表示用)
+  let initialFirstMatch = null
+  if (profile?.first_match_fixture_id) {
+    const r = await sql`
+      SELECT EXTRACT(YEAR FROM date)::int AS year, id
+      FROM fixtures WHERE id = ${profile.first_match_fixture_id}
+    `
+    if (r.length > 0) initialFirstMatch = { year: r[0].year, fixture_id: r[0].id }
+  }
+  const initialFirstMatchFixtures = (initialFirstMatch && profile?.supported_club_id) ? await sql`
+    SELECT
+      f.id, f.date, f.round_number, f.league_id,
+      f.home_score, f.away_score,
+      (f.home_team_id = ${profile.supported_club_id}) AS is_home,
+      CASE WHEN f.home_team_id = ${profile.supported_club_id} THEN at.name_ja ELSE ht.name_ja END AS opp_name_ja,
+      CASE WHEN f.home_team_id = ${profile.supported_club_id} THEN at.short_name ELSE ht.short_name END AS opp_short,
+      f.venue_name_ja
+    FROM fixtures f
+    LEFT JOIN teams_master ht ON ht.id = f.home_team_id
+    LEFT JOIN teams_master at ON at.id = f.away_team_id
+    WHERE (f.home_team_id = ${profile.supported_club_id} OR f.away_team_id = ${profile.supported_club_id})
+      AND f.season = ${initialFirstMatch.year}
+      AND f.finished_at IS NOT NULL
+    ORDER BY f.date ASC
+  ` : []
+
   const jlsp = profileRows[0]?.fantype_type_code
     ? {
         code: profileRows[0].fantype_type_code,
@@ -76,7 +103,14 @@ export default async function ProfileSetupPage({ searchParams }) {
 
   return (
     <>
-      <ProfileForm clubs={clubs} profile={profile} initialPlayers={initialPlayers} next={next} />
+      <ProfileForm
+        clubs={clubs}
+        profile={profile}
+        initialPlayers={initialPlayers}
+        initialFirstMatch={initialFirstMatch}
+        initialFirstMatchFixtures={initialFirstMatchFixtures}
+        next={next}
+      />
       <FantypeSection jlsp={jlsp} />
     </>
   )

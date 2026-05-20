@@ -7,7 +7,7 @@ import { PREFECTURES } from '@/lib/jp/prefectures'
 import { municipalities } from '@/lib/jp/municipalities'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const SUPPORTER_SINCE_MIN = 1993
+const FIRST_MATCH_YEAR_MIN = 1993
 
 const CLUB_CHANGE_COOLDOWN_DAYS = 7
 
@@ -61,7 +61,14 @@ function findClubByKey(pool, key) {
   return null
 }
 
-export default function ProfileForm({ clubs, profile, initialPlayers = [], next }) {
+export default function ProfileForm({
+  clubs,
+  profile,
+  initialPlayers = [],
+  initialFirstMatch = null,
+  initialFirstMatchFixtures = [],
+  next,
+}) {
   const router = useRouter()
   const { signOut } = useClerk()
   const isEdit = Boolean(profile)
@@ -94,9 +101,16 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
   const [prefecture, setPrefecture] = useState(profile?.prefecture ?? '')
   const [city, setCity] = useState(profile?.city ?? '')
   const [addressPrivate, setAddressPrivate] = useState(Boolean(profile?.address_private))
-  const [supporterSince, setSupporterSince] = useState(
-    profile?.supporter_since != null ? String(profile.supporter_since) : '',
+  // 初観戦試合: 年 Select + 試合 Select の 2 段。
+  // year を変えると当該クラブのその年の試合一覧を fetch、fixture_id 単独保存。
+  const [firstMatchYear, setFirstMatchYear] = useState(
+    initialFirstMatch?.year != null ? String(initialFirstMatch.year) : '',
   )
+  const [firstMatchFixtureId, setFirstMatchFixtureId] = useState(
+    initialFirstMatch?.fixture_id ?? null,
+  )
+  const [firstMatchFixtures, setFirstMatchFixtures] = useState(initialFirstMatchFixtures)
+  const [firstMatchLoading, setFirstMatchLoading] = useState(false)
 
   // 推しクラブの選手リスト (クラブ変更時に再取得)
   const [players, setPlayers] = useState(initialPlayers)
@@ -166,6 +180,9 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
     // クラブが初期値と違う = ユーザーが切り替えた
     setFavoritePlayerId(null)
     setJerseyNumber('')
+    setFirstMatchYear('')
+    setFirstMatchFixtureId(null)
+    setFirstMatchFixtures([])
     setPlayersLoading(true)
     let cancelled = false
     ;(async () => {
@@ -205,6 +222,38 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
   }
 
   const cityOptions = prefecture ? (municipalities[prefecture] ?? []) : []
+
+  // 年 Select 変更時: その年の推しクラブの試合一覧を fetch
+  //   - 初期 year (initialFirstMatch.year) と一致する間は initialFirstMatchFixtures を使う
+  //   - year を変えると fixture_id をリセットして fetch
+  const originalFirstMatchYear = initialFirstMatch?.year != null ? String(initialFirstMatch.year) : ''
+  useEffect(() => {
+    if (!clubId || !firstMatchYear) {
+      setFirstMatchFixtures([])
+      return
+    }
+    if (firstMatchYear === originalFirstMatchYear && clubId === originalClubIdRef) {
+      setFirstMatchFixtures(initialFirstMatchFixtures)
+      return
+    }
+    // ユーザーが year を変えた → fixture_id リセットして fetch
+    setFirstMatchFixtureId(null)
+    setFirstMatchLoading(true)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/clubs/${clubId}/fixtures?year=${firstMatchYear}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        if (!cancelled) setFirstMatchFixtures(data.fixtures ?? [])
+      } catch {
+        if (!cancelled) setFirstMatchFixtures([])
+      } finally {
+        if (!cancelled) setFirstMatchLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [clubId, firstMatchYear, originalFirstMatchYear, originalClubIdRef, initialFirstMatchFixtures])
 
   // アイコン文字のバリデーション (空 / 1〜2文字、言語不問、NGワード不可)
   const avatarTextError = (() => {
@@ -271,7 +320,6 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
     }
 
     const jerseyToSend = jerseyNumber.trim() === '' ? null : Number(jerseyNumber)
-    const supporterSinceToSend = supporterSince.trim() === '' ? null : Number(supporterSince)
 
     setLoading(true)
     try {
@@ -288,7 +336,7 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
           prefecture: prefecture || null,
           city: prefecture && city ? city : null,
           address_private: addressPrivate,
-          supporter_since: supporterSinceToSend,
+          first_match_fixture_id: firstMatchFixtureId,
         }),
       })
       const data = await res.json()
@@ -564,18 +612,46 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
             <p style={hintStyle}>市区町村まで設定すると「今季の移動距離」の精度が上がります。</p>
           </Field>
 
-          {/* サポ歴 */}
-          <Field label="サポ歴 (応援開始年)">
-            <select
-              value={supporterSince}
-              onChange={e => setSupporterSince(e.target.value)}
-              style={{ ...selectStyle, width: '8em' }}
-            >
-              <option value="">— 選択なし —</option>
-              {Array.from({ length: CURRENT_YEAR - SUPPORTER_SINCE_MIN + 1 }, (_, i) => CURRENT_YEAR - i).map(y => (
-                <option key={y} value={y}>{y}年〜</option>
-              ))}
-            </select>
+          {/* 初観戦試合 */}
+          <Field label="初観戦試合">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select
+                value={firstMatchYear}
+                onChange={e => {
+                  setFirstMatchYear(e.target.value)
+                  setFirstMatchFixtureId(null)
+                }}
+                disabled={!clubId}
+                style={{ ...selectStyle, flex: '0 0 auto', width: '7em' }}
+              >
+                <option value="">— 年 —</option>
+                {Array.from({ length: CURRENT_YEAR - FIRST_MATCH_YEAR_MIN + 1 }, (_, i) => CURRENT_YEAR - i).map(y => (
+                  <option key={y} value={y}>{y}年</option>
+                ))}
+              </select>
+              <select
+                value={firstMatchFixtureId ?? ''}
+                onChange={e => setFirstMatchFixtureId(e.target.value === '' ? null : Number(e.target.value))}
+                disabled={!firstMatchYear || firstMatchLoading}
+                style={{ ...selectStyle, flex: '1 1 220px', minWidth: 200 }}
+              >
+                <option value="">
+                  {!firstMatchYear
+                    ? '年を選んでください'
+                    : firstMatchLoading
+                      ? '読み込み中…'
+                      : firstMatchFixtures.length === 0
+                        ? 'この年の試合はありません'
+                        : '— 試合を選ぶ —'}
+                </option>
+                {firstMatchFixtures.map(f => (
+                  <option key={f.id} value={f.id}>
+                    {formatFixtureOption(f)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p style={hintStyle}>あなたの「サポーター人生のはじまりの試合」。年を選ぶと当該年の試合が出ます。</p>
           </Field>
         </div>
 
@@ -634,6 +710,16 @@ export default function ProfileForm({ clubs, profile, initialPlayers = [], next 
       </form>
     </div>
   )
+}
+
+// Select の option ラベル: "2009年8月8日 vs 鹿島 (H)"
+function formatFixtureOption(f) {
+  const d = new Date(f.date)
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const y = d.getFullYear()
+  const opp = f.opp_short || f.opp_name_ja || '-'
+  return `${y}年${m}月${day}日 vs ${opp} (${f.is_home ? 'H' : 'A'})`
 }
 
 function Field({ label, children }) {

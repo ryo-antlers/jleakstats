@@ -77,8 +77,8 @@ export default async function RatingIndexPage() {
       up.favorite_player_id,
       up.prefecture,
       up.city,
-      up.bio,
-      up.supporter_since,
+      up.address_private,
+      up.first_match_fixture_id,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
       t.abbr AS club_abbr,
@@ -290,6 +290,23 @@ export default async function RatingIndexPage() {
     prefecture: profile.prefecture,
     city: profile.city,
   })
+
+  // 初観戦試合の詳細を別途取得して profile にマージ
+  if (profile.first_match_fixture_id && profile.supported_club_id) {
+    const fm = await sql`
+      SELECT
+        f.date AS first_match_date,
+        f.venue_name_ja AS first_match_venue_ja,
+        (f.home_team_id = ${profile.supported_club_id}) AS first_match_is_home,
+        CASE WHEN f.home_team_id = ${profile.supported_club_id} THEN at.short_name ELSE ht.short_name END AS first_match_opp_short,
+        CASE WHEN f.home_team_id = ${profile.supported_club_id} THEN at.name_ja ELSE ht.name_ja END AS first_match_opp_name_ja
+      FROM fixtures f
+      LEFT JOIN teams_master ht ON ht.id = f.home_team_id
+      LEFT JOIN teams_master at ON at.id = f.away_team_id
+      WHERE f.id = ${profile.first_match_fixture_id}
+    `.catch(() => [])
+    if (fm.length > 0) Object.assign(profile, fm[0])
+  }
 
   return (
     <div>
@@ -672,9 +689,6 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
         }}>
           選手別 採点
         </h2>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-          {sorted.length}名
-        </span>
       </div>
       <div className="rating-table-wrap" style={{ overflowX: 'auto' }}>
         <table style={{

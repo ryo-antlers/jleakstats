@@ -5,8 +5,6 @@ import { isValidPrefecture } from '@/lib/jp/prefectures'
 import { isValidMunicipality } from '@/lib/jp/municipalities'
 
 const CLUB_CHANGE_COOLDOWN_DAYS = 7
-const SUPPORTER_SINCE_MIN = 1993
-const SUPPORTER_SINCE_MAX = 2030
 
 // GET: 現在のユーザーのプロフィールを取得
 //   - プロフィール未作成なら 404
@@ -28,7 +26,7 @@ export async function GET() {
       p.prefecture,
       p.city,
       p.address_private,
-      p.supporter_since,
+      p.first_match_fixture_id,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
       GREATEST(
@@ -76,7 +74,7 @@ export async function POST(request) {
   const prefectureRaw = body.prefecture == null ? null : String(body.prefecture).trim()
   const cityRaw = body.city == null ? null : String(body.city).trim()
   const addressPrivate = Boolean(body.address_private)
-  const supporterSinceRaw = body.supporter_since
+  const firstMatchFixtureRaw = body.first_match_fixture_id
 
   // display_name のバリデーション
   if (displayName.length < 1 || displayName.length > 12) {
@@ -175,14 +173,23 @@ export async function POST(request) {
   }
   // prefecture なしで city だけは不可 (片方クリアは prefecture もクリアと解釈)
 
-  // supporter_since のバリデーション (任意、1993〜2030 の整数)
-  let supporterSince = null
-  if (supporterSinceRaw !== null && supporterSinceRaw !== undefined && supporterSinceRaw !== '') {
-    const n = Number(supporterSinceRaw)
-    if (!Number.isInteger(n) || n < SUPPORTER_SINCE_MIN || n > SUPPORTER_SINCE_MAX) {
-      return Response.json({ error: `サポ歴は${SUPPORTER_SINCE_MIN}〜${SUPPORTER_SINCE_MAX}年で入力してください` }, { status: 400 })
+  // first_match_fixture_id のバリデーション (任意、推しクラブが関係する終了済試合のみ)
+  let firstMatchFixtureId = null
+  if (firstMatchFixtureRaw !== null && firstMatchFixtureRaw !== undefined && firstMatchFixtureRaw !== '') {
+    const n = Number(firstMatchFixtureRaw)
+    if (!Number.isInteger(n) || n <= 0) {
+      return Response.json({ error: '初観戦試合の指定が不正です' }, { status: 400 })
     }
-    supporterSince = n
+    const fxRows = await sql`
+      SELECT id FROM fixtures
+      WHERE id = ${n}
+        AND (home_team_id = ${supportedClubId} OR away_team_id = ${supportedClubId})
+        AND finished_at IS NOT NULL
+    `
+    if (fxRows.length === 0) {
+      return Response.json({ error: '初観戦試合は推しクラブの終了済試合から選んでください' }, { status: 400 })
+    }
+    firstMatchFixtureId = n
   }
 
   // 既存プロフィール取得（クールダウン判定 + クラブ変更時の関連フィールドクリア用）
@@ -212,39 +219,38 @@ export async function POST(request) {
         )
       }
 
-      // クラブ変更時: 推しクラブ依存の jersey_number / favorite_player_id はリクエスト値を使う
-      //   フォーム側でクラブ切替時にリセットしている前提だが、サーバー側でも
-      //   「favorite_player_id は新クラブの選手で検証済」を担保しているので問題なし
+      // クラブ変更時: 推しクラブ依存の jersey_number / favorite_player_id /
+      //   first_match_fixture_id はリクエスト値を使う (新クラブで検証済)
       await sql`
         UPDATE user_profiles SET
-          display_name       = ${displayName},
-          avatar_text        = ${avatarText},
-          handle             = ${handle},
-          supported_club_id  = ${supportedClubId},
-          jersey_number      = ${jerseyNumber},
-          favorite_player_id = ${favoritePlayerId},
-          prefecture         = ${prefecture},
-          city               = ${city},
-          address_private    = ${addressPrivate},
-          supporter_since    = ${supporterSince},
-          club_changed_at    = NOW(),
-          updated_at         = NOW()
+          display_name           = ${displayName},
+          avatar_text            = ${avatarText},
+          handle                 = ${handle},
+          supported_club_id      = ${supportedClubId},
+          jersey_number          = ${jerseyNumber},
+          favorite_player_id     = ${favoritePlayerId},
+          prefecture             = ${prefecture},
+          city                   = ${city},
+          address_private        = ${addressPrivate},
+          first_match_fixture_id = ${firstMatchFixtureId},
+          club_changed_at        = NOW(),
+          updated_at             = NOW()
         WHERE clerk_user_id = ${userId}
       `
     } else {
       // クラブ変更なし
       await sql`
         UPDATE user_profiles SET
-          display_name       = ${displayName},
-          avatar_text        = ${avatarText},
-          handle             = ${handle},
-          jersey_number      = ${jerseyNumber},
-          favorite_player_id = ${favoritePlayerId},
-          prefecture         = ${prefecture},
-          city               = ${city},
-          address_private    = ${addressPrivate},
-          supporter_since    = ${supporterSince},
-          updated_at         = NOW()
+          display_name           = ${displayName},
+          avatar_text            = ${avatarText},
+          handle                 = ${handle},
+          jersey_number          = ${jerseyNumber},
+          favorite_player_id     = ${favoritePlayerId},
+          prefecture             = ${prefecture},
+          city                   = ${city},
+          address_private        = ${addressPrivate},
+          first_match_fixture_id = ${firstMatchFixtureId},
+          updated_at             = NOW()
         WHERE clerk_user_id = ${userId}
       `
     }
@@ -253,11 +259,11 @@ export async function POST(request) {
     await sql`
       INSERT INTO user_profiles (
         clerk_user_id, display_name, avatar_text, handle, supported_club_id,
-        jersey_number, favorite_player_id, prefecture, city, address_private, supporter_since,
+        jersey_number, favorite_player_id, prefecture, city, address_private, first_match_fixture_id,
         club_changed_at, created_at, updated_at
       ) VALUES (
         ${userId}, ${displayName}, ${avatarText}, ${handle}, ${supportedClubId},
-        ${jerseyNumber}, ${favoritePlayerId}, ${prefecture}, ${city}, ${addressPrivate}, ${supporterSince},
+        ${jerseyNumber}, ${favoritePlayerId}, ${prefecture}, ${city}, ${addressPrivate}, ${firstMatchFixtureId},
         NOW(), NOW(), NOW()
       )
     `

@@ -45,7 +45,7 @@ async function resolveUser(id) {
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         up.jersey_number, up.favorite_player_id,
-        up.prefecture, up.city, up.address_private, up.supporter_since,
+        up.prefecture, up.city, up.address_private, up.first_match_fixture_id,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
         fp.name_ja AS favorite_player_name_ja,
         fp.name_en AS favorite_player_name_en,
@@ -62,7 +62,7 @@ async function resolveUser(id) {
           up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
           up.supported_club_id, up.fantype_type_code, up.fantype_answers,
           up.jersey_number, up.favorite_player_id,
-          up.prefecture, up.city, up.address_private, up.supporter_since,
+          up.prefecture, up.city, up.address_private, up.first_match_fixture_id,
           t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
           fp.name_ja AS favorite_player_name_ja,
           fp.name_en AS favorite_player_name_en,
@@ -80,7 +80,7 @@ async function resolveUser(id) {
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         up.jersey_number, up.favorite_player_id,
-        up.prefecture, up.city, up.address_private, up.supporter_since,
+        up.prefecture, up.city, up.address_private, up.first_match_fixture_id,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
         fp.name_ja AS favorite_player_name_ja,
         fp.name_en AS favorite_player_name_en,
@@ -112,6 +112,24 @@ export default async function UserProfilePage({ params }) {
 
   const { userId: viewerId } = await auth()
   const isOwnProfile = viewerId && viewerId === user.clerk_user_id
+
+  // 初観戦試合の詳細を別途取得して user にマージ
+  //   (3 つの resolve SELECT 内で JOIN すると重複が大きいので分離)
+  if (user.first_match_fixture_id && user.supported_club_id) {
+    const fm = await sql`
+      SELECT
+        f.date AS first_match_date,
+        f.venue_name_ja AS first_match_venue_ja,
+        (f.home_team_id = ${user.supported_club_id}) AS first_match_is_home,
+        CASE WHEN f.home_team_id = ${user.supported_club_id} THEN at.short_name ELSE ht.short_name END AS first_match_opp_short,
+        CASE WHEN f.home_team_id = ${user.supported_club_id} THEN at.name_ja ELSE ht.name_ja END AS first_match_opp_name_ja
+      FROM fixtures f
+      LEFT JOIN teams_master ht ON ht.id = f.home_team_id
+      LEFT JOIN teams_master at ON at.id = f.away_team_id
+      WHERE f.id = ${user.first_match_fixture_id}
+    `.catch(() => [])
+    if (fm.length > 0) Object.assign(user, fm[0])
+  }
 
   const clerkUserId = user.clerk_user_id
   const supportedClubId = user.supported_club_id ? Number(user.supported_club_id) : null
@@ -469,9 +487,6 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
         }}>
           選手別 採点
         </h2>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-          {sorted.length}名
-        </span>
       </div>
       <div className="rating-table-wrap" style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontFamily: 'inherit' }}>
