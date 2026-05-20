@@ -179,9 +179,9 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
           }}>{jerseyNumber}</div>
         )}
         <div style={{
-          fontSize: 6.5,
+          fontSize: 8,
           fontWeight: 800,
-          marginTop: hasNumber ? 1 : 0,
+          marginTop: 2,
           letterSpacing: '0.02em',
         }}>{avatarLetters}</div>
       </div>
