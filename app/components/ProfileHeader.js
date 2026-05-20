@@ -41,23 +41,7 @@ export default function ProfileHeader({
       borderBottom: '1px solid rgba(255,255,255,0.08)',
       marginBottom: 24,
     }}>
-      {/* 左端: SINCE / 2026 DISTANCE の 2 列縦並び (項目間に薄い縦線) */}
-      {hasStats && (
-        <div style={{
-          display: 'flex', alignItems: 'stretch',
-          flexShrink: 0,
-        }}>
-          {hasSince && (
-            <StatColumn label="SINCE" value={`'${String(profile.supporter_since).slice(-2)}`} />
-          )}
-          {hasSince && hasDistance && <StatDivider />}
-          {hasDistance && (
-            <StatColumn label="2026 DISTANCE" value={`${seasonDistanceKm.toLocaleString()} km`} />
-          )}
-        </div>
-      )}
-
-      {/* 左端のすぐ右: ユニフォーム形アイコン */}
+      {/* 左端: ユニフォーム形アイコン */}
       <JerseyAvatar
         color={clubColor}
         textColor={clubText}
@@ -65,7 +49,7 @@ export default function ProfileHeader({
         avatarLetters={avatarLetters}
       />
 
-      {/* 中央〜右: 名前 + handle + バッジ群 */}
+      {/* 中央: 名前 + handle + バッジ群 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
         <div style={{
           fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
@@ -101,6 +85,22 @@ export default function ProfileHeader({
           )}
         </div>
       </div>
+
+      {/* 右端: SINCE / 2026 DISTANCE の 2 列縦並び (項目間に薄い縦線) */}
+      {hasStats && (
+        <div style={{
+          display: 'flex', alignItems: 'stretch',
+          flexShrink: 0,
+        }}>
+          {hasSince && (
+            <StatColumn label="SINCE" value={`'${String(profile.supporter_since).slice(-2)}`} />
+          )}
+          {hasSince && hasDistance && <StatDivider />}
+          {hasDistance && (
+            <StatColumn label="2026 DISTANCE" value={`${seasonDistanceKm.toLocaleString()} km`} />
+          )}
+        </div>
+      )}
 
       {editHref && (
         <Link href={editHref} style={{
@@ -150,17 +150,22 @@ function StatDivider() {
   )
 }
 
-// ユニフォーム形アイコン: 丸首のサッカーシャツのシルエット
-//   中央に背番号 (上、大) + 名前 (下、小) を縦並びで重ねる
-//   横長の比率 (100x70) でコンパクトに
+// ユニフォーム形アイコン: 「首だけ凹む」型サッカーシャツのシルエット
+//   - 凹みは中央の小さなクルーネック (狭い U 字)
+//   - 中央に背番号 (上、大) + 名前 (下、小) を縦並びで重ねる
+//   - 横長の比率 (100x70) でコンパクト
+//   - 背番号は中央やや下に配置、名前は背番号のすぐ下に小さく
 function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
   const hasNumber = jerseyNumber != null
   return (
     <div style={{ position: 'relative', width: 76, height: 54, flexShrink: 0 }}>
       <svg viewBox="0 0 100 70" width="76" height="54" style={{ display: 'block' }}>
-        {/* 袖の張り出しを優しく、首元は二次ベジェで丸く凹ませる */}
+        {/*
+          首だけクルーネック: 上辺は基本水平、中央 (x=42-58) に小さな U 字凹みのみ
+            肩 → 上辺 → 首凹み (Q ベジェ) → 上辺 → 肩 → 袖 → 脇 → 裾 …
+        */}
         <path
-          d="M 30 6 Q 50 22, 70 6 L 92 14 L 86 30 L 76 26 L 76 66 L 24 66 L 24 26 L 14 30 L 8 14 Z"
+          d="M 28 8 L 42 8 Q 50 16, 58 8 L 72 8 L 92 14 L 86 30 L 76 26 L 76 66 L 24 66 L 24 26 L 14 30 L 8 14 Z"
           fill={color}
         />
       </svg>
@@ -169,7 +174,7 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         color: textColor, pointerEvents: 'none',
-        paddingTop: 8,
+        paddingTop: 16,
       }}>
         {hasNumber && (
           <div style={{
@@ -179,7 +184,7 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
           }}>{jerseyNumber}</div>
         )}
         <div style={{
-          fontSize: avatarLetters?.length === 2 ? 10 : 11,
+          fontSize: 8,
           fontWeight: 800,
           marginTop: hasNumber ? 1 : 0,
           letterSpacing: '0.02em',
