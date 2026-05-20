@@ -4,6 +4,7 @@ import sql from '@/lib/db'
 import Link from 'next/link'
 import TopLogo from '@/app/components/TopLogo'
 import { TYPE_META } from '@/lib/fantype/type-meta'
+import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
 
 export const dynamic = 'force-dynamic'
 
@@ -281,6 +282,14 @@ export default async function RatingIndexPage() {
     ? `/fantype/result/${profile.fantype_type_code}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
     : null
 
+  // 今季の現地観戦距離 (km、四捨五入された整数)
+  // 住所未設定や現地ノートが無い場合は 0 → バッジ非表示
+  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({
+    clerkUserId: userId,
+    prefecture: profile.prefecture,
+    city: profile.city,
+  })
+
   return (
     <div>
       <TopLogo />
@@ -355,6 +364,18 @@ export default async function RatingIndexPage() {
                 backgroundColor: 'rgba(255,255,255,0.06)',
                 border: '1px solid rgba(255,255,255,0.08)',
               }}>since {String(profile.supporter_since).slice(-2)}&apos;</span>
+            )}
+            {seasonDistanceKm > 0 && (
+              <Link href="/notes" style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                padding: '4px 10px', borderRadius: 999,
+                color: 'rgba(255,255,255,0.75)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                textDecoration: 'none',
+              }} title="今季の現地観戦距離 (観戦ノートから集計)">
+                🚄 今季 {seasonDistanceKm.toLocaleString()} km
+              </Link>
             )}
           </div>
         </div>

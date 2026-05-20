@@ -1,8 +1,14 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 import TopLogo from '@/app/components/TopLogo'
 import { TYPE_META } from '@/lib/fantype/type-meta'
+import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
+import {
+  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
+  leagueLabel, formatJST,
+} from '@/app/notes/_shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +118,9 @@ export default async function UserProfilePage({ params }) {
   const user = await resolveUser(id)
   if (!user) notFound()
 
+  const { userId: viewerId } = await auth()
+  const isOwnProfile = viewerId && viewerId === user.clerk_user_id
+
   const clerkUserId = user.clerk_user_id
   const supportedClubId = user.supported_club_id ? Number(user.supported_club_id) : null
   const clubColor = normalizeColor(user.club_color)
@@ -120,6 +129,31 @@ export default async function UserProfilePage({ params }) {
   const fantypeHref = fantypeMeta
     ? `/fantype/result/${user.fantype_type_code}${user.fantype_answers ? `?a=${user.fantype_answers}` : ''}`
     : null
+
+  // 今季の現地観戦距離 (km、四捨五入された整数)
+  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({
+    clerkUserId,
+    prefecture: user.prefecture,
+    city: user.city,
+  })
+
+  // 観戦ノート直近 (最大 6 件)
+  //   ログイン済みユーザーのみに公開、ゲストは空配列
+  const recentNotes = viewerId ? await sql`
+    SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.memo,
+           f.date AS fixture_date, f.home_team_id, f.away_team_id,
+           f.home_score, f.away_score, f.home_penalty, f.away_penalty,
+           f.status, f.league_id, f.round_number,
+           ht.abbr AS home_abbr, ht.short_name AS home_short, ht.name_ja AS home_name, ht.color_primary AS home_color,
+           at.abbr AS away_abbr, at.short_name AS away_short, at.name_ja AS away_name, at.color_primary AS away_color
+    FROM watch_notes wn
+    JOIN fixtures f ON f.id = wn.fixture_id
+    LEFT JOIN teams_master ht ON ht.id = f.home_team_id
+    LEFT JOIN teams_master at ON at.id = f.away_team_id
+    WHERE wn.clerk_user_id = ${clerkUserId}
+    ORDER BY f.date DESC
+    LIMIT 6
+  `.catch(() => []) : []
 
   // アバター文字
   const customAvatar = (user.avatar_text ?? '').trim()
@@ -253,6 +287,11 @@ export default async function UserProfilePage({ params }) {
                 since {String(user.supporter_since).slice(-2)}&apos;
               </span>
             )}
+            {seasonDistanceKm > 0 && (
+              <span style={subBadgeStyle} title="今季の現地観戦距離">
+                🚄 今季 {seasonDistanceKm.toLocaleString()} km
+              </span>
+            )}
           </div>
           {user.bio && (
             <div style={{
@@ -266,6 +305,11 @@ export default async function UserProfilePage({ params }) {
         </div>
       </div>
 
+      {/* 観戦ノート (直近) — ログインユーザーのみに公開 */}
+      {recentNotes.length > 0 && (
+        <RecentNotesSection notes={recentNotes} isOwn={isOwnProfile} />
+      )}
+
       {/* 選手別 採点 (推しクラブの選手 × 節 マトリクス) */}
       {supportedClubId && teamPlayers.length > 0 && (
         <PlayerRatingsSection
@@ -276,6 +320,148 @@ export default async function UserProfilePage({ params }) {
       )}
     </div>
   )
+}
+
+// ───────────────────────────────────────────────
+// 観戦ノート (直近) セクション
+//   - 最大 6 件のミニカード (試合スコア + 観戦区分 chip + companion + memo 抜粋)
+//   - クリック先: 自分のページ → /notes/[fixture_id] (編集) / 他人 → /fixture/[id]
+// ───────────────────────────────────────────────
+function RecentNotesSection({ notes, isOwn }) {
+  return (
+    <section style={{ marginBottom: 32 }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 10,
+        marginBottom: 10, paddingBottom: 6,
+        borderBottom: '1px solid #1a1a1a',
+      }}>
+        <h2 style={{
+          fontSize: 12, fontWeight: 800, color: '#fff',
+          letterSpacing: '0.18em', margin: 0, textTransform: 'uppercase',
+        }}>観戦ノート</h2>
+        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+          直近 {notes.length} 件
+        </span>
+        {isOwn && (
+          <Link href="/notes" style={{
+            marginLeft: 'auto',
+            fontSize: 10, fontWeight: 700,
+            color: 'rgba(255,255,255,0.6)',
+            textDecoration: 'none',
+            letterSpacing: '0.04em',
+          }}>すべて見る →</Link>
+        )}
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+        gap: 10,
+      }}>
+        {notes.map(n => (
+          <NoteCard key={n.id} note={n} isOwn={isOwn} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function NoteCard({ note, isOwn }) {
+  const href = isOwn ? `/notes/${note.fixture_id}` : `/fixture/${note.fixture_id}`
+  const homeColor = normalizeColor(note.home_color)
+  const awayColor = normalizeColor(note.away_color)
+  const homeText = textOn(homeColor)
+  const awayText = textOn(awayColor)
+  const homeName = note.home_abbr || note.home_short || note.home_name || '-'
+  const awayName = note.away_abbr || note.away_short || note.away_name || '-'
+  const comp = leagueLabel(note.league_id)
+  return (
+    <Link href={href} style={{
+      display: 'block', textDecoration: 'none', color: '#fff',
+      border: '1px solid rgba(255,255,255,0.06)',
+      backgroundColor: '#161616',
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        padding: '8px 10px 4px',
+      }}>
+        <span style={{ fontSize: 9, color: '#fff', fontWeight: 800, letterSpacing: '0.02em' }}>
+          {formatJST(note.fixture_date)}
+        </span>
+        {comp && (
+          <span style={{
+            fontSize: 8, fontWeight: 800, letterSpacing: '0.1em',
+            color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase',
+          }}>
+            {comp}{note.round_number ? ` 第${note.round_number}節` : ''}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+        <div style={{
+          backgroundColor: homeColor, color: homeText,
+          padding: '6px 6px 10px', minHeight: 50,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+        }}>
+          <span style={{
+            fontWeight: 900, fontSize: 11, letterSpacing: '0.04em',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+          }}>{homeName}</span>
+          <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: '0.02em' }}>
+            {note.home_score ?? '-'}
+          </span>
+        </div>
+        <div style={{
+          backgroundColor: awayColor, color: awayText,
+          padding: '6px 6px 10px', minHeight: 50,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+        }}>
+          <span style={{
+            fontWeight: 900, fontSize: 11, letterSpacing: '0.04em',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+          }}>{awayName}</span>
+          <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: '0.02em' }}>
+            {note.away_score ?? '-'}
+          </span>
+        </div>
+      </div>
+      <div style={{
+        padding: '8px 10px', borderTop: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', flexDirection: 'column', gap: 4,
+      }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <span style={miniChipStyle}>
+            {WATCH_TYPE_ICONS[note.watch_type]} {WATCH_TYPE_LABELS[note.watch_type]}
+          </span>
+          {note.watch_type === 'stadium' && note.access && (
+            <span style={miniChipStyle}>
+              {ACCESS_ICONS[note.access]} {ACCESS_LABELS[note.access]}
+            </span>
+          )}
+        </div>
+        {note.companion && (
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)' }}>同行: </span>{note.companion}
+          </div>
+        )}
+        {note.memo && (
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.8)',
+            lineHeight: 1.4,
+            display: '-webkit-box',
+            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}>{note.memo}</div>
+        )}
+      </div>
+    </Link>
+  )
+}
+
+const miniChipStyle = {
+  fontSize: 9, fontWeight: 700, letterSpacing: '0.04em',
+  padding: '2px 6px', borderRadius: 999,
+  color: 'rgba(255,255,255,0.85)',
+  backgroundColor: 'rgba(255,255,255,0.08)',
 }
 
 // ───────────────────────────────────────────────
