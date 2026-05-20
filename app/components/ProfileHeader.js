@@ -41,12 +41,31 @@ export default function ProfileHeader({
       borderBottom: '1px solid rgba(255,255,255,0.08)',
       marginBottom: 24,
     }}>
+      {/* 左端: SINCE / 2026 DISTANCE の 2 列縦並び (項目間に薄い縦線) */}
+      {hasStats && (
+        <div style={{
+          display: 'flex', alignItems: 'stretch',
+          flexShrink: 0,
+        }}>
+          {hasSince && (
+            <StatColumn label="SINCE" value={`'${String(profile.supporter_since).slice(-2)}`} />
+          )}
+          {hasSince && hasDistance && <StatDivider />}
+          {hasDistance && (
+            <StatColumn label="2026 DISTANCE" value={`${seasonDistanceKm.toLocaleString()} km`} />
+          )}
+        </div>
+      )}
+
+      {/* 左端のすぐ右: ユニフォーム形アイコン */}
       <JerseyAvatar
         color={clubColor}
         textColor={clubText}
         jerseyNumber={profile.jersey_number}
         avatarLetters={avatarLetters}
       />
+
+      {/* 中央〜右: 名前 + handle + バッジ群 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
         <div style={{
           fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
@@ -82,21 +101,6 @@ export default function ProfileHeader({
           )}
         </div>
       </div>
-
-      {hasStats && (
-        <div style={{
-          display: 'flex', alignItems: 'stretch',
-          flexShrink: 0,
-        }}>
-          {hasSince && (
-            <StatColumn label="SINCE" value={`'${String(profile.supporter_since).slice(-2)}`} />
-          )}
-          {hasSince && hasDistance && <StatDivider />}
-          {hasDistance && (
-            <StatColumn label="2026 DISTANCE" value={`${seasonDistanceKm.toLocaleString()} km`} />
-          )}
-        </div>
-      )}
 
       {editHref && (
         <Link href={editHref} style={{
@@ -146,15 +150,17 @@ function StatDivider() {
   )
 }
 
-// ユニフォーム形アイコン: SVG でサッカーシャツのシルエット
+// ユニフォーム形アイコン: 丸首のサッカーシャツのシルエット
 //   中央に背番号 (上、大) + 名前 (下、小) を縦並びで重ねる
+//   横長の比率 (100x70) でコンパクトに
 function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
   const hasNumber = jerseyNumber != null
   return (
-    <div style={{ position: 'relative', width: 76, height: 76, flexShrink: 0 }}>
-      <svg viewBox="0 0 100 100" width="76" height="76" style={{ display: 'block' }}>
+    <div style={{ position: 'relative', width: 76, height: 54, flexShrink: 0 }}>
+      <svg viewBox="0 0 100 70" width="76" height="54" style={{ display: 'block' }}>
+        {/* 袖の張り出しを優しく、首元は二次ベジェで丸く凹ませる */}
         <path
-          d="M 28 4 L 40 4 L 50 14 L 60 4 L 72 4 L 96 18 L 90 36 L 76 31 L 76 96 L 24 96 L 24 31 L 10 36 L 4 18 Z"
+          d="M 30 6 Q 50 22, 70 6 L 92 14 L 86 30 L 76 26 L 76 66 L 24 66 L 24 26 L 14 30 L 8 14 Z"
           fill={color}
         />
       </svg>
@@ -163,18 +169,19 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         color: textColor, pointerEvents: 'none',
+        paddingTop: 8,
       }}>
         {hasNumber && (
           <div style={{
-            fontSize: 22, fontWeight: 900, lineHeight: 1,
-            letterSpacing: '-0.02em', marginTop: 14,
+            fontSize: 18, fontWeight: 900, lineHeight: 1,
+            letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
           }}>{jerseyNumber}</div>
         )}
         <div style={{
           fontSize: avatarLetters?.length === 2 ? 10 : 11,
           fontWeight: 800,
-          marginTop: hasNumber ? 2 : 18,
+          marginTop: hasNumber ? 1 : 0,
           letterSpacing: '0.02em',
         }}>{avatarLetters}</div>
       </div>

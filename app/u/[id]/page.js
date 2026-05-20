@@ -270,7 +270,7 @@ function RecentNotesSection({ notes, isOwn }) {
       </div>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
         gap: 8,
       }}>
         {notes.map(n => (
@@ -328,7 +328,6 @@ function NoteCard({ note, isOwn }) {
       <div style={{
         padding: '6px 8px', borderTop: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', gap: 4,
-        flex: 1,
       }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           <span style={miniChipStyle}>{WATCH_TYPE_LABELS[note.watch_type]}</span>
@@ -338,7 +337,7 @@ function NoteCard({ note, isOwn }) {
         </div>
         {note.companion && (
           <div style={{
-            fontSize: 9, color: 'rgba(255,255,255,0.65)',
+            fontSize: 10, color: 'rgba(255,255,255,0.65)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             <span style={{ color: 'rgba(255,255,255,0.4)' }}>同行: </span>{note.companion}
@@ -346,12 +345,13 @@ function NoteCard({ note, isOwn }) {
         )}
         {note.memo && (
           <div style={{
-            fontSize: 9, color: 'rgba(255,255,255,0.8)',
-            lineHeight: 1.4,
-            display: '-webkit-box',
-            WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}>{note.memo}</div>
+            fontSize: 10, color: 'rgba(255,255,255,0.85)',
+            lineHeight: 1.45,
+          }}>
+            {[...note.memo].length > 60
+              ? [...note.memo].slice(0, 60).join('') + '…'
+              : note.memo}
+          </div>
         )}
       </div>
     </Link>
