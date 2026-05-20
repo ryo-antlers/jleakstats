@@ -160,7 +160,7 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
     <div style={{ position: 'relative', width: 76, height: 54, flexShrink: 0 }}>
       <svg viewBox="0 0 100 70" width="76" height="54" style={{ display: 'block' }}>
         <path
-          d="M 36 12 Q 50 16, 64 12 L 82 16 Q 88 18, 86 28 Q 82 34, 74 32 Q 74 56, 72 62 Q 68 66, 60 66 L 40 66 Q 32 66, 28 62 Q 26 56, 26 32 Q 18 34, 14 28 Q 12 18, 18 16 Z"
+          d="M 38 12 Q 50 16, 62 12 L 78 16 Q 84 18, 82 28 Q 78 34, 70 32 Q 70 56, 68 62 Q 64 66, 58 66 L 42 66 Q 36 66, 32 62 Q 30 56, 30 32 Q 22 34, 18 28 Q 16 18, 22 16 Z"
           fill={color}
         />
       </svg>
@@ -179,7 +179,7 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
           }}>{jerseyNumber}</div>
         )}
         <div style={{
-          fontSize: 8,
+          fontSize: 6.5,
           fontWeight: 800,
           marginTop: hasNumber ? 1 : 0,
           letterSpacing: '0.02em',
