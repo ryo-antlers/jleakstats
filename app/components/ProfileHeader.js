@@ -150,22 +150,17 @@ function StatDivider() {
   )
 }
 
-// ユニフォーム形アイコン: 「首だけ凹む」型サッカーシャツのシルエット
-//   - 凹みは中央の小さなクルーネック (狭い U 字)
+// ユニフォーム形アイコン: 絵文字シャツ風 (👕)
+//   - 全体的に丸み・ポップ感
+//   - 横幅は控えめ、袖はやや太く
 //   - 中央に背番号 (上、大) + 名前 (下、小) を縦並びで重ねる
-//   - 横長の比率 (100x70) でコンパクト
-//   - 背番号は中央やや下に配置、名前は背番号のすぐ下に小さく
 function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
   const hasNumber = jerseyNumber != null
   return (
     <div style={{ position: 'relative', width: 76, height: 54, flexShrink: 0 }}>
       <svg viewBox="0 0 100 70" width="76" height="54" style={{ display: 'block' }}>
-        {/*
-          首だけクルーネック: 上辺は基本水平、中央 (x=42-58) に小さな U 字凹みのみ
-            肩 → 上辺 → 首凹み (Q ベジェ) → 上辺 → 肩 → 袖 → 脇 → 裾 …
-        */}
         <path
-          d="M 28 8 L 42 8 Q 50 16, 58 8 L 72 8 L 92 14 L 86 30 L 76 26 L 76 66 L 24 66 L 24 26 L 14 30 L 8 14 Z"
+          d="M 36 12 Q 50 16, 64 12 L 82 16 Q 88 18, 86 28 Q 82 34, 74 32 Q 74 56, 72 62 Q 68 66, 60 66 L 40 66 Q 32 66, 28 62 Q 26 56, 26 32 Q 18 34, 14 28 Q 12 18, 18 16 Z"
           fill={color}
         />
       </svg>
