@@ -122,47 +122,19 @@ function ProfileBubble({ profile }) {
     const src = (profile.display_name ?? '?').trim()
     initial = [...src].slice(0, 2).join('') || '?'
   }
-  const fantypeCode = profile.fantype_type_code
-  const fantypeHref = fantypeCode
-    ? `/fantype/result/${fantypeCode}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
-    : '/fantype'
   const profileHref = profile.handle ? `/u/${profile.handle}` : '/rating'
   return (
-    <>
-      <Link
-        href={profileHref}
-        className="deco-circle-red"
-        style={{
-          ...sharedStyle,
-          backgroundColor: clubColor,
-          color: textOn(clubColor),
-          fontSize: 18,
-        }}
-      >
-        {initial}
-      </Link>
-      <Link
-        href={fantypeHref}
-        className="fantype-chip"
-        title={fantypeCode ? `FANTYPE ${fantypeCode}` : 'FANTYPE 診断を受ける'}
-        style={{
-          position: 'absolute',
-          top: 124,
-          right: 0,
-          padding: '3px 8px',
-          borderRadius: 999,
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: '0.06em',
-          textDecoration: 'none',
-          backgroundColor: fantypeCode ? 'var(--accent)' : 'transparent',
-          color: fantypeCode ? '#000' : 'var(--text-secondary)',
-          border: fantypeCode ? 'none' : '1px solid var(--text-secondary)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {fantypeCode ? `FANTYPE / ${fantypeCode}` : 'FANTYPE →'}
-      </Link>
-    </>
+    <Link
+      href={profileHref}
+      className="deco-circle-red"
+      style={{
+        ...sharedStyle,
+        backgroundColor: clubColor,
+        color: textOn(clubColor),
+        fontSize: 18,
+      }}
+    >
+      {initial}
+    </Link>
   )
 }
