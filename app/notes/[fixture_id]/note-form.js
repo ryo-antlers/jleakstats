@@ -10,7 +10,10 @@ import { municipalities } from '@/lib/jp/municipalities'
 const COMPANION_MAX = 50
 const MEMO_MAX = 500
 
-export default function NoteForm({ fixtureId, initialNote }) {
+// afterSaveMode:
+//   'redirect-to-notes' (default): 保存後 /notes へ遷移 (従来の /notes/[fixture_id] 動作)
+//   'refresh':                     保存後にページを refresh のみ (例: /rating/[id] に埋め込む場合)
+export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redirect-to-notes' }) {
   const router = useRouter()
   const isEdit = !!initialNote
 
@@ -22,6 +25,7 @@ export default function NoteForm({ fixtureId, initialNote }) {
   const [departureCity, setDepartureCity] = useState(initialNote?.departure_city ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [successFlash, setSuccessFlash] = useState(false)
 
   const cityOptions = departurePrefecture ? (municipalities[departurePrefecture] ?? []) : []
 
@@ -48,8 +52,14 @@ export default function NoteForm({ fixtureId, initialNote }) {
         setError(data.error ?? 'エラーが発生しました')
         return
       }
-      router.push('/notes')
-      router.refresh()
+      if (afterSaveMode === 'refresh') {
+        setSuccessFlash(true)
+        setTimeout(() => setSuccessFlash(false), 1500)
+        router.refresh()
+      } else {
+        router.push('/notes')
+        router.refresh()
+      }
     } catch (err) {
       setError(`エラー: ${err?.message ?? String(err)}`)
     } finally {
@@ -69,8 +79,12 @@ export default function NoteForm({ fixtureId, initialNote }) {
         setError(data.error ?? '削除に失敗しました')
         return
       }
-      router.push('/notes')
-      router.refresh()
+      if (afterSaveMode === 'refresh') {
+        router.refresh()
+      } else {
+        router.push('/notes')
+        router.refresh()
+      }
     } catch (err) {
       setError(`エラー: ${err?.message ?? String(err)}`)
     } finally {
@@ -174,6 +188,21 @@ export default function NoteForm({ fixtureId, initialNote }) {
         />
         <p style={hintStyle}>{[...memo].length}/{MEMO_MAX}</p>
       </Field>
+
+      {successFlash && (
+        <div style={{
+          padding: '10px 14px',
+          backgroundColor: 'rgba(0,255,135,0.12)',
+          border: '1px solid #00ff87',
+          color: '#00ff87',
+          fontSize: 11, fontWeight: 800,
+          letterSpacing: '0.06em',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 14 }}>✓</span>
+          <span>観戦記録を保存しました</span>
+        </div>
+      )}
 
       {error && (
         <div style={{
