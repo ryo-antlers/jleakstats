@@ -126,7 +126,7 @@ export default async function RatingFixturePage({ params }) {
   // 観戦ノート (既存があれば取得、無ければ null)
   //   watch_type が 'no_watch' のときは採点 UI を非表示
   const noteRows = await sql`
-    SELECT id, watch_type, access, companion, memo,
+    SELECT id, watch_type, access, companion, next_visit_memo,
            departure_prefecture, departure_city, created_at, updated_at
     FROM watch_notes
     WHERE clerk_user_id = ${userId} AND fixture_id = ${fixtureId}

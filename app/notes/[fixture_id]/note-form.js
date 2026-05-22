@@ -8,7 +8,7 @@ import { PREFECTURES } from '@/lib/jp/prefectures'
 import { municipalities } from '@/lib/jp/municipalities'
 
 const COMPANION_MAX = 50
-const MEMO_MAX = 500
+const NEXT_VISIT_MEMO_MAX = 500
 
 // afterSaveMode:
 //   'redirect-to-notes' (default): 保存後 /notes へ遷移 (従来の /notes/[fixture_id] 動作)
@@ -20,7 +20,7 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
   const [watchType, setWatchType] = useState(initialNote?.watch_type ?? 'stadium')
   const [access, setAccess] = useState(initialNote?.access ?? '')
   const [companion, setCompanion] = useState(initialNote?.companion ?? '')
-  const [memo, setMemo] = useState(initialNote?.memo ?? '')
+  const [nextVisitMemo, setNextVisitMemo] = useState(initialNote?.next_visit_memo ?? '')
   const [departurePrefecture, setDeparturePrefecture] = useState(initialNote?.departure_prefecture ?? '')
   const [departureCity, setDepartureCity] = useState(initialNote?.departure_city ?? '')
   const [loading, setLoading] = useState(false)
@@ -42,7 +42,7 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
           watch_type: watchType,
           access: watchType === 'stadium' ? (access || null) : null,
           companion: companion.trim() || null,
-          memo: memo.trim() || null,
+          next_visit_memo: nextVisitMemo.trim() || null,
           departure_prefecture: watchType === 'stadium' ? (departurePrefecture || null) : null,
           departure_city: watchType === 'stadium' && departurePrefecture && departureCity ? departureCity : null,
         }),
@@ -176,17 +176,17 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         <p style={hintStyle}>{[...companion].length}/{COMPANION_MAX}</p>
       </Field>
 
-      {/* メモ */}
-      <Field label="メモ (任意)">
+      {/* 次回観戦時の備忘メモ */}
+      <Field label="次回観戦時の備忘メモ (任意)">
         <textarea
-          value={memo}
-          onChange={e => setMemo(e.target.value)}
-          maxLength={MEMO_MAX}
-          placeholder="試合の感想・印象に残ったプレー・天候など、自由に"
+          value={nextVisitMemo}
+          onChange={e => setNextVisitMemo(e.target.value)}
+          maxLength={NEXT_VISIT_MEMO_MAX}
+          placeholder="例: 駐車場が満車だった、コンビニで弁当買い忘れた、ゴール裏は寒い…次の自分へのヒント"
           rows={6}
           style={{ ...inputStyle, resize: 'vertical', minHeight: 100, fontFamily: 'inherit' }}
         />
-        <p style={hintStyle}>{[...memo].length}/{MEMO_MAX}</p>
+        <p style={hintStyle}>{[...nextVisitMemo].length}/{NEXT_VISIT_MEMO_MAX}</p>
       </Field>
 
       {successFlash && (

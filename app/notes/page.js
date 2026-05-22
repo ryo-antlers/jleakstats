@@ -41,7 +41,7 @@ export default async function NotesPage() {
 
   // 記録済みノート (新しい順)
   const recorded = await sql`
-    SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.memo,
+    SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.next_visit_memo,
            wn.updated_at,
            f.date AS fixture_date, f.home_team_id, f.away_team_id,
            f.home_score, f.away_score, f.home_penalty, f.away_penalty,
@@ -89,7 +89,7 @@ export default async function NotesPage() {
           観戦ノート
         </h1>
         <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: '6px 0 0' }}>
-          試合ごとに「現地で観た / 配信 / TV / 観てない」、アクセス、同行者、メモを記録できます。
+          試合ごとに「現地で観た / 配信 / TV / 観てない」、アクセス、同行者、次回観戦時の備忘メモを記録できます。
         </p>
       </div>
 
@@ -179,14 +179,14 @@ function NoteCard({ row }) {
             <span style={{ color: 'rgba(255,255,255,0.4)' }}>同行: </span>{row.companion}
           </div>
         )}
-        {row.memo && (
+        {row.next_visit_memo && (
           <div style={{
             fontSize: 11, color: 'rgba(255,255,255,0.85)',
             lineHeight: 1.5,
             display: '-webkit-box',
             WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-          }}>{row.memo}</div>
+          }}>{row.next_visit_memo}</div>
         )}
       </div>
     </Link>
