@@ -12,7 +12,6 @@ export default async function SiteHero() {
     const rows = await sql`
       SELECT
         up.display_name, up.avatar_text, up.handle,
-        up.fantype_type_code, up.fantype_answers,
         t.color_primary AS club_color
       FROM user_profiles up
       LEFT JOIN teams_master t ON t.id = up.supported_club_id
