@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import TopLogo from '@/app/components/TopLogo'
 import RatingPageView from '../rating-view'
+import NoteForm from '@/app/notes/[fixture_id]/note-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,6 +124,17 @@ export default async function RatingFixturePage({ params }) {
   // 採点済み (既に1件以上) なら閲覧モード
   const viewOnly = myRatings.length > 0
 
+  // 観戦ノート (既存があれば取得、無ければ null)
+  //   watch_type が 'no_watch' のときは採点 UI を非表示
+  const noteRows = await sql`
+    SELECT id, watch_type, access, companion, memo,
+           departure_prefecture, departure_city, created_at, updated_at
+    FROM watch_notes
+    WHERE clerk_user_id = ${userId} AND fixture_id = ${fixtureId}
+  `
+  const note = noteRows[0] ?? null
+  const isNoWatch = note?.watch_type === 'no_watch'
+
   // 推しクラブの teamInfo (rating-view が使う形式)
   const isHome = Number(fixture.home_team_id) === supportedClubId
   const teamInfo = {
@@ -186,13 +198,33 @@ export default async function RatingFixturePage({ params }) {
         </div>
       </div>
 
-      <RatingPageView
-        fixture={fixture}
-        lineups={lineups}
-        teamInfo={teamInfo}
-        myRatings={myRatings}
-        viewOnly={viewOnly}
-      />
+      {/* 観戦記録セクション (常に表示) */}
+      <section style={{
+        maxWidth: 560, margin: '0 auto 24px',
+        paddingTop: 18, borderTop: '1px solid #1a1a1a',
+      }}>
+        <p style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+          color: 'rgba(255,255,255,0.4)', margin: '14px 0 16px',
+          textAlign: 'center',
+        }}>WATCH NOTE</p>
+        <NoteForm
+          fixtureId={fixtureId}
+          initialNote={note}
+          afterSaveMode="refresh"
+        />
+      </section>
+
+      {/* 選手別 採点 (観戦区分 ≠ 観てない のみ表示) */}
+      {!isNoWatch && (
+        <RatingPageView
+          fixture={fixture}
+          lineups={lineups}
+          teamInfo={teamInfo}
+          myRatings={myRatings}
+          viewOnly={viewOnly}
+        />
+      )}
     </div>
   )
 }

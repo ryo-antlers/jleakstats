@@ -255,7 +255,7 @@ export default async function UserProfilePage({ params }) {
 // ───────────────────────────────────────────────
 // 観戦ノート (直近) セクション
 //   - 最大 6 件のミニカード (試合スコア + 観戦区分 chip + companion + memo 抜粋)
-//   - クリック先: 自分のページ → /notes/[fixture_id] (編集) / 他人 → /fixture/[id]
+//   - クリック先: 自分のページ → /rating/[fixture_id] (採点+観戦記録の統合画面) / 他人 → /fixture/[id]
 // ───────────────────────────────────────────────
 function RecentNotesSection({ notes, isOwn }) {
   return (
@@ -302,7 +302,7 @@ function RecentNotesSection({ notes, isOwn }) {
 //   観戦区分 chip + アクセス chip
 //   同行者 / メモ (簡潔に)
 function NoteCard({ note, isOwn }) {
-  const href = isOwn ? `/notes/${note.fixture_id}` : `/fixture/${note.fixture_id}`
+  const href = isOwn ? `/rating/${note.fixture_id}` : `/fixture/${note.fixture_id}`
   const homeColor = normalizeColor(note.home_color)
   const awayColor = normalizeColor(note.away_color)
   const homeText = textOn(homeColor)

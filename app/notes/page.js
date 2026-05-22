@@ -165,7 +165,7 @@ const inlineLink = {
 // 試合スコア + ノート概要
 function NoteCard({ row }) {
   return (
-    <Link href={`/notes/${row.fixture_id}`} style={cardStyle}>
+    <Link href={`/rating/${row.fixture_id}`} style={cardStyle}>
       <FixtureHeader row={row} />
       <div style={{
         padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -198,7 +198,7 @@ function NoteCard({ row }) {
 
 function UnrecordedCard({ row }) {
   return (
-    <Link href={`/notes/${row.id}`} style={cardStyle}>
+    <Link href={`/rating/${row.id}`} style={cardStyle}>
       <FixtureHeader row={row} />
       <div style={{
         padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)',
