@@ -1,10 +1,9 @@
-// 一時的なヘッダーデザイン比較ページ
-//   - 5 パターンを並べて見比べる
+// ヘッダーデザイン比較ページ (round 2)
+//   - 採用候補は「E (Tab Underline)」をベースに 5 バリエーション展開
+//   - ロゴは画像ではなく「J Leak Stats」テキスト
 //   - URL: /header-preview
-//   - 採用後にこのページは削除予定
-import Link from 'next/link'
 
-export const metadata = { title: 'ヘッダーデザイン候補 | preview' }
+export const metadata = { title: 'ヘッダーデザイン候補 r2 | preview' }
 
 const NAV_ITEMS = [
   { href: '/search',  label: '試合検索' },
@@ -13,7 +12,6 @@ const NAV_ITEMS = [
   { href: '/fantype', label: 'FANTYPE' },
 ]
 
-// テスト用プロフィール (ログイン済想定)
 const SAMPLE_PROFILE = {
   display_name: 'マリノス太郎',
   avatar_text: 'マリ',
@@ -31,9 +29,9 @@ function textOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
 }
 
-// 小さいユニフォーム形アイコン (どのパターンでも使う)
+// 小さいユニフォーム形アイコン
 function MiniJersey({ color, jerseyNumber, avatarLetters, size = 46 }) {
-  const textColor = textOn(color)
+  const txtColor = textOn(color)
   const height = (size / 46) * 32
   return (
     <div style={{ position: 'relative', width: size, height, flexShrink: 0 }}>
@@ -47,15 +45,10 @@ function MiniJersey({ color, jerseyNumber, avatarLetters, size = 46 }) {
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        color: textColor, pointerEvents: 'none',
+        color: txtColor, pointerEvents: 'none',
       }}>
-        <div style={{
-          fontSize: 11 * (size/46), fontWeight: 900, lineHeight: 1,
-          paddingTop: 8 * (size/46),
-        }}>{jerseyNumber}</div>
-        <div style={{
-          fontSize: 5 * (size/46), fontWeight: 800, marginTop: 1,
-        }}>{avatarLetters}</div>
+        <div style={{ fontSize: 11 * (size/46), fontWeight: 900, lineHeight: 1, paddingTop: 8 * (size/46) }}>{jerseyNumber}</div>
+        <div style={{ fontSize: 5 * (size/46), fontWeight: 800, marginTop: 1 }}>{avatarLetters}</div>
       </div>
     </div>
   )
@@ -65,36 +58,34 @@ export default function HeaderPreviewPage() {
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto', color: '#fff' }}>
       <h1 style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}>
-        ヘッダーデザイン候補
+        ヘッダーデザイン候補 — Tab Underline ベース 5 パターン
       </h1>
       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 28 }}>
-        5 パターンを並べました。気に入った id (A〜E) を伝えてください。
-        微調整したい部分 (フォントサイズ・色・余白等) もあわせて。
+        ロゴは「J Leak Stats」テキスト、ナビはタブ風 (現在ページ = 採点 をハイライト)。
+        気に入った id を伝えてください。
       </p>
 
-      <Variant id="A" name="Minimal (現状)" desc="シンプルなライン、ロゴ小・ナビ普通">
-        <PatternA />
+      <Variant id="E1" name="Clean Underline" desc="細い緑下線、ミニマル">
+        <PatternE1 />
       </Variant>
 
-      <Variant id="B" name="Sports Magazine" desc="ロゴテキスト + スラッシュ区切りナビ + 太い緑アクセントライン">
-        <PatternB />
+      <Variant id="E2" name="Anta Bold Logo + Thick Underline" desc="ロゴを Anta フォントで目立たせる + 太い緑下線">
+        <PatternE2 />
       </Variant>
 
-      <Variant id="C" name="Two-row Centered" desc="ロゴ中央 + ナビ下段、Avatar 右上に absolute">
-        <PatternC />
+      <Variant id="E3" name="Brand Color Tab" desc="現在ページのタブが推しクラブカラーの下線・文字色">
+        <PatternE3 />
       </Variant>
 
-      <Variant id="D" name="Side Accent" desc="左端に緑の縦バー、ロゴテキスト + ナビ横並び">
-        <PatternD />
+      <Variant id="E4" name="Pill Active" desc="現在ページが緑ピル (背景塗りつぶし)">
+        <PatternE4 />
       </Variant>
 
-      <Variant id="E" name="Tab Underline" desc="ナビをタブ風に下線、現在ページがアクセント色">
-        <PatternE />
+      <Variant id="E5" name="Italic Sport" desc="ロゴをイタリック、ナビは大文字英字でスポーティ">
+        <PatternE5 />
       </Variant>
 
-      <p style={{
-        marginTop: 32, fontSize: 11, color: 'rgba(255,255,255,0.4)',
-      }}>
+      <p style={{ marginTop: 32, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
         このページは一時的な比較用。決まった案を反映後、削除予定。
       </p>
     </div>
@@ -113,162 +104,35 @@ function Variant({ id, name, desc, children }) {
         padding: '14px 16px',
         borderBottom: '1px solid rgba(255,255,255,0.08)',
       }}>
-        <span style={{
-          fontSize: 18, fontWeight: 900, color: '#00ff87',
-          width: 22, textAlign: 'center',
-        }}>{id}</span>
+        <span style={{ fontSize: 18, fontWeight: 900, color: '#00ff87', width: 30, textAlign: 'center' }}>{id}</span>
         <div>
           <div style={{ fontSize: 14, fontWeight: 800 }}>{name}</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{desc}</div>
         </div>
       </div>
-      <div style={{ padding: 0 }}>
-        {children}
-      </div>
+      {children}
     </section>
   )
 }
 
-// ── A: Minimal (現状そのまま) ────────────────────────────────
-function PatternA() {
-  return (
-    <div style={{
-      backgroundColor: 'rgba(17,17,17,0.92)',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-      padding: '10px 16px',
-      display: 'flex', alignItems: 'center', gap: 12,
-    }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/apple-icon.png" alt="" width={32} height={32} style={{ borderRadius: 6 }} />
-      <nav style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 8 }}>
-        {NAV_ITEMS.map(item => (
-          <span key={item.href} style={{
-            fontSize: 12, fontWeight: 800, letterSpacing: '0.06em',
-            padding: '6px 12px', color: 'rgba(255,255,255,0.85)',
-          }}>{item.label}</span>
-        ))}
-      </nav>
-      <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
-    </div>
-  )
-}
-
-// ── B: Sports Magazine (太いアクセント + スラッシュ区切り) ─────────
-function PatternB() {
-  return (
-    <div style={{
-      backgroundColor: '#0a0a0a',
-      borderBottom: '3px solid #00ff87',
-      padding: '14px 18px',
-      display: 'flex', alignItems: 'center', gap: 18,
-    }}>
-      <span style={{
-        fontFamily: 'Anta, sans-serif',
-        fontSize: 22, fontWeight: 900, color: '#fff',
-        letterSpacing: '0.04em',
-      }}>J.LEAK STATS</span>
-      <nav style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0, color: 'rgba(255,255,255,0.7)' }}>
-        {NAV_ITEMS.map((item, i) => (
-          <span key={item.href} style={{ display: 'flex', alignItems: 'center' }}>
-            {i > 0 && <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 14px', fontSize: 14 }}>/</span>}
-            <span style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-            }}>{item.label}</span>
-          </span>
-        ))}
-      </nav>
-      <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
-    </div>
-  )
-}
-
-// ── C: Two-row Centered (ロゴ中央 + ナビ下段 + Avatar 右上 absolute) ─
-function PatternC() {
-  return (
-    <div style={{
-      position: 'relative',
-      backgroundColor: '#0a0a0a',
-      borderBottom: '1px solid rgba(255,255,255,0.08)',
-      padding: '18px 16px 0',
-    }}>
-      <div style={{ textAlign: 'center', marginBottom: 14 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/apple-icon.png" alt="" width={40} height={40} style={{ borderRadius: 8, display: 'inline-block' }} />
-      </div>
-      <nav style={{
-        display: 'flex', justifyContent: 'center', gap: 0,
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        paddingTop: 0,
-      }}>
-        {NAV_ITEMS.map(item => (
-          <span key={item.href} style={{
-            fontSize: 12, fontWeight: 800, letterSpacing: '0.12em',
-            padding: '14px 20px',
-            color: 'rgba(255,255,255,0.85)',
-            textTransform: 'uppercase',
-          }}>{item.label}</span>
-        ))}
-      </nav>
-      <div style={{ position: 'absolute', top: 14, right: 16 }}>
-        <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
-      </div>
-    </div>
-  )
-}
-
-// ── D: Side Accent (左端に緑の縦バー、左寄せ) ───────────────────
-function PatternD() {
-  return (
-    <div style={{
-      backgroundColor: '#0a0a0a',
-      borderBottom: '1px solid rgba(255,255,255,0.08)',
-      padding: '12px 18px',
-      display: 'flex', alignItems: 'center', gap: 16,
-      position: 'relative',
-    }}>
-      <span style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0,
-        width: 4, backgroundColor: '#00ff87',
-      }} />
-      <span style={{
-        fontFamily: 'Anta, sans-serif',
-        fontSize: 18, fontWeight: 900, color: '#fff',
-        letterSpacing: '0.06em',
-      }}>J.LEAK STATS</span>
-      <nav style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
-        {NAV_ITEMS.map(item => (
-          <span key={item.href} style={{
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-            padding: '6px 12px',
-            color: 'rgba(255,255,255,0.7)',
-            textTransform: 'uppercase',
-          }}>{item.label}</span>
-        ))}
-      </nav>
-      <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
-    </div>
-  )
-}
-
-// ── E: Tab Underline (ナビをタブ風、現在ページにアクセント下線) ─────
-function PatternE() {
+// ── E1: Clean Underline ──────────────────────────────────────
+function PatternE1() {
   return (
     <div style={{
       backgroundColor: '#0a0a0a',
       borderBottom: '1px solid rgba(255,255,255,0.08)',
       padding: '0 16px',
-      display: 'flex', alignItems: 'stretch', gap: 14,
+      display: 'flex', alignItems: 'stretch', gap: 16,
       minHeight: 56,
     }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/apple-icon.png" alt="" width={28} height={28}
-        style={{ borderRadius: 6, alignSelf: 'center', flexShrink: 0 }} />
-      <nav style={{
-        flex: 1, display: 'flex', alignItems: 'stretch', gap: 0,
-      }}>
+      <span style={{
+        display: 'flex', alignItems: 'center',
+        fontSize: 15, fontWeight: 900, letterSpacing: '0.04em',
+        color: '#fff', whiteSpace: 'nowrap', flexShrink: 0,
+      }}>J Leak Stats</span>
+      <nav style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
         {NAV_ITEMS.map((item, i) => {
-          const active = i === 1 // 「採点」を仮アクティブ
+          const active = i === 1
           return (
             <span key={item.href} style={{
               fontSize: 12, fontWeight: 800, letterSpacing: '0.06em',
@@ -276,6 +140,153 @@ function PatternE() {
               color: active ? '#00ff87' : 'rgba(255,255,255,0.55)',
               borderBottom: active ? '2px solid #00ff87' : '2px solid transparent',
               display: 'flex', alignItems: 'center',
+            }}>{item.label}</span>
+          )
+        })}
+      </nav>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
+      </div>
+    </div>
+  )
+}
+
+// ── E2: Anta Bold Logo + Thick Underline ──────────────────────
+function PatternE2() {
+  return (
+    <div style={{
+      backgroundColor: '#0a0a0a',
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+      padding: '0 18px',
+      display: 'flex', alignItems: 'stretch', gap: 22,
+      minHeight: 64,
+    }}>
+      <span style={{
+        display: 'flex', alignItems: 'center',
+        fontFamily: 'Anta, sans-serif',
+        fontSize: 20, fontWeight: 900, letterSpacing: '0.06em',
+        color: '#fff', textTransform: 'uppercase',
+        whiteSpace: 'nowrap', flexShrink: 0,
+      }}>J Leak Stats</span>
+      <nav style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
+        {NAV_ITEMS.map((item, i) => {
+          const active = i === 1
+          return (
+            <span key={item.href} style={{
+              fontSize: 13, fontWeight: 800, letterSpacing: '0.08em',
+              padding: '0 20px',
+              color: active ? '#00ff87' : 'rgba(255,255,255,0.55)',
+              borderBottom: active ? '4px solid #00ff87' : '4px solid transparent',
+              display: 'flex', alignItems: 'center',
+            }}>{item.label}</span>
+          )
+        })}
+      </nav>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
+      </div>
+    </div>
+  )
+}
+
+// ── E3: Brand Color Tab (推しクラブカラー) ────────────────────
+function PatternE3() {
+  const brand = SAMPLE_PROFILE.club_color
+  return (
+    <div style={{
+      backgroundColor: '#0a0a0a',
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+      padding: '0 16px',
+      display: 'flex', alignItems: 'stretch', gap: 16,
+      minHeight: 56,
+    }}>
+      <span style={{
+        display: 'flex', alignItems: 'center',
+        fontSize: 15, fontWeight: 900, letterSpacing: '0.04em',
+        color: '#fff', whiteSpace: 'nowrap', flexShrink: 0,
+      }}>J Leak Stats</span>
+      <nav style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
+        {NAV_ITEMS.map((item, i) => {
+          const active = i === 1
+          return (
+            <span key={item.href} style={{
+              fontSize: 12, fontWeight: 800, letterSpacing: '0.06em',
+              padding: '0 18px',
+              color: active ? brand : 'rgba(255,255,255,0.55)',
+              borderBottom: active ? `3px solid ${brand}` : '3px solid transparent',
+              display: 'flex', alignItems: 'center',
+            }}>{item.label}</span>
+          )
+        })}
+      </nav>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
+      </div>
+    </div>
+  )
+}
+
+// ── E4: Pill Active ──────────────────────────────────────────
+function PatternE4() {
+  return (
+    <div style={{
+      backgroundColor: '#0a0a0a',
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+      padding: '12px 16px',
+      display: 'flex', alignItems: 'center', gap: 16,
+    }}>
+      <span style={{
+        fontSize: 15, fontWeight: 900, letterSpacing: '0.04em',
+        color: '#fff', whiteSpace: 'nowrap', flexShrink: 0,
+      }}>J Leak Stats</span>
+      <nav style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+        {NAV_ITEMS.map((item, i) => {
+          const active = i === 1
+          return (
+            <span key={item.href} style={{
+              fontSize: 12, fontWeight: 800, letterSpacing: '0.06em',
+              padding: '7px 14px',
+              borderRadius: 999,
+              color: active ? '#000' : 'rgba(255,255,255,0.7)',
+              backgroundColor: active ? '#00ff87' : 'transparent',
+            }}>{item.label}</span>
+          )
+        })}
+      </nav>
+      <MiniJersey color={SAMPLE_PROFILE.club_color} jerseyNumber={SAMPLE_PROFILE.jersey_number} avatarLetters={SAMPLE_PROFILE.avatar_text} />
+    </div>
+  )
+}
+
+// ── E5: Italic Sport ─────────────────────────────────────────
+function PatternE5() {
+  return (
+    <div style={{
+      backgroundColor: '#0a0a0a',
+      borderBottom: '2px solid rgba(255,255,255,0.06)',
+      padding: '0 16px',
+      display: 'flex', alignItems: 'stretch', gap: 18,
+      minHeight: 60,
+    }}>
+      <span style={{
+        display: 'flex', alignItems: 'center',
+        fontFamily: 'Anta, sans-serif',
+        fontSize: 22, fontWeight: 900, letterSpacing: '0.02em',
+        color: '#fff', fontStyle: 'italic',
+        whiteSpace: 'nowrap', flexShrink: 0,
+      }}>J Leak Stats</span>
+      <nav style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
+        {NAV_ITEMS.map((item, i) => {
+          const active = i === 1
+          return (
+            <span key={item.href} style={{
+              fontSize: 11, fontWeight: 800, letterSpacing: '0.18em',
+              padding: '0 16px',
+              color: active ? '#00ff87' : 'rgba(255,255,255,0.45)',
+              borderBottom: active ? '2px solid #00ff87' : '2px solid transparent',
+              display: 'flex', alignItems: 'center',
+              textTransform: 'uppercase',
+              fontStyle: 'italic',
             }}>{item.label}</span>
           )
         })}
