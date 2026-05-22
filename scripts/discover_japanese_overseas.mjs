@@ -16,6 +16,8 @@
 // 目安: 主要 ~25 リーグ × 平均 20 チーム = 500 team-squads fetch + 25 team-list
 //      ≒ 525 call、300ms スリープで wall-clock 約 3 分。
 
+import fs from 'node:fs'
+import path from 'node:path'
 import { Pool } from '@neondatabase/serverless'
 import {
   fetchTeamsByLeague,
@@ -25,10 +27,16 @@ import {
 
 const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
+const USE_CACHE = args.includes('--use-cache')   // 直近の discover 結果を再利用 (API 0 call)
+const SAVE_CACHE = args.includes('--save-cache') // 今回の discover 結果を JSON に保存
 const SEASON =
   Number(args[args.indexOf('--season') + 1]) ||
   // 欧州 25-26 シーズン (2026/5 時点ではほぼ終了)。MLS / 北欧は同年カレンダー
   2025
+const CACHE_PATH = path.join(
+  process.cwd(),
+  `tmp/overseas_discover_${SEASON}.json`,
+)
 
 // 対象リーグ。API-Football の league_id を直書き。
 // 日本人選手が居る・居る可能性のあるリーグを優先。
@@ -105,14 +113,22 @@ console.log(`\n=== 海外日本人選手 discover (${APPLY ? 'APPLY' : 'DRY-RUN'
 console.log(`シーズン: ${SEASON}, 対象リーグ: ${TARGET_LEAGUES.length}\n`)
 
 const discovered = []     // すべての発見 player ({apiPlayer, league, team, ...})
-const matched = []        // canonical_id に紐付いた発見
+const matched = []        // canonical_id に紐付いた発見 (is_active=false のみ)
+const skippedActive = []  // is_active=true (= J リーグ復帰済み) → upsert スキップ
 const unmatched = []      // canonical_id を引けなかった日本人 (= 新規 player)
 const ambiguous = []      // dob 複数候補から絞れなかったケース
 
 let apiCallCount = 0
 let teamCount = 0
 
-for (const league of TARGET_LEAGUES) {
+// --use-cache: 直近の discover 結果を再利用 (Phase 1 で再 apply するとき API 消費ゼロ)
+if (USE_CACHE && fs.existsSync(CACHE_PATH)) {
+  const cached = JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8'))
+  discovered.push(...cached.discovered)
+  console.log(`📦 cache 読込: ${discovered.length} 件 (${CACHE_PATH})`)
+}
+
+if (!USE_CACHE) for (const league of TARGET_LEAGUES) {
   process.stdout.write(`\n📍 [${league.country}] ${league.name} (id=${league.id}) ...`)
   let teams
   try {
@@ -163,6 +179,15 @@ for (const league of TARGET_LEAGUES) {
 console.log(`\n\n✅ API 呼び出し: ${apiCallCount} 回 (チーム巡回: ${teamCount})`)
 console.log(`✅ 日本人発見: ${discovered.length} 件\n`)
 
+if (SAVE_CACHE && !USE_CACHE) {
+  fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true })
+  fs.writeFileSync(
+    CACHE_PATH,
+    JSON.stringify({ season: SEASON, savedAt: new Date().toISOString(), discovered }, null, 2),
+  )
+  console.log(`💾 cache 保存: ${CACHE_PATH}`)
+}
+
 // canonical_id へ紐付け
 for (const d of discovered) {
   const apiP = d.apiPlayer
@@ -191,21 +216,36 @@ for (const d of discovered) {
       continue
     }
   }
+  // is_active=true は jleakstats 側で「現在Jリーグでプレー中」が確定している
+  // → API-Football の squad キャッシュに残っていても海外組ではないので除外
+  if (chosen.is_active === true) {
+    skippedActive.push({ ...d, canonical: chosen })
+    continue
+  }
   matched.push({ ...d, canonical: chosen })
 }
 
-console.log(`📊 matched   : ${matched.length}`)
-console.log(`⚠️  ambiguous : ${ambiguous.length}`)
-console.log(`❌ unmatched : ${unmatched.length}\n`)
+console.log(`📊 matched         : ${matched.length}`)
+console.log(`⏭️  skipped (active): ${skippedActive.length}`)
+console.log(`⚠️  ambiguous       : ${ambiguous.length}`)
+console.log(`❌ unmatched       : ${unmatched.length}\n`)
 
 // MATCHED の一覧表示
 if (matched.length) {
-  console.log('\n--- MATCHED ---')
+  console.log('\n--- MATCHED (海外でプレー中、is_active=false) ---')
   for (const m of matched) {
     console.log(
       `  ${m.canonical.id} ${m.canonical.name_ja} (${m.canonical.name_en})` +
-      ` → ${m.apiTeam.name} [${m.apiLeague.name}/${m.apiLeague.country}]` +
-      ` ${m.canonical.is_active ? '*active*' : ''}`,
+      ` → ${m.apiTeam.name} [${m.apiLeague.name}/${m.apiLeague.country}]`,
+    )
+  }
+}
+if (skippedActive.length) {
+  console.log('\n--- SKIPPED (is_active=true → Jリーグ復帰済み) ---')
+  for (const s of skippedActive) {
+    console.log(
+      `  ${s.canonical.id} ${s.canonical.name_ja} (${s.canonical.name_en})` +
+      ` ↪ skip [API squad: ${s.apiTeam.name} / ${s.apiLeague.country}]`,
     )
   }
 }

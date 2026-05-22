@@ -43,3 +43,6 @@ next-env.d.ts
 # scrape logs
 /logs/
 .claude/worktrees/
+
+# discover_japanese_overseas.mjs --save-cache の出力
+/tmp/
