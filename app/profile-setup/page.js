@@ -29,7 +29,7 @@ export default async function ProfileSetupPage({ searchParams }) {
     `,
     sql`
       SELECT display_name, avatar_text, handle, supported_club_id, club_changed_at,
-        jersey_number, favorite_player_id, prefecture, city, address_private, first_match_fixture_id,
+        jersey_number, favorite_player_id, first_match_fixture_id,
         fantype_type_code, fantype_answers, fantype_updated_at
       FROM user_profiles
       WHERE clerk_user_id = ${userId}
@@ -45,9 +45,6 @@ export default async function ProfileSetupPage({ searchParams }) {
         club_changed_at: profileRows[0].club_changed_at,
         jersey_number: profileRows[0].jersey_number,
         favorite_player_id: profileRows[0].favorite_player_id,
-        prefecture: profileRows[0].prefecture,
-        city: profileRows[0].city,
-        address_private: profileRows[0].address_private,
         first_match_fixture_id: profileRows[0].first_match_fixture_id,
       }
     : null

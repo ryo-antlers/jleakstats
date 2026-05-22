@@ -1,8 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 import { containsNG } from '@/lib/ng-words'
-import { isValidPrefecture } from '@/lib/jp/prefectures'
-import { isValidMunicipality } from '@/lib/jp/municipalities'
 
 const CLUB_CHANGE_COOLDOWN_DAYS = 7
 
@@ -23,9 +21,6 @@ export async function GET() {
       p.club_changed_at,
       p.jersey_number,
       p.favorite_player_id,
-      p.prefecture,
-      p.city,
-      p.address_private,
       p.first_match_fixture_id,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
@@ -51,9 +46,8 @@ export async function GET() {
 //   - display_name: 1〜12 文字、NGワードチェック
 //   - supported_club_id: teams_master に存在する EAST/WEST/A/B クラブのみ
 //   - 推しクラブ変更は 7 日間クールダウン
-//   - クラブ変更時は jersey_number / favorite_player_id を NULL クリア
-//   - jersey_number / favorite_player_id / prefecture / city / supporter_since は任意
-//   - address_private (BOOL): true なら /u/[id] で住所を非表示
+//   - クラブ変更時は jersey_number / favorite_player_id / first_match_fixture_id を NULL クリア
+//   - 住所は user_profiles から廃止、観戦ノートの「出発地」に移行
 export async function POST(request) {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -71,9 +65,6 @@ export async function POST(request) {
   const handleRaw = body.handle == null ? null : String(body.handle).trim()
   const jerseyRaw = body.jersey_number
   const favoritePlayerRaw = body.favorite_player_id
-  const prefectureRaw = body.prefecture == null ? null : String(body.prefecture).trim()
-  const cityRaw = body.city == null ? null : String(body.city).trim()
-  const addressPrivate = Boolean(body.address_private)
   const firstMatchFixtureRaw = body.first_match_fixture_id
 
   // display_name のバリデーション
@@ -156,23 +147,6 @@ export async function POST(request) {
     favoritePlayerId = n
   }
 
-  // prefecture / city のバリデーション
-  let prefecture = null
-  let city = null
-  if (prefectureRaw && prefectureRaw.length > 0) {
-    if (!isValidPrefecture(prefectureRaw)) {
-      return Response.json({ error: '都道府県の指定が不正です' }, { status: 400 })
-    }
-    prefecture = prefectureRaw
-    if (cityRaw && cityRaw.length > 0) {
-      if (!isValidMunicipality(prefectureRaw, cityRaw)) {
-        return Response.json({ error: '市区町村の指定が不正です' }, { status: 400 })
-      }
-      city = cityRaw
-    }
-  }
-  // prefecture なしで city だけは不可 (片方クリアは prefecture もクリアと解釈)
-
   // first_match_fixture_id のバリデーション (任意、推しクラブが関係する終了済試合のみ)
   let firstMatchFixtureId = null
   if (firstMatchFixtureRaw !== null && firstMatchFixtureRaw !== undefined && firstMatchFixtureRaw !== '') {
@@ -229,9 +203,6 @@ export async function POST(request) {
           supported_club_id      = ${supportedClubId},
           jersey_number          = ${jerseyNumber},
           favorite_player_id     = ${favoritePlayerId},
-          prefecture             = ${prefecture},
-          city                   = ${city},
-          address_private        = ${addressPrivate},
           first_match_fixture_id = ${firstMatchFixtureId},
           club_changed_at        = NOW(),
           updated_at             = NOW()
@@ -246,9 +217,6 @@ export async function POST(request) {
           handle                 = ${handle},
           jersey_number          = ${jerseyNumber},
           favorite_player_id     = ${favoritePlayerId},
-          prefecture             = ${prefecture},
-          city                   = ${city},
-          address_private        = ${addressPrivate},
           first_match_fixture_id = ${firstMatchFixtureId},
           updated_at             = NOW()
         WHERE clerk_user_id = ${userId}
@@ -259,11 +227,11 @@ export async function POST(request) {
     await sql`
       INSERT INTO user_profiles (
         clerk_user_id, display_name, avatar_text, handle, supported_club_id,
-        jersey_number, favorite_player_id, prefecture, city, address_private, first_match_fixture_id,
+        jersey_number, favorite_player_id, first_match_fixture_id,
         club_changed_at, created_at, updated_at
       ) VALUES (
         ${userId}, ${displayName}, ${avatarText}, ${handle}, ${supportedClubId},
-        ${jerseyNumber}, ${favoritePlayerId}, ${prefecture}, ${city}, ${addressPrivate}, ${firstMatchFixtureId},
+        ${jerseyNumber}, ${favoritePlayerId}, ${firstMatchFixtureId},
         NOW(), NOW(), NOW()
       )
     `

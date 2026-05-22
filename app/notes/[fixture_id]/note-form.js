@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
 } from '../_shared'
+import { PREFECTURES } from '@/lib/jp/prefectures'
+import { municipalities } from '@/lib/jp/municipalities'
 
 const COMPANION_MAX = 50
 const MEMO_MAX = 500
@@ -16,8 +18,12 @@ export default function NoteForm({ fixtureId, initialNote }) {
   const [access, setAccess] = useState(initialNote?.access ?? '')
   const [companion, setCompanion] = useState(initialNote?.companion ?? '')
   const [memo, setMemo] = useState(initialNote?.memo ?? '')
+  const [departurePrefecture, setDeparturePrefecture] = useState(initialNote?.departure_prefecture ?? '')
+  const [departureCity, setDepartureCity] = useState(initialNote?.departure_city ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  const cityOptions = departurePrefecture ? (municipalities[departurePrefecture] ?? []) : []
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -33,6 +39,8 @@ export default function NoteForm({ fixtureId, initialNote }) {
           access: watchType === 'stadium' ? (access || null) : null,
           companion: companion.trim() || null,
           memo: memo.trim() || null,
+          departure_prefecture: watchType === 'stadium' ? (departurePrefecture || null) : null,
+          departure_city: watchType === 'stadium' && departurePrefecture && departureCity ? departureCity : null,
         }),
       })
       const data = await res.json()
@@ -105,6 +113,39 @@ export default function NoteForm({ fixtureId, initialNote }) {
             ))}
           </div>
           <p style={hintStyle}>選択しなくても OK (再タップで解除)</p>
+        </Field>
+      )}
+
+      {/* 出発地 (stadium のみ表示) — 移動距離計算に使う */}
+      {watchType === 'stadium' && (
+        <Field label="出発地">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select
+              value={departurePrefecture}
+              onChange={e => {
+                setDeparturePrefecture(e.target.value)
+                setDepartureCity('')
+              }}
+              style={{ ...selectStyle, flex: '1 1 140px', minWidth: 120 }}
+            >
+              <option value="">— 都道府県 —</option>
+              {PREFECTURES.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <select
+              value={departureCity}
+              onChange={e => setDepartureCity(e.target.value)}
+              disabled={!departurePrefecture}
+              style={{ ...selectStyle, flex: '2 1 200px', minWidth: 160 }}
+            >
+              <option value="">{departurePrefecture ? '— 市区町村 —' : '都道府県を選ぶと有効'}</option>
+              {cityOptions.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <p style={hintStyle}>市区町村まで設定すると「今季の観戦総移動距離」の精度が上がります。</p>
         </Field>
       )}
 
@@ -220,6 +261,19 @@ const inputStyle = {
   backgroundColor: 'transparent',
   color: '#ffffff', boxSizing: 'border-box',
   outline: 'none', borderRadius: 0, fontFamily: 'inherit',
+}
+
+const selectStyle = {
+  ...inputStyle,
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
+  backgroundColor: '#111',
+  backgroundImage:
+    'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'><path d=\'M1 1l4 4 4-4\' stroke=\'%23888\' fill=\'none\' stroke-width=\'1.4\'/></svg>")',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+  paddingRight: 32,
 }
 
 const hintStyle = {

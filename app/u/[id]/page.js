@@ -45,7 +45,7 @@ async function resolveUser(id) {
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         up.jersey_number, up.favorite_player_id,
-        up.prefecture, up.city, up.address_private, up.first_match_fixture_id,
+        up.first_match_fixture_id,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
         fp.name_ja AS favorite_player_name_ja,
         fp.name_en AS favorite_player_name_en,
@@ -62,7 +62,7 @@ async function resolveUser(id) {
           up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
           up.supported_club_id, up.fantype_type_code, up.fantype_answers,
           up.jersey_number, up.favorite_player_id,
-          up.prefecture, up.city, up.address_private, up.first_match_fixture_id,
+          up.first_match_fixture_id,
           t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
           fp.name_ja AS favorite_player_name_ja,
           fp.name_en AS favorite_player_name_en,
@@ -80,7 +80,7 @@ async function resolveUser(id) {
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         up.jersey_number, up.favorite_player_id,
-        up.prefecture, up.city, up.address_private, up.first_match_fixture_id,
+        up.first_match_fixture_id,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
         fp.name_ja AS favorite_player_name_ja,
         fp.name_en AS favorite_player_name_en,
@@ -141,11 +141,8 @@ export default async function UserProfilePage({ params }) {
     : null
 
   // 今季の現地観戦距離 (km、四捨五入された整数)
-  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({
-    clerkUserId,
-    prefecture: user.prefecture,
-    city: user.city,
-  })
+  //   watch_notes の departure_* を元に算出
+  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({ clerkUserId })
 
   // 観戦ノート直近 (最大 6 件)
   //   ログイン済みユーザーのみに公開、ゲストは空配列
@@ -236,7 +233,6 @@ export default async function UserProfilePage({ params }) {
         fantypeMeta={fantypeMeta}
         fantypeHref={fantypeHref}
         seasonDistanceKm={seasonDistanceKm}
-        isOwnPage={isOwnProfile}
       />
 
       {/* 選手別 採点 (推しクラブの選手 × 節 マトリクス) */}

@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk } from '@clerk/nextjs'
 import { containsNG } from '@/lib/ng-words'
-import { PREFECTURES } from '@/lib/jp/prefectures'
-import { municipalities } from '@/lib/jp/municipalities'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const FIRST_MATCH_YEAR_MIN = 1993
@@ -98,9 +96,6 @@ export default function ProfileForm({
   const [jerseyNumber, setJerseyNumber] = useState(
     profile?.jersey_number != null ? String(profile.jersey_number) : '',
   )
-  const [prefecture, setPrefecture] = useState(profile?.prefecture ?? '')
-  const [city, setCity] = useState(profile?.city ?? '')
-  const [addressPrivate, setAddressPrivate] = useState(Boolean(profile?.address_private))
   // 初観戦試合: 年 Select + 試合 Select の 2 段。
   // year を変えると当該クラブのその年の試合一覧を fetch、fixture_id 単独保存。
   const [firstMatchYear, setFirstMatchYear] = useState(
@@ -215,14 +210,6 @@ export default function ProfileForm({
     }
   }
 
-  // 県変更時: 市区町村をリセット
-  const handlePrefectureChange = (e) => {
-    setPrefecture(e.target.value)
-    setCity('')
-  }
-
-  const cityOptions = prefecture ? (municipalities[prefecture] ?? []) : []
-
   // 年 Select 変更時: その年の推しクラブの試合一覧を fetch
   //   - 初期 year (initialFirstMatch.year) と一致する間は initialFirstMatchFixtures を使う
   //   - year を変えると fixture_id をリセットして fetch
@@ -333,9 +320,6 @@ export default function ProfileForm({
           supported_club_id: clubId,
           jersey_number: jerseyToSend,
           favorite_player_id: favoritePlayerId,
-          prefecture: prefecture || null,
-          city: prefecture && city ? city : null,
-          address_private: addressPrivate,
           first_match_fixture_id: firstMatchFixtureId,
         }),
       })
@@ -567,49 +551,6 @@ export default function ProfileForm({
             {jerseyError && (
               <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{jerseyError}</p>
             )}
-          </Field>
-
-          {/* 住んでいる場所 */}
-          <Field label="住んでいる場所">
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <select
-                value={prefecture}
-                onChange={handlePrefectureChange}
-                style={{ ...selectStyle, flex: '1 1 140px', minWidth: 120 }}
-              >
-                <option value="">— 都道府県 —</option>
-                {PREFECTURES.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-              <select
-                value={city}
-                onChange={e => setCity(e.target.value)}
-                disabled={!prefecture}
-                style={{ ...selectStyle, flex: '2 1 200px', minWidth: 160 }}
-              >
-                <option value="">{prefecture ? '— 市区町村 —' : '都道府県を選ぶと有効'}</option>
-                {cityOptions.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <label style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.85)',
-              cursor: prefecture ? 'pointer' : 'not-allowed',
-              opacity: prefecture ? 1 : 0.45,
-            }}>
-              <input
-                type="checkbox"
-                checked={addressPrivate}
-                onChange={e => setAddressPrivate(e.target.checked)}
-                disabled={!prefecture}
-                style={{ accentColor: '#00ff87' }}
-              />
-              他のユーザーには公開しない (距離計算には使われます)
-            </label>
-            <p style={hintStyle}>市区町村まで設定すると「今季の移動距離」の精度が上がります。</p>
           </Field>
 
           {/* 初観戦試合 */}

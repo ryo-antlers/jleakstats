@@ -75,9 +75,6 @@ export default async function RatingIndexPage() {
       up.fantype_answers,
       up.jersey_number,
       up.favorite_player_id,
-      up.prefecture,
-      up.city,
-      up.address_private,
       up.first_match_fixture_id,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
@@ -284,12 +281,8 @@ export default async function RatingIndexPage() {
     : null
 
   // 今季の現地観戦距離 (km、四捨五入された整数)
-  // 住所未設定や現地ノートが無い場合は 0 → バッジ非表示
-  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({
-    clerkUserId: userId,
-    prefecture: profile.prefecture,
-    city: profile.city,
-  })
+  //   watch_notes の departure_* を元に算出
+  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({ clerkUserId: userId })
 
   // 初観戦試合の詳細を別途取得して profile にマージ
   if (profile.first_match_fixture_id && profile.supported_club_id) {
@@ -319,7 +312,6 @@ export default async function RatingIndexPage() {
         fantypeMeta={fantypeMeta}
         fantypeHref={fantypeHref}
         seasonDistanceKm={seasonDistanceKm}
-        isOwnPage={true}
         editHref="/profile-setup?next=/rating"
       />
 

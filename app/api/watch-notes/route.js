@@ -1,6 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 import { containsNG } from '@/lib/ng-words'
+import { isValidPrefecture } from '@/lib/jp/prefectures'
+import { isValidMunicipality } from '@/lib/jp/municipalities'
 
 const WATCH_TYPES = ['stadium', 'dazn', 'tv', 'no_watch']
 const ACCESS_TYPES = ['train', 'car', 'bus', 'walk', 'other']
@@ -26,7 +28,8 @@ export async function GET(request) {
       return Response.json({ error: 'Invalid fixture_id' }, { status: 400 })
     }
     const rows = await sql`
-      SELECT id, fixture_id, watch_type, access, companion, memo, created_at, updated_at
+      SELECT id, fixture_id, watch_type, access, companion, memo,
+             departure_prefecture, departure_city, created_at, updated_at
       FROM watch_notes
       WHERE clerk_user_id = ${userId} AND fixture_id = ${fid}
     `
@@ -44,7 +47,7 @@ export async function GET(request) {
     const limit = Math.min(Math.max(Number(limitRaw) || 6, 1), 50)
     const rows = await sql`
       SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.memo,
-             wn.created_at, wn.updated_at,
+             wn.departure_prefecture, wn.departure_city, wn.created_at, wn.updated_at,
              f.date AS fixture_date, f.home_team_id, f.away_team_id,
              f.home_score, f.away_score, f.home_penalty, f.away_penalty,
              f.status, f.league_id, f.round_number,
@@ -127,6 +130,29 @@ export async function POST(request) {
     }
   }
 
+  // 出発地 (departure_prefecture / departure_city)
+  //   - stadium のときのみ意味を持つ (他の場合は強制的に NULL)
+  //   - prefecture は固定マスタ、city は prefecture とセットで municipalities マスタ
+  //   - 移動距離計算 (lib/notes/distance.js) で使う
+  let departurePrefecture = null
+  let departureCity = null
+  if (watchType === 'stadium') {
+    const prefRaw = body.departure_prefecture == null ? null : String(body.departure_prefecture).trim()
+    const cityRaw = body.departure_city == null ? null : String(body.departure_city).trim()
+    if (prefRaw && prefRaw.length > 0) {
+      if (!isValidPrefecture(prefRaw)) {
+        return Response.json({ error: '出発地の都道府県が不正です' }, { status: 400 })
+      }
+      departurePrefecture = prefRaw
+      if (cityRaw && cityRaw.length > 0) {
+        if (!isValidMunicipality(prefRaw, cityRaw)) {
+          return Response.json({ error: '出発地の市区町村が不正です' }, { status: 400 })
+        }
+        departureCity = cityRaw
+      }
+    }
+  }
+
   // fixture が存在するか確認
   const fx = await sql`SELECT id FROM fixtures WHERE id = ${fixtureId}`
   if (fx.length === 0) {
@@ -135,16 +161,20 @@ export async function POST(request) {
 
   await sql`
     INSERT INTO watch_notes (
-      clerk_user_id, fixture_id, watch_type, access, companion, memo, created_at, updated_at
+      clerk_user_id, fixture_id, watch_type, access, companion, memo,
+      departure_prefecture, departure_city, created_at, updated_at
     ) VALUES (
-      ${userId}, ${fixtureId}, ${watchType}, ${access}, ${companion}, ${memo}, NOW(), NOW()
+      ${userId}, ${fixtureId}, ${watchType}, ${access}, ${companion}, ${memo},
+      ${departurePrefecture}, ${departureCity}, NOW(), NOW()
     )
     ON CONFLICT (clerk_user_id, fixture_id) DO UPDATE SET
-      watch_type = EXCLUDED.watch_type,
-      access     = EXCLUDED.access,
-      companion  = EXCLUDED.companion,
-      memo       = EXCLUDED.memo,
-      updated_at = NOW()
+      watch_type           = EXCLUDED.watch_type,
+      access               = EXCLUDED.access,
+      companion            = EXCLUDED.companion,
+      memo                 = EXCLUDED.memo,
+      departure_prefecture = EXCLUDED.departure_prefecture,
+      departure_city       = EXCLUDED.departure_city,
+      updated_at           = NOW()
   `
   return Response.json({ ok: true })
 }
