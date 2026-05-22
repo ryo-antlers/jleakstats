@@ -29,7 +29,6 @@ export default function SiteHeroShell({ profile }) {
       <div className="site-hero-wrap" style={{
         position: 'sticky', top: 0, zIndex: 50,
         backgroundColor: 'var(--bg-primary)',
-        borderBottom: '1px solid #909090',
         transition: 'padding 0.2s ease',
         paddingTop: scrolled ? 8 : 42,
         paddingBottom: scrolled ? 8 : 30,
