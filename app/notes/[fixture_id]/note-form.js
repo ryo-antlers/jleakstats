@@ -3,12 +3,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
+  SEAT_TYPE_LABELS, SEAT_TYPE_ICONS,
 } from '../_shared'
+import TimelineDisplay from '../timeline-display'
 import { PREFECTURES } from '@/lib/jp/prefectures'
 import { municipalities } from '@/lib/jp/municipalities'
 
 const COMPANION_MAX = 50
 const NEXT_VISIT_MEMO_MAX = 500
+const TIMELINE_MAX_ENTRIES = 30
+const TIMELINE_TEXT_MAX = 100
 
 // afterSaveMode:
 //   'redirect-to-notes' (default): 保存後 /notes へ遷移 (従来の /notes/[fixture_id] 動作)
@@ -19,13 +23,29 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
 
   const [watchType, setWatchType] = useState(initialNote?.watch_type ?? 'stadium')
   const [access, setAccess] = useState(initialNote?.access ?? '')
+  const [seatType, setSeatType] = useState(initialNote?.seat_type ?? '')
   const [companion, setCompanion] = useState(initialNote?.companion ?? '')
   const [nextVisitMemo, setNextVisitMemo] = useState(initialNote?.next_visit_memo ?? '')
   const [departurePrefecture, setDeparturePrefecture] = useState(initialNote?.departure_prefecture ?? '')
   const [departureCity, setDepartureCity] = useState(initialNote?.departure_city ?? '')
+  const [timeline, setTimeline] = useState(() => {
+    const initial = Array.isArray(initialNote?.timeline) ? initialNote.timeline : []
+    return initial.map(e => ({ time: String(e?.time ?? ''), text: String(e?.text ?? '') }))
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successFlash, setSuccessFlash] = useState(false)
+
+  function updateTimelineEntry(idx, patch) {
+    setTimeline(prev => prev.map((e, i) => i === idx ? { ...e, ...patch } : e))
+  }
+  function addTimelineEntry() {
+    if (timeline.length >= TIMELINE_MAX_ENTRIES) return
+    setTimeline(prev => [...prev, { time: '', text: '' }])
+  }
+  function removeTimelineEntry(idx) {
+    setTimeline(prev => prev.filter((_, i) => i !== idx))
+  }
 
   const cityOptions = departurePrefecture ? (municipalities[departurePrefecture] ?? []) : []
 
@@ -34,6 +54,10 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
     setError(null)
     setLoading(true)
     try {
+      // 空の行は除外して送信
+      const cleanTimeline = timeline
+        .map(e => ({ time: e.time.trim(), text: e.text.trim() }))
+        .filter(e => e.time || e.text)
       const res = await fetch('/api/watch-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,10 +65,12 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
           fixture_id: fixtureId,
           watch_type: watchType,
           access: watchType === 'stadium' ? (access || null) : null,
+          seat_type: watchType === 'stadium' ? (seatType || null) : null,
           companion: companion.trim() || null,
           next_visit_memo: nextVisitMemo.trim() || null,
           departure_prefecture: watchType === 'stadium' ? (departurePrefecture || null) : null,
           departure_city: watchType === 'stadium' && departurePrefecture && departureCity ? departureCity : null,
+          timeline: cleanTimeline,
         }),
       })
       const data = await res.json()
@@ -130,6 +156,24 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         </Field>
       )}
 
+      {/* 座席タイプ (stadium のみ表示) */}
+      {watchType === 'stadium' && (
+        <Field label="座席">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            {['goal_back', 'reserved'].map(k => (
+              <RadioCard
+                key={k}
+                selected={seatType === k}
+                onClick={() => setSeatType(k === seatType ? '' : k)}
+                icon={SEAT_TYPE_ICONS[k]}
+                label={SEAT_TYPE_LABELS[k]}
+              />
+            ))}
+          </div>
+          <p style={hintStyle}>選択しなくても OK (再タップで解除)</p>
+        </Field>
+      )}
+
       {/* 出発地 (stadium のみ表示) — 移動距離計算に使う */}
       {watchType === 'stadium' && (
         <Field label="出発地">
@@ -187,6 +231,83 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
           style={{ ...inputStyle, resize: 'vertical', minHeight: 100, fontFamily: 'inherit' }}
         />
         <p style={hintStyle}>{[...nextVisitMemo].length}/{NEXT_VISIT_MEMO_MAX}</p>
+      </Field>
+
+      {/* 1 日のタイムライン (時刻 + 1 行テキスト) */}
+      <Field label="1 日のタイムライン (任意)">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {timeline.length === 0 && (
+            <p style={{ ...hintStyle, marginTop: 0 }}>
+              「並んだもの」「食べたもの」「買ったもの」など、その日の出来事を時刻つきで残せます。
+            </p>
+          )}
+          {timeline.map((entry, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="time"
+                value={entry.time}
+                onChange={e => updateTimelineEntry(idx, { time: e.target.value })}
+                style={{ ...inputStyle, width: 110, flex: '0 0 auto' }}
+              />
+              <input
+                type="text"
+                value={entry.text}
+                onChange={e => updateTimelineEntry(idx, { text: e.target.value })}
+                maxLength={TIMELINE_TEXT_MAX}
+                placeholder="例: 牛串とビール / グッズ列に並んだ"
+                style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+              />
+              <button
+                type="button"
+                onClick={() => removeTimelineEntry(idx)}
+                aria-label="この行を削除"
+                style={{
+                  width: 32, height: 32, flex: '0 0 auto',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  backgroundColor: 'transparent',
+                  color: 'rgba(255,255,255,0.5)',
+                  cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addTimelineEntry}
+            disabled={timeline.length >= TIMELINE_MAX_ENTRIES}
+            style={{
+              padding: '10px 14px', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.1em',
+              backgroundColor: 'transparent',
+              color: timeline.length >= TIMELINE_MAX_ENTRIES ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+              cursor: timeline.length >= TIMELINE_MAX_ENTRIES ? 'not-allowed' : 'pointer',
+              border: '1px dashed rgba(255,255,255,0.2)',
+              textTransform: 'uppercase', fontFamily: 'inherit',
+              alignSelf: 'flex-start',
+            }}
+          >+ 行を追加</button>
+          <p style={hintStyle}>
+            {timeline.length}/{TIMELINE_MAX_ENTRIES} 行 ・ 保存時に時刻順に並びます
+          </p>
+        </div>
+
+        {/* 入力中ライブプレビュー (時刻もテキストも入っている行のみ) */}
+        {timeline.some(e => e.time && e.text.trim()) && (
+          <div style={{
+            marginTop: 16,
+            padding: '14px 12px',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backgroundColor: 'rgba(255,255,255,0.02)',
+          }}>
+            <p style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: '0.2em',
+              color: 'rgba(255,255,255,0.35)', margin: '0 0 12px',
+              textTransform: 'uppercase',
+            }}>Preview</p>
+            <TimelineDisplay entries={timeline.filter(e => e.time && e.text.trim())} />
+          </div>
+        )}
       </Field>
 
       {successFlash && (

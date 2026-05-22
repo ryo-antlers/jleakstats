@@ -6,8 +6,12 @@ import { isValidMunicipality } from '@/lib/jp/municipalities'
 
 const WATCH_TYPES = ['stadium', 'dazn', 'tv', 'no_watch']
 const ACCESS_TYPES = ['train', 'car', 'bus', 'walk', 'other']
+const SEAT_TYPES = ['goal_back', 'reserved']
 const COMPANION_MAX = 50
 const NEXT_VISIT_MEMO_MAX = 500
+const TIMELINE_MAX_ENTRIES = 30
+const TIMELINE_TEXT_MAX = 100
+const TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
 // GET /api/watch-notes?fixture_id=...  自分のノート (1 件)
 // GET /api/watch-notes?user_id=...     他ユーザーのノート一覧 (ログイン必須)
@@ -28,8 +32,8 @@ export async function GET(request) {
       return Response.json({ error: 'Invalid fixture_id' }, { status: 400 })
     }
     const rows = await sql`
-      SELECT id, fixture_id, watch_type, access, companion, next_visit_memo,
-             departure_prefecture, departure_city, created_at, updated_at
+      SELECT id, fixture_id, watch_type, access, seat_type, companion, next_visit_memo,
+             departure_prefecture, departure_city, timeline, created_at, updated_at
       FROM watch_notes
       WHERE clerk_user_id = ${userId} AND fixture_id = ${fid}
     `
@@ -46,8 +50,8 @@ export async function GET(request) {
     }
     const limit = Math.min(Math.max(Number(limitRaw) || 6, 1), 50)
     const rows = await sql`
-      SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.next_visit_memo,
-             wn.departure_prefecture, wn.departure_city, wn.created_at, wn.updated_at,
+      SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.seat_type, wn.companion, wn.next_visit_memo,
+             wn.departure_prefecture, wn.departure_city, wn.timeline, wn.created_at, wn.updated_at,
              f.date AS fixture_date, f.home_team_id, f.away_team_id,
              f.home_score, f.away_score, f.home_penalty, f.away_penalty,
              f.status, f.league_id, f.round_number,
@@ -98,6 +102,16 @@ export async function POST(request) {
       return Response.json({ error: 'アクセス手段が不正です' }, { status: 400 })
     }
     access = a
+  }
+
+  // seat_type も stadium のときのみ意味を持つ (ゴール裏 / 指定席)
+  let seatType = null
+  if (watchType === 'stadium' && body.seat_type != null && body.seat_type !== '') {
+    const s = String(body.seat_type)
+    if (!SEAT_TYPES.includes(s)) {
+      return Response.json({ error: '座席タイプが不正です' }, { status: 400 })
+    }
+    seatType = s
   }
 
   // companion: 50字、NG ワード弾く
@@ -154,6 +168,40 @@ export async function POST(request) {
     }
   }
 
+  // timeline: その日 1 日の行動メモ [{time:'HH:mm', text:'...'}]
+  //   - 空エントリ (time も text も空) は無視
+  //   - text は 100 字以内 / NG ワードチェック
+  //   - 保存時に時刻昇順にソート
+  const timeline = []
+  if (body.timeline != null) {
+    if (!Array.isArray(body.timeline)) {
+      return Response.json({ error: 'タイムラインの形式が不正です' }, { status: 400 })
+    }
+    if (body.timeline.length > TIMELINE_MAX_ENTRIES) {
+      return Response.json({ error: `タイムラインは${TIMELINE_MAX_ENTRIES}件以内` }, { status: 400 })
+    }
+    for (const raw of body.timeline) {
+      if (raw == null || typeof raw !== 'object') continue
+      const time = String(raw.time ?? '').trim()
+      const text = String(raw.text ?? '').trim()
+      if (!time && !text) continue
+      if (!TIME_HHMM_RE.test(time)) {
+        return Response.json({ error: 'タイムラインの時刻は HH:mm 形式で入力してください' }, { status: 400 })
+      }
+      if (text.length === 0) {
+        return Response.json({ error: 'タイムラインのテキストを入力してください' }, { status: 400 })
+      }
+      if ([...text].length > TIMELINE_TEXT_MAX) {
+        return Response.json({ error: `タイムラインのテキストは${TIMELINE_TEXT_MAX}文字以内` }, { status: 400 })
+      }
+      if (containsNG(text)) {
+        return Response.json({ error: 'タイムラインに使用できない言葉が含まれています' }, { status: 400 })
+      }
+      timeline.push({ time, text })
+    }
+    timeline.sort((a, b) => a.time.localeCompare(b.time))
+  }
+
   // fixture が存在するか確認
   const fx = await sql`SELECT id FROM fixtures WHERE id = ${fixtureId}`
   if (fx.length === 0) {
@@ -162,19 +210,21 @@ export async function POST(request) {
 
   await sql`
     INSERT INTO watch_notes (
-      clerk_user_id, fixture_id, watch_type, access, companion, next_visit_memo,
-      departure_prefecture, departure_city, created_at, updated_at
+      clerk_user_id, fixture_id, watch_type, access, seat_type, companion, next_visit_memo,
+      departure_prefecture, departure_city, timeline, created_at, updated_at
     ) VALUES (
-      ${userId}, ${fixtureId}, ${watchType}, ${access}, ${companion}, ${nextVisitMemo},
-      ${departurePrefecture}, ${departureCity}, NOW(), NOW()
+      ${userId}, ${fixtureId}, ${watchType}, ${access}, ${seatType}, ${companion}, ${nextVisitMemo},
+      ${departurePrefecture}, ${departureCity}, ${JSON.stringify(timeline)}::jsonb, NOW(), NOW()
     )
     ON CONFLICT (clerk_user_id, fixture_id) DO UPDATE SET
       watch_type           = EXCLUDED.watch_type,
       access               = EXCLUDED.access,
+      seat_type            = EXCLUDED.seat_type,
       companion            = EXCLUDED.companion,
       next_visit_memo      = EXCLUDED.next_visit_memo,
       departure_prefecture = EXCLUDED.departure_prefecture,
       departure_city       = EXCLUDED.departure_city,
+      timeline             = EXCLUDED.timeline,
       updated_at           = NOW()
   `
   return Response.json({ ok: true })
