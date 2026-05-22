@@ -1,28 +1,10 @@
-import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
+import SiteHeroShell from './SiteHeroShell'
 
-// グローバル sticky ヘッダー (元はホームページ上部の意匠)
-//   - 左: 「J.Leak Stats」ロゴ
-//   - 右: 試合検索 (白丸) + ProfileBubble (推しクラブ色丸 / Sign in)
-//   - 下にスクロールしても上部に残る (position: sticky)
-
-function normalizeColor(raw) {
-  if (!raw) return null
-  const v = String(raw).trim()
-  if (!v) return null
-  return v.startsWith('#') ? v : `#${v}`
-}
-
-function textOn(hex) {
-  const h = (hex ?? '').replace('#', '')
-  if (h.length < 6) return '#fff'
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
-}
-
+// グローバル sticky ヘッダー
+//   - 「J.Leak Stats」ロゴ + 試合検索 (白丸) + ProfileBubble (推しクラブ色 / Sign in)
+//   - 下にスクロールしても上部に sticky で残る (Client 側で padding を縮める)
 export default async function SiteHero() {
   const { userId } = await auth()
   let profile = null
@@ -38,126 +20,5 @@ export default async function SiteHero() {
     `.catch(() => [])
     profile = rows[0] ?? null
   }
-
-  return (
-    <div className="site-hero-wrap" style={{
-      position: 'sticky', top: 0, zIndex: 50,
-      backgroundColor: 'var(--bg-primary)',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-    }}>
-      <div className="site-hero-inner" style={{
-        maxWidth: 'var(--site-max-width, 1024px)',
-        margin: '0 auto',
-        padding: '0 16px',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      }}>
-        <Link href="/" aria-label="トップへ" style={{
-          textDecoration: 'none', display: 'inline-block',
-        }}>
-          <h1 className="site-title" style={{
-            fontWeight: 900, color: '#fff',
-            letterSpacing: '0.07em', lineHeight: 1,
-            margin: 0,
-          }}>
-            J.Leak Stats
-          </h1>
-        </Link>
-
-        <div className="deco-circles" style={{
-          position: 'relative', width: 120, height: 120, flexShrink: 0,
-        }}>
-          <Link
-            href="/search"
-            className="deco-circle-white"
-            style={{
-              position: 'absolute', top: 0, right: 0,
-              width: 75, height: 75, borderRadius: '50%',
-              backgroundColor: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#000', textDecoration: 'none',
-              fontSize: 14, fontWeight: 900, letterSpacing: '0.04em',
-            }}
-          >
-            試合検索
-          </Link>
-          <ProfileBubble profile={profile} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ProfileBubble({ profile }) {
-  const sharedStyle = {
-    position: 'absolute', top: 56, right: 50,
-    width: 75, height: 75, borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    textDecoration: 'none', cursor: 'pointer',
-    fontWeight: 900, letterSpacing: '0.02em',
-  }
-  if (!profile) {
-    return (
-      <Link
-        href="/sign-in?redirect_url=/"
-        className="deco-circle-red"
-        style={{
-          ...sharedStyle,
-          backgroundColor: '#8b1a1a', color: '#fff',
-          fontSize: 16, letterSpacing: '0.08em',
-        }}
-      >
-        Sign in
-      </Link>
-    )
-  }
-  const clubColor = normalizeColor(profile.club_color) ?? '#8b1a1a'
-  const custom = (profile.avatar_text ?? '').trim()
-  let initial = custom
-  if (!initial) {
-    const src = (profile.display_name ?? '?').trim()
-    initial = [...src].slice(0, 2).join('') || '?'
-  }
-  const fantypeCode = profile.fantype_type_code
-  const fantypeHref = fantypeCode
-    ? `/fantype/result/${fantypeCode}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
-    : '/fantype'
-  const profileHref = profile.handle ? `/u/${profile.handle}` : '/rating'
-  return (
-    <>
-      <Link
-        href={profileHref}
-        className="deco-circle-red"
-        style={{
-          ...sharedStyle,
-          backgroundColor: clubColor,
-          color: textOn(clubColor),
-          fontSize: 18,
-        }}
-      >
-        {initial}
-      </Link>
-      <Link
-        href={fantypeHref}
-        className="fantype-chip"
-        title={fantypeCode ? `FANTYPE ${fantypeCode}` : 'FANTYPE 診断を受ける'}
-        style={{
-          position: 'absolute',
-          top: 124,
-          right: 0,
-          padding: '3px 8px',
-          borderRadius: 999,
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: '0.06em',
-          textDecoration: 'none',
-          backgroundColor: fantypeCode ? 'var(--accent)' : 'transparent',
-          color: fantypeCode ? '#000' : 'var(--text-secondary)',
-          border: fantypeCode ? 'none' : '1px solid var(--text-secondary)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {fantypeCode ? `FANTYPE / ${fantypeCode}` : 'FANTYPE →'}
-      </Link>
-    </>
-  )
+  return <SiteHeroShell profile={profile} />
 }

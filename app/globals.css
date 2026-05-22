@@ -24,7 +24,6 @@ body {
 .site-title {
   font-size: 40px !important;
   padding-left: 32px !important;
-  padding-top: 28px !important;
 }
 
 @keyframes spin {
@@ -182,7 +181,6 @@ input[type="range"].rating-slider::-moz-range-thumb {
   .site-title {
     font-size: 28px !important;
     padding-left: 8px !important;
-    padding-top: 12px !important;
   }
 
   .deco-circles {
