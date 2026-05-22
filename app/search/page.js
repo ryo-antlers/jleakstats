@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { Building2, Flag, Users } from 'lucide-react'
 import sql from '@/lib/db'
 import SearchForm from './search-form'
-import TopLogo from '@/app/components/TopLogo'
 
 export const dynamic = 'force-dynamic'
 
@@ -263,7 +262,6 @@ export default async function SearchPage({ searchParams }) {
 
   return (
     <div>
-      <TopLogo />
       <h1 style={{
         fontSize: 22, fontWeight: 900, color: '#fff',
         letterSpacing: '0.08em', margin: '8px 0 28px',

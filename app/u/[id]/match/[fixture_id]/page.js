@@ -2,7 +2,6 @@ import { auth } from '@clerk/nextjs/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import sql from '@/lib/db'
-import TopLogo from '@/app/components/TopLogo'
 import RatingPageView from '@/app/rating/rating-view'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
@@ -148,7 +147,6 @@ export default async function UserMatchPage({ params }) {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
-      <TopLogo />
 
       <div style={{ textAlign: 'center', marginBottom: 14 }}>
         <Link href={`/u/${target.handle ?? target.clerk_user_id}`} style={{

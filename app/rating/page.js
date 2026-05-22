@@ -1,7 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 import Link from 'next/link'
-import TopLogo from '@/app/components/TopLogo'
 import ProfileHeader from '@/app/components/ProfileHeader'
 import MatchCard from '@/app/components/MatchCard'
 import { TYPE_META } from '@/lib/fantype/type-meta'
@@ -54,7 +53,6 @@ export default async function RatingIndexPage() {
   if (!userId) {
     return (
       <>
-        <TopLogo />
         <EmptyState
           title="ログインが必要です"
           message="採点機能はログインユーザー専用です"
@@ -89,7 +87,6 @@ export default async function RatingIndexPage() {
   if (!profile) {
     return (
       <>
-        <TopLogo />
         <EmptyState
           title="プロフィール未設定"
           message="表示名とあなたのクラブを設定してください"
@@ -102,7 +99,6 @@ export default async function RatingIndexPage() {
   if (!profile.supported_club_id) {
     return (
       <>
-        <TopLogo />
         <EmptyState
           title="推しクラブ未設定"
           message="採点機能を使うには推しクラブを設定してください"
@@ -312,7 +308,6 @@ export default async function RatingIndexPage() {
 
   return (
     <div>
-      <TopLogo />
       <ProfileHeader
         profile={profile}
         clubColor={_clubColor}
