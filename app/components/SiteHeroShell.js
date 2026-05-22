@@ -31,7 +31,7 @@ export default function SiteHeroShell({ profile }) {
         backgroundColor: 'var(--bg-primary)',
         transition: 'padding 0.2s ease',
         paddingTop: scrolled ? 8 : 42,
-        paddingBottom: 8,
+        paddingBottom: scrolled ? 8 : 30,
       }}>
         <div className="site-hero-inner" style={{
           maxWidth: 'var(--site-max-width, 1024px)',
