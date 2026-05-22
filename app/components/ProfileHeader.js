@@ -135,17 +135,17 @@ function JerseyAvatar({ color, textColor, jerseyNumber, avatarLetters }) {
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         color: textColor, pointerEvents: 'none',
-        paddingTop: 22,
       }}>
         {hasNumber && (
           <div style={{
             fontSize: 24, fontWeight: 900, lineHeight: 1,
             letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
+            paddingTop: 14,
           }}>{jerseyNumber}</div>
         )}
         <div style={{
-          fontSize: 10,
+          fontSize: 8,
           fontWeight: 800,
           marginTop: 2,
           letterSpacing: '0.02em',
