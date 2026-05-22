@@ -3,6 +3,7 @@ import { Building2, Flag, Users } from 'lucide-react'
 import sql from '@/lib/db'
 import Link from 'next/link'
 import TopLogo from '@/app/components/TopLogo'
+import ProfileHeader from '@/app/components/ProfileHeader'
 import { TYPE_META } from '@/lib/fantype/type-meta'
 import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
 
@@ -74,10 +75,7 @@ export default async function RatingIndexPage() {
       up.fantype_answers,
       up.jersey_number,
       up.favorite_player_id,
-      up.prefecture,
-      up.city,
-      up.bio,
-      up.supporter_since,
+      up.first_match_fixture_id,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
       t.abbr AS club_abbr,
@@ -283,111 +281,39 @@ export default async function RatingIndexPage() {
     : null
 
   // 今季の現地観戦距離 (km、四捨五入された整数)
-  // 住所未設定や現地ノートが無い場合は 0 → バッジ非表示
-  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({
-    clerkUserId: userId,
-    prefecture: profile.prefecture,
-    city: profile.city,
-  })
+  //   watch_notes の departure_* を元に算出
+  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({ clerkUserId: userId })
+
+  // 初観戦試合の詳細を別途取得して profile にマージ
+  if (profile.first_match_fixture_id && profile.supported_club_id) {
+    const fm = await sql`
+      SELECT
+        f.date AS first_match_date,
+        f.venue_name_ja AS first_match_venue_ja,
+        (f.home_team_id = ${profile.supported_club_id}) AS first_match_is_home,
+        CASE WHEN f.home_team_id = ${profile.supported_club_id} THEN at.short_name ELSE ht.short_name END AS first_match_opp_short,
+        CASE WHEN f.home_team_id = ${profile.supported_club_id} THEN at.name_ja ELSE ht.name_ja END AS first_match_opp_name_ja
+      FROM fixtures f
+      LEFT JOIN teams_master ht ON ht.id = f.home_team_id
+      LEFT JOIN teams_master at ON at.id = f.away_team_id
+      WHERE f.id = ${profile.first_match_fixture_id}
+    `.catch(() => [])
+    if (fm.length > 0) Object.assign(profile, fm[0])
+  }
 
   return (
     <div>
       <TopLogo />
-      {/* ユーザーヘッダー: 案A 並列バッジ */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-start', gap: 16,
-        padding: '16px 0',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        marginBottom: 24,
-      }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: '50%',
-            backgroundColor: _clubColor, color: _clubText,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: _initial.length === 2 ? 22 : 28, fontWeight: 900,
-            letterSpacing: '0.02em',
-          }}>{_initial}</div>
-          {profile.jersey_number != null && (
-            <div style={{
-              position: 'absolute', bottom: -4, right: -4,
-              minWidth: 26, height: 26, padding: '0 6px',
-              borderRadius: 999,
-              backgroundColor: '#fff', color: _clubColor,
-              border: `2px solid ${_clubColor}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 900, letterSpacing: '-0.02em',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }} title={profile.favorite_player_name_ja ? `推し: ${profile.favorite_player_name_ja}` : `背番号 ${profile.jersey_number}`}>
-              {profile.jersey_number}
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
-          <div style={{
-            fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
-            {profile.display_name ?? '名無し'}
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {profile.club_name_ja && (
-              <span style={{
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: _clubText, backgroundColor: _clubColor,
-              }}>{profile.club_name_ja}</span>
-            )}
-            {fantypeMeta && (
-              <Link href={fantypeHref} style={{
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: '#000', backgroundColor: 'var(--accent)',
-                textDecoration: 'none',
-              }}>{profile.fantype_type_code} {fantypeMeta.nickname}</Link>
-            )}
-            {profile.prefecture && (
-              <span style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: 'rgba(255,255,255,0.75)',
-                backgroundColor: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}>📍 {profile.prefecture}{profile.city ? ` ${profile.city}` : ''}</span>
-            )}
-            {profile.supporter_since != null && (
-              <span style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: 'rgba(255,255,255,0.75)',
-                backgroundColor: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}>since {String(profile.supporter_since).slice(-2)}&apos;</span>
-            )}
-            {seasonDistanceKm > 0 && (
-              <Link href="/notes" style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: 'rgba(255,255,255,0.75)',
-                backgroundColor: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                textDecoration: 'none',
-              }} title="今季の現地観戦距離 (観戦ノートから集計)">
-                🚄 今季 {seasonDistanceKm.toLocaleString()} km
-              </Link>
-            )}
-          </div>
-        </div>
-        <Link href="/profile-setup?next=/rating" style={{
-          fontSize: 11, fontWeight: 800, letterSpacing: '0.06em',
-          padding: '7px 14px',
-          color: '#fff',
-          border: '1px solid rgba(255,255,255,0.2)',
-          textDecoration: 'none',
-          whiteSpace: 'nowrap',
-        }}>プロフィール編集</Link>
-      </div>
+      <ProfileHeader
+        profile={profile}
+        clubColor={_clubColor}
+        clubText={_clubText}
+        avatarLetters={_initial}
+        fantypeMeta={fantypeMeta}
+        fantypeHref={fantypeHref}
+        seasonDistanceKm={seasonDistanceKm}
+        editHref="/profile-setup?next=/rating"
+      />
 
 
 
@@ -755,9 +681,6 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
         }}>
           選手別 採点
         </h2>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-          {sorted.length}名
-        </span>
       </div>
       <div className="rating-table-wrap" style={{ overflowX: 'auto' }}>
         <table style={{

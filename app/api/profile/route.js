@@ -1,12 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 import { containsNG } from '@/lib/ng-words'
-import { isValidPrefecture } from '@/lib/jp/prefectures'
-import { isValidMunicipality } from '@/lib/jp/municipalities'
 
 const CLUB_CHANGE_COOLDOWN_DAYS = 7
-const SUPPORTER_SINCE_MIN = 1993
-const SUPPORTER_SINCE_MAX = 2030
 
 // GET: 現在のユーザーのプロフィールを取得
 //   - プロフィール未作成なら 404
@@ -25,10 +21,7 @@ export async function GET() {
       p.club_changed_at,
       p.jersey_number,
       p.favorite_player_id,
-      p.prefecture,
-      p.city,
-      p.bio,
-      p.supporter_since,
+      p.first_match_fixture_id,
       t.name_ja AS club_name_ja,
       t.color_primary AS club_color,
       GREATEST(
@@ -53,8 +46,8 @@ export async function GET() {
 //   - display_name: 1〜12 文字、NGワードチェック
 //   - supported_club_id: teams_master に存在する EAST/WEST/A/B クラブのみ
 //   - 推しクラブ変更は 7 日間クールダウン
-//   - クラブ変更時は jersey_number / favorite_player_id を NULL クリア
-//   - jersey_number / favorite_player_id / prefecture / city / bio / supporter_since は任意
+//   - クラブ変更時は jersey_number / favorite_player_id / first_match_fixture_id を NULL クリア
+//   - 住所は user_profiles から廃止、観戦ノートの「出発地」に移行
 export async function POST(request) {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -72,10 +65,7 @@ export async function POST(request) {
   const handleRaw = body.handle == null ? null : String(body.handle).trim()
   const jerseyRaw = body.jersey_number
   const favoritePlayerRaw = body.favorite_player_id
-  const prefectureRaw = body.prefecture == null ? null : String(body.prefecture).trim()
-  const cityRaw = body.city == null ? null : String(body.city).trim()
-  const bioRaw = body.bio == null ? null : String(body.bio).trim()
-  const supporterSinceRaw = body.supporter_since
+  const firstMatchFixtureRaw = body.first_match_fixture_id
 
   // display_name のバリデーション
   if (displayName.length < 1 || displayName.length > 12) {
@@ -157,43 +147,23 @@ export async function POST(request) {
     favoritePlayerId = n
   }
 
-  // prefecture / city のバリデーション
-  let prefecture = null
-  let city = null
-  if (prefectureRaw && prefectureRaw.length > 0) {
-    if (!isValidPrefecture(prefectureRaw)) {
-      return Response.json({ error: '都道府県の指定が不正です' }, { status: 400 })
+  // first_match_fixture_id のバリデーション (任意、推しクラブが関係する終了済試合のみ)
+  let firstMatchFixtureId = null
+  if (firstMatchFixtureRaw !== null && firstMatchFixtureRaw !== undefined && firstMatchFixtureRaw !== '') {
+    const n = Number(firstMatchFixtureRaw)
+    if (!Number.isInteger(n) || n <= 0) {
+      return Response.json({ error: '初観戦試合の指定が不正です' }, { status: 400 })
     }
-    prefecture = prefectureRaw
-    if (cityRaw && cityRaw.length > 0) {
-      if (!isValidMunicipality(prefectureRaw, cityRaw)) {
-        return Response.json({ error: '市区町村の指定が不正です' }, { status: 400 })
-      }
-      city = cityRaw
+    const fxRows = await sql`
+      SELECT id FROM fixtures
+      WHERE id = ${n}
+        AND (home_team_id = ${supportedClubId} OR away_team_id = ${supportedClubId})
+        AND finished_at IS NOT NULL
+    `
+    if (fxRows.length === 0) {
+      return Response.json({ error: '初観戦試合は推しクラブの終了済試合から選んでください' }, { status: 400 })
     }
-  }
-  // prefecture なしで city だけは不可 (片方クリアは prefecture もクリアと解釈)
-
-  // bio のバリデーション (任意、最大80字、NGワード弾く)
-  let bio = null
-  if (bioRaw && bioRaw.length > 0) {
-    if ([...bioRaw].length > 80) {
-      return Response.json({ error: 'ひとことは80文字以内で入力してください' }, { status: 400 })
-    }
-    if (containsNG(bioRaw)) {
-      return Response.json({ error: 'ひとことに使用できない言葉が含まれています' }, { status: 400 })
-    }
-    bio = bioRaw
-  }
-
-  // supporter_since のバリデーション (任意、1993〜2030 の整数)
-  let supporterSince = null
-  if (supporterSinceRaw !== null && supporterSinceRaw !== undefined && supporterSinceRaw !== '') {
-    const n = Number(supporterSinceRaw)
-    if (!Number.isInteger(n) || n < SUPPORTER_SINCE_MIN || n > SUPPORTER_SINCE_MAX) {
-      return Response.json({ error: `サポ歴は${SUPPORTER_SINCE_MIN}〜${SUPPORTER_SINCE_MAX}年で入力してください` }, { status: 400 })
-    }
-    supporterSince = n
+    firstMatchFixtureId = n
   }
 
   // 既存プロフィール取得（クールダウン判定 + クラブ変更時の関連フィールドクリア用）
@@ -223,39 +193,32 @@ export async function POST(request) {
         )
       }
 
-      // クラブ変更時: 推しクラブ依存の jersey_number / favorite_player_id はリクエスト値を使う
-      //   フォーム側でクラブ切替時にリセットしている前提だが、サーバー側でも
-      //   「favorite_player_id は新クラブの選手で検証済」を担保しているので問題なし
+      // クラブ変更時: 推しクラブ依存の jersey_number / favorite_player_id /
+      //   first_match_fixture_id はリクエスト値を使う (新クラブで検証済)
       await sql`
         UPDATE user_profiles SET
-          display_name       = ${displayName},
-          avatar_text        = ${avatarText},
-          handle             = ${handle},
-          supported_club_id  = ${supportedClubId},
-          jersey_number      = ${jerseyNumber},
-          favorite_player_id = ${favoritePlayerId},
-          prefecture         = ${prefecture},
-          city               = ${city},
-          bio                = ${bio},
-          supporter_since    = ${supporterSince},
-          club_changed_at    = NOW(),
-          updated_at         = NOW()
+          display_name           = ${displayName},
+          avatar_text            = ${avatarText},
+          handle                 = ${handle},
+          supported_club_id      = ${supportedClubId},
+          jersey_number          = ${jerseyNumber},
+          favorite_player_id     = ${favoritePlayerId},
+          first_match_fixture_id = ${firstMatchFixtureId},
+          club_changed_at        = NOW(),
+          updated_at             = NOW()
         WHERE clerk_user_id = ${userId}
       `
     } else {
       // クラブ変更なし
       await sql`
         UPDATE user_profiles SET
-          display_name       = ${displayName},
-          avatar_text        = ${avatarText},
-          handle             = ${handle},
-          jersey_number      = ${jerseyNumber},
-          favorite_player_id = ${favoritePlayerId},
-          prefecture         = ${prefecture},
-          city               = ${city},
-          bio                = ${bio},
-          supporter_since    = ${supporterSince},
-          updated_at         = NOW()
+          display_name           = ${displayName},
+          avatar_text            = ${avatarText},
+          handle                 = ${handle},
+          jersey_number          = ${jerseyNumber},
+          favorite_player_id     = ${favoritePlayerId},
+          first_match_fixture_id = ${firstMatchFixtureId},
+          updated_at             = NOW()
         WHERE clerk_user_id = ${userId}
       `
     }
@@ -264,11 +227,11 @@ export async function POST(request) {
     await sql`
       INSERT INTO user_profiles (
         clerk_user_id, display_name, avatar_text, handle, supported_club_id,
-        jersey_number, favorite_player_id, prefecture, city, bio, supporter_since,
+        jersey_number, favorite_player_id, first_match_fixture_id,
         club_changed_at, created_at, updated_at
       ) VALUES (
         ${userId}, ${displayName}, ${avatarText}, ${handle}, ${supportedClubId},
-        ${jerseyNumber}, ${favoritePlayerId}, ${prefecture}, ${city}, ${bio}, ${supporterSince},
+        ${jerseyNumber}, ${favoritePlayerId}, ${firstMatchFixtureId},
         NOW(), NOW(), NOW()
       )
     `

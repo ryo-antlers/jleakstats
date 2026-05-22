@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
 import TopLogo from '@/app/components/TopLogo'
+import ProfileHeader from '@/app/components/ProfileHeader'
 import { TYPE_META } from '@/lib/fantype/type-meta'
 import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
 import {
-  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
+  WATCH_TYPE_LABELS, ACCESS_LABELS,
   leagueLabel, formatJST,
 } from '@/app/notes/_shared'
 
@@ -24,15 +25,6 @@ function normalizeColor(raw) {
   const v = String(raw).trim()
   if (!v) return '#444'
   return v.startsWith('#') ? v : `#${v}`
-}
-
-// 場所・サポ歴などの中性的なメタ pill
-const subBadgeStyle = {
-  fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-  padding: '4px 10px', borderRadius: 999,
-  color: 'rgba(255,255,255,0.75)',
-  backgroundColor: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.08)',
 }
 
 function textOn(hex) {
@@ -53,7 +45,7 @@ async function resolveUser(id) {
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         up.jersey_number, up.favorite_player_id,
-        up.prefecture, up.city, up.bio, up.supporter_since,
+        up.first_match_fixture_id,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
         fp.name_ja AS favorite_player_name_ja,
         fp.name_en AS favorite_player_name_en,
@@ -70,7 +62,7 @@ async function resolveUser(id) {
           up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
           up.supported_club_id, up.fantype_type_code, up.fantype_answers,
           up.jersey_number, up.favorite_player_id,
-          up.prefecture, up.city, up.bio, up.supporter_since,
+          up.first_match_fixture_id,
           t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
           fp.name_ja AS favorite_player_name_ja,
           fp.name_en AS favorite_player_name_en,
@@ -88,7 +80,7 @@ async function resolveUser(id) {
         up.clerk_user_id, up.display_name, up.avatar_text, up.handle,
         up.supported_club_id, up.fantype_type_code, up.fantype_answers,
         up.jersey_number, up.favorite_player_id,
-        up.prefecture, up.city, up.bio, up.supporter_since,
+        up.first_match_fixture_id,
         t.name_ja AS club_name_ja, t.color_primary AS club_color, t.abbr AS club_abbr,
         fp.name_ja AS favorite_player_name_ja,
         fp.name_en AS favorite_player_name_en,
@@ -121,6 +113,24 @@ export default async function UserProfilePage({ params }) {
   const { userId: viewerId } = await auth()
   const isOwnProfile = viewerId && viewerId === user.clerk_user_id
 
+  // 初観戦試合の詳細を別途取得して user にマージ
+  //   (3 つの resolve SELECT 内で JOIN すると重複が大きいので分離)
+  if (user.first_match_fixture_id && user.supported_club_id) {
+    const fm = await sql`
+      SELECT
+        f.date AS first_match_date,
+        f.venue_name_ja AS first_match_venue_ja,
+        (f.home_team_id = ${user.supported_club_id}) AS first_match_is_home,
+        CASE WHEN f.home_team_id = ${user.supported_club_id} THEN at.short_name ELSE ht.short_name END AS first_match_opp_short,
+        CASE WHEN f.home_team_id = ${user.supported_club_id} THEN at.name_ja ELSE ht.name_ja END AS first_match_opp_name_ja
+      FROM fixtures f
+      LEFT JOIN teams_master ht ON ht.id = f.home_team_id
+      LEFT JOIN teams_master at ON at.id = f.away_team_id
+      WHERE f.id = ${user.first_match_fixture_id}
+    `.catch(() => [])
+    if (fm.length > 0) Object.assign(user, fm[0])
+  }
+
   const clerkUserId = user.clerk_user_id
   const supportedClubId = user.supported_club_id ? Number(user.supported_club_id) : null
   const clubColor = normalizeColor(user.club_color)
@@ -131,11 +141,8 @@ export default async function UserProfilePage({ params }) {
     : null
 
   // 今季の現地観戦距離 (km、四捨五入された整数)
-  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({
-    clerkUserId,
-    prefecture: user.prefecture,
-    city: user.city,
-  })
+  //   watch_notes の departure_* を元に算出
+  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({ clerkUserId })
 
   // 観戦ノート直近 (最大 6 件)
   //   ログイン済みユーザーのみに公開、ゲストは空配列
@@ -218,97 +225,15 @@ export default async function UserProfilePage({ params }) {
     <div>
       <TopLogo />
 
-      {/* ユーザーヘッダー (案A 並列バッジ) */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-start', gap: 16,
-        padding: '16px 0',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        marginBottom: 24,
-      }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: '50%',
-            backgroundColor: clubColor, color: clubText,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: initial.length === 2 ? 22 : 28, fontWeight: 900,
-            letterSpacing: '0.02em',
-          }}>{initial}</div>
-          {user.jersey_number != null && (
-            <div style={{
-              position: 'absolute', bottom: -4, right: -4,
-              minWidth: 26, height: 26, padding: '0 6px',
-              borderRadius: 999,
-              backgroundColor: '#fff', color: clubColor,
-              border: `2px solid ${clubColor}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 900, letterSpacing: '-0.02em',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }} title={user.favorite_player_name_ja ? `推し: ${user.favorite_player_name_ja}` : `背番号 ${user.jersey_number}`}>
-              {user.jersey_number}
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
-          <div style={{
-            fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '0.04em',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
-            {user.display_name ?? '名無し'}
-          </div>
-          {user.handle && (
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
-              @{user.handle}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {user.club_name_ja && (
-              <span style={{
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: clubText, backgroundColor: clubColor,
-              }}>{user.club_name_ja}</span>
-            )}
-            {fantypeMeta && (
-              <Link href={fantypeHref} style={{
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-                padding: '4px 10px', borderRadius: 999,
-                color: '#000', backgroundColor: 'var(--accent)',
-                textDecoration: 'none',
-              }}>{user.fantype_type_code} {fantypeMeta.nickname}</Link>
-            )}
-            {user.prefecture && (
-              <span style={subBadgeStyle}>
-                📍 {user.prefecture}{user.city ? ` ${user.city}` : ''}
-              </span>
-            )}
-            {user.supporter_since != null && (
-              <span style={subBadgeStyle}>
-                since {String(user.supporter_since).slice(-2)}&apos;
-              </span>
-            )}
-            {seasonDistanceKm > 0 && (
-              <span style={subBadgeStyle} title="今季の現地観戦距離">
-                🚄 今季 {seasonDistanceKm.toLocaleString()} km
-              </span>
-            )}
-          </div>
-          {user.bio && (
-            <div style={{
-              fontSize: 12, color: 'rgba(255,255,255,0.75)',
-              lineHeight: 1.5, marginTop: 4,
-              overflowWrap: 'anywhere',
-            }}>
-              {user.bio}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 観戦ノート (直近) — ログインユーザーのみに公開 */}
-      {recentNotes.length > 0 && (
-        <RecentNotesSection notes={recentNotes} isOwn={isOwnProfile} />
-      )}
+      <ProfileHeader
+        profile={user}
+        clubColor={clubColor}
+        clubText={clubText}
+        avatarLetters={initial}
+        fantypeMeta={fantypeMeta}
+        fantypeHref={fantypeHref}
+        seasonDistanceKm={seasonDistanceKm}
+      />
 
       {/* 選手別 採点 (推しクラブの選手 × 節 マトリクス) */}
       {supportedClubId && teamPlayers.length > 0 && (
@@ -317,6 +242,11 @@ export default async function UserProfilePage({ params }) {
           rounds={teamRounds}
           ratings={userTeamRatings}
         />
+      )}
+
+      {/* 観戦ノート (直近) — ログインユーザーのみに公開、選手別 採点の下に表示 */}
+      {recentNotes.length > 0 && (
+        <RecentNotesSection notes={recentNotes} isOwn={isOwnProfile} />
       )}
     </div>
   )
@@ -354,8 +284,8 @@ function RecentNotesSection({ notes, isOwn }) {
       </div>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-        gap: 10,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+        gap: 8,
       }}>
         {notes.map(n => (
           <NoteCard key={n.id} note={n} isOwn={isOwn} />
@@ -365,6 +295,12 @@ function RecentNotesSection({ notes, isOwn }) {
   )
 }
 
+// 縦長のミニカード:
+//   日付 / コンペ
+//   ホームチーム (上、色付き帯)
+//   アウェイチーム (下、色付き帯)
+//   観戦区分 chip + アクセス chip
+//   同行者 / メモ (簡潔に)
 function NoteCard({ note, isOwn }) {
   const href = isOwn ? `/notes/${note.fixture_id}` : `/fixture/${note.fixture_id}`
   const homeColor = normalizeColor(note.home_color)
@@ -376,84 +312,83 @@ function NoteCard({ note, isOwn }) {
   const comp = leagueLabel(note.league_id)
   return (
     <Link href={href} style={{
-      display: 'block', textDecoration: 'none', color: '#fff',
+      display: 'flex', flexDirection: 'column',
+      textDecoration: 'none', color: '#fff',
       border: '1px solid rgba(255,255,255,0.06)',
       backgroundColor: '#161616',
+      overflow: 'hidden',
     }}>
+      {/* ヘッダー: 日付 + コンペ */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        padding: '8px 10px 4px',
+        padding: '6px 8px 4px',
       }}>
         <span style={{ fontSize: 9, color: '#fff', fontWeight: 800, letterSpacing: '0.02em' }}>
           {formatJST(note.fixture_date)}
         </span>
         {comp && (
           <span style={{
-            fontSize: 8, fontWeight: 800, letterSpacing: '0.1em',
+            fontSize: 8, fontWeight: 800, letterSpacing: '0.08em',
             color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase',
           }}>
             {comp}{note.round_number ? ` 第${note.round_number}節` : ''}
           </span>
         )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-        <div style={{
-          backgroundColor: homeColor, color: homeText,
-          padding: '6px 6px 10px', minHeight: 50,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-        }}>
-          <span style={{
-            fontWeight: 900, fontSize: 11, letterSpacing: '0.04em',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
-          }}>{homeName}</span>
-          <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: '0.02em' }}>
-            {note.home_score ?? '-'}
-          </span>
-        </div>
-        <div style={{
-          backgroundColor: awayColor, color: awayText,
-          padding: '6px 6px 10px', minHeight: 50,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-        }}>
-          <span style={{
-            fontWeight: 900, fontSize: 11, letterSpacing: '0.04em',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
-          }}>{awayName}</span>
-          <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: '0.02em' }}>
-            {note.away_score ?? '-'}
-          </span>
-        </div>
-      </div>
+      {/* ホーム vs アウェイ を縦並びに */}
+      <TeamRow color={homeColor} textColor={homeText} name={homeName} score={note.home_score} />
+      <TeamRow color={awayColor} textColor={awayText} name={awayName} score={note.away_score} />
+      {/* 下段: chip + companion + memo */}
       <div style={{
-        padding: '8px 10px', borderTop: '1px solid rgba(255,255,255,0.06)',
+        padding: '6px 8px', borderTop: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          <span style={miniChipStyle}>
-            {WATCH_TYPE_ICONS[note.watch_type]} {WATCH_TYPE_LABELS[note.watch_type]}
-          </span>
+          <span style={miniChipStyle}>{WATCH_TYPE_LABELS[note.watch_type]}</span>
           {note.watch_type === 'stadium' && note.access && (
-            <span style={miniChipStyle}>
-              {ACCESS_ICONS[note.access]} {ACCESS_LABELS[note.access]}
-            </span>
+            <span style={miniChipStyle}>{ACCESS_LABELS[note.access]}</span>
           )}
         </div>
         {note.companion && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)' }}>
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.65)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
             <span style={{ color: 'rgba(255,255,255,0.4)' }}>同行: </span>{note.companion}
           </div>
         )}
         {note.memo && (
           <div style={{
-            fontSize: 10, color: 'rgba(255,255,255,0.8)',
-            lineHeight: 1.4,
-            display: '-webkit-box',
-            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}>{note.memo}</div>
+            fontSize: 10, color: 'rgba(255,255,255,0.85)',
+            lineHeight: 1.45,
+          }}>
+            {[...note.memo].length > 60
+              ? [...note.memo].slice(0, 60).join('') + '…'
+              : note.memo}
+          </div>
         )}
       </div>
     </Link>
+  )
+}
+
+function TeamRow({ color, textColor, name, score }) {
+  return (
+    <div style={{
+      backgroundColor: color, color: textColor,
+      padding: '6px 10px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 6,
+    }}>
+      <span style={{
+        fontWeight: 900, fontSize: 11, letterSpacing: '0.02em',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>{name}</span>
+      <span style={{
+        fontWeight: 900, fontSize: 16, letterSpacing: '0.02em',
+        fontVariantNumeric: 'tabular-nums',
+      }}>{score ?? '-'}</span>
+    </div>
   )
 }
 
@@ -548,9 +483,6 @@ function PlayerRatingsSection({ players, rounds, ratings }) {
         }}>
           選手別 採点
         </h2>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-          {sorted.length}名
-        </span>
       </div>
       <div className="rating-table-wrap" style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'separate', borderSpacing: 0, fontFamily: 'inherit' }}>
