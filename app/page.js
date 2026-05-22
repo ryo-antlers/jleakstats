@@ -453,29 +453,7 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* タイトル + 装飾 */}
-      <div className="title-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <h1 className="site-title" style={{ fontWeight: 900, color: '#fff', letterSpacing: '0.07em', lineHeight: 1 }}>
-          J.Leak Stats
-        </h1>
-        <div className="deco-circles" style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
-          <Link
-            href="/search"
-            className="deco-circle-white"
-            style={{
-              position: 'absolute', top: 0, right: 0,
-              width: 75, height: 75, borderRadius: '50%',
-              backgroundColor: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#000', textDecoration: 'none',
-              fontSize: 14, fontWeight: 900, letterSpacing: '0.04em',
-            }}
-          >
-            試合検索
-          </Link>
-          <ProfileBubble profile={myProfile} />
-        </div>
-      </div>
+      {/* タイトル + 装飾はグローバル SiteHero (app/layout.js から) に移行済み */}
 
       {/* リーググループ別 タイムライン + 順位表 (アクティブタブのみ表示) */}
       <LeagueGroupTabs
@@ -496,82 +474,7 @@ export default async function HomePage() {
   )
 }
 
-// 赤い装飾丸 → プロフィールボタン
-//   ログイン中: クラブカラー + アバター文字、押すと /profile-setup
-//   未ログイン: 赤背景に "Sign in"、押すと /sign-in
-function ProfileBubble({ profile }) {
-  const sharedStyle = {
-    position: 'absolute', top: 56, right: 50,
-    width: 75, height: 75, borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    textDecoration: 'none', cursor: 'pointer',
-    fontWeight: 900, letterSpacing: '0.02em',
-  }
-  if (!profile) {
-    return (
-      <Link
-        href="/sign-in?redirect_url=/"
-        className="deco-circle-red"
-        style={{
-          ...sharedStyle,
-          backgroundColor: '#8b1a1a', color: '#fff',
-          fontSize: 16, letterSpacing: '0.08em',
-        }}
-      >
-        Sign in
-      </Link>
-    )
-  }
-  const clubColor = normalizeColor(profile.club_color) ?? '#8b1a1a'
-  const custom = (profile.avatar_text ?? '').trim()
-  let initial = custom
-  if (!initial) {
-    const src = (profile.display_name ?? '?').trim()
-    initial = [...src].slice(0, 2).join('') || '?'
-  }
-  const fantypeCode = profile.fantype_type_code
-  const fantypeHref = fantypeCode
-    ? `/fantype/result/${fantypeCode}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
-    : '/fantype'
-  return (
-    <>
-      <Link
-        href="/rating"
-        className="deco-circle-red"
-        style={{
-          ...sharedStyle,
-          backgroundColor: clubColor,
-          color: textOn(clubColor),
-          fontSize: 18,
-        }}
-      >
-        {initial}
-      </Link>
-      <Link
-        href={fantypeHref}
-        className="fantype-chip"
-        title={fantypeCode ? `FANTYPE ${fantypeCode}` : 'FANTYPE 診断を受ける'}
-        style={{
-          position: 'absolute',
-          top: 124,
-          right: 0,
-          padding: '3px 8px',
-          borderRadius: 999,
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: '0.06em',
-          textDecoration: 'none',
-          backgroundColor: fantypeCode ? 'var(--accent)' : 'transparent',
-          color: fantypeCode ? '#000' : 'var(--text-secondary)',
-          border: fantypeCode ? 'none' : '1px solid var(--text-secondary)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {fantypeCode ? `FANTYPE / ${fantypeCode}` : 'FANTYPE →'}
-      </Link>
-    </>
-  )
-}
+// ProfileBubble はグローバル SiteHero (app/components/SiteHero.js) に移行済み
 
 function StandingsPair({ group }) {
   return (
