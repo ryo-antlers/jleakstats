@@ -40,32 +40,70 @@ const CACHE_PATH = path.join(
 
 // 対象リーグ。API-Football の league_id を直書き。
 // 日本人選手が居る・居る可能性のあるリーグを優先。
+//
+// 処理順序は「主要リーグ → 下部リーグ・loan 先」とする。
+// 同一選手が複数 squad に居る場合は last-write-wins なので、
+// loan 先 (= 実際にプレーしてるクラブ) が DB に残るように下に置く。
 const TARGET_LEAGUES = [
-  { id: 39,  name: 'Premier League',      country: 'England' },
-  { id: 40,  name: 'Championship',        country: 'England' },
-  { id: 140, name: 'La Liga',             country: 'Spain' },
-  { id: 141, name: 'Segunda División',    country: 'Spain' },
-  { id: 135, name: 'Serie A',             country: 'Italy' },
-  { id: 136, name: 'Serie B',             country: 'Italy' },
-  { id: 78,  name: 'Bundesliga',          country: 'Germany' },
-  { id: 79,  name: '2. Bundesliga',       country: 'Germany' },
-  { id: 61,  name: 'Ligue 1',             country: 'France' },
-  { id: 62,  name: 'Ligue 2',             country: 'France' },
-  { id: 88,  name: 'Eredivisie',          country: 'Netherlands' },
-  { id: 94,  name: 'Primeira Liga',       country: 'Portugal' },
-  { id: 144, name: 'Jupiler Pro League',  country: 'Belgium' },
-  { id: 179, name: 'Premiership',         country: 'Scotland' },
-  { id: 203, name: 'Süper Lig',           country: 'Turkey' },
-  { id: 253, name: 'Major League Soccer', country: 'USA' },
-  { id: 307, name: 'Pro League',          country: 'Saudi Arabia' },
-  { id: 292, name: 'K League 1',          country: 'South Korea' },
-  { id: 293, name: 'K League 2',          country: 'South Korea' },
-  { id: 207, name: 'Super League',        country: 'Switzerland' },
-  { id: 218, name: 'Bundesliga (AUT)',    country: 'Austria' },
-  { id: 119, name: 'Superliga',           country: 'Denmark' },
-  { id: 103, name: 'Eliteserien',         country: 'Norway' },
-  { id: 113, name: 'Allsvenskan',         country: 'Sweden' },
-  { id: 271, name: 'Süper Lig (Cyprus)',  country: 'Cyprus' },
+  // ===== 主要欧州 トップ =====
+  { id: 39,  name: 'Premier League',           country: 'England' },
+  { id: 140, name: 'La Liga',                  country: 'Spain' },
+  { id: 135, name: 'Serie A',                  country: 'Italy' },
+  { id: 78,  name: 'Bundesliga',               country: 'Germany' },
+  { id: 61,  name: 'Ligue 1',                  country: 'France' },
+  { id: 88,  name: 'Eredivisie',               country: 'Netherlands' },
+  { id: 94,  name: 'Primeira Liga',            country: 'Portugal' },
+  { id: 144, name: 'Jupiler Pro League',       country: 'Belgium' },
+  { id: 179, name: 'Premiership',              country: 'Scotland' },
+  { id: 203, name: 'Süper Lig',                country: 'Turkey' },
+  { id: 207, name: 'Super League',             country: 'Switzerland' },
+  { id: 218, name: 'Bundesliga (AUT)',         country: 'Austria' },
+  { id: 197, name: 'Super League 1',           country: 'Greece' },
+
+  // ===== 北欧 =====
+  { id: 119, name: 'Superliga',                country: 'Denmark' },
+  { id: 103, name: 'Eliteserien',              country: 'Norway' },
+  { id: 113, name: 'Allsvenskan',              country: 'Sweden' },
+
+  // ===== 中欧・東欧・島嶼 =====
+  { id: 271, name: 'NB I',                     country: 'Hungary' },
+  { id: 106, name: 'Ekstraklasa',              country: 'Poland' },
+  { id: 345, name: 'Czech Liga',               country: 'Czech Republic' },
+  { id: 210, name: 'HNL',                      country: 'Croatia' },
+  { id: 318, name: '1. Division',              country: 'Cyprus' }, // 旧コードで 271 と書いていたが 271 は Hungary
+
+  // ===== 北米 =====
+  { id: 253, name: 'Major League Soccer',      country: 'USA' },
+  { id: 262, name: 'Liga MX',                  country: 'Mexico' },
+
+  // ===== 南米 =====
+  { id: 71,  name: 'Brasileiro Série A',       country: 'Brazil' },
+
+  // ===== 中東・アジア =====
+  { id: 307, name: 'Pro League',               country: 'Saudi Arabia' },
+  { id: 301, name: 'Pro League',               country: 'United Arab Emirates' },
+  { id: 305, name: 'Stars League',             country: 'Qatar' },
+  { id: 292, name: 'K League 1',               country: 'South Korea' },
+  { id: 188, name: 'A-League',                 country: 'Australia' },
+  { id: 296, name: 'Thai League 1',            country: 'Thailand' },
+  { id: 274, name: 'Liga 1',                   country: 'Indonesia' },
+  { id: 169, name: 'Super League',             country: 'China' },
+
+  // ===== 欧州 2 部・下部 (loan 先で頻出。同一選手は last-write-wins でこちらが残る) =====
+  { id: 40,  name: 'Championship',             country: 'England' },
+  { id: 41,  name: 'League One',               country: 'England' },
+  { id: 42,  name: 'League Two',               country: 'England' },
+  { id: 43,  name: 'National League',          country: 'England' },
+  { id: 141, name: 'Segunda División',         country: 'Spain' },
+  { id: 136, name: 'Serie B',                  country: 'Italy' },
+  { id: 138, name: 'Serie C - Girone A',       country: 'Italy' },
+  { id: 79,  name: '2. Bundesliga',            country: 'Germany' },
+  { id: 80,  name: '3. Liga',                  country: 'Germany' },
+  { id: 62,  name: 'Ligue 2',                  country: 'France' },
+  { id: 63,  name: 'National 1',               country: 'France' },
+  { id: 89,  name: 'Eerste Divisie',           country: 'Netherlands' },
+  { id: 145, name: 'Challenger Pro League',    country: 'Belgium' },
+  { id: 293, name: 'K League 2',               country: 'South Korea' },
 ]
 
 const RATE_LIMIT_MS = 300 // API-Football 10 req/sec 制限への余裕

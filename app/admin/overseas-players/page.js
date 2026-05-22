@@ -84,6 +84,20 @@ const COUNTRY_JA = {
   Turkey: 'トルコ',
   Cyprus: 'キプロス',
   'Saudi Arabia': 'サウジアラビア',
+  // Phase 2 拡張 (2026-05-23)
+  Greece: 'ギリシャ',
+  Hungary: 'ハンガリー',
+  Poland: 'ポーランド',
+  'Czech Republic': 'チェコ',
+  Croatia: 'クロアチア',
+  Mexico: 'メキシコ',
+  Brazil: 'ブラジル',
+  'United Arab Emirates': 'UAE',
+  Qatar: 'カタール',
+  Australia: 'オーストラリア',
+  Thailand: 'タイ',
+  Indonesia: 'インドネシア',
+  China: '中国',
 }
 
 export default async function OverseasPlayersPage() {
