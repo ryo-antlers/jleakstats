@@ -109,6 +109,15 @@ a:active {
   display: none;
 }
 
+/* 汎用: スクロール可能だがスクロールバーを非表示 */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* 採点スライダー (細く、つまみがクラブカラー) */
 input[type="range"].rating-slider {
   -webkit-appearance: none !important;
