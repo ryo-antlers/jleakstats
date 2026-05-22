@@ -338,12 +338,19 @@ export default async function RatingIndexPage() {
         </div>
       )}
 
-      {/* 上部 2 列: [採点可能 1 試合] | [ノートを書く: 横スクロール] */}
+      {/* 上部 2 列: [採点可能 1 試合] | [ノートを書く: 横スクロール]
+          中央に薄い縦線 (1px) を入れて視覚的に区切る */}
       <div className="rating-top-row" style={{
-        display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24,
+        display: 'grid',
+        gridTemplateColumns: '220px 1px 1fr',
+        gap: 20,
         marginBottom: 32,
       }}>
         <RateableColumn entries={rateableEntries} />
+        <div style={{
+          alignSelf: 'stretch',
+          backgroundColor: 'rgba(255,255,255,0.08)',
+        }} />
         <NoteToWriteColumn fixtures={noteToWriteFixtures} supportedClubId={supportedClubId} />
       </div>
 
@@ -416,7 +423,7 @@ function NoteToWriteColumn({ fixtures, supportedClubId }) {
           paddingBottom: 8,
         }}>
           {fixtures.map(f => (
-            <div key={f.id} style={{ flex: '0 0 200px' }}>
+            <div key={f.id} style={{ flex: '0 0 200px', minWidth: 0 }}>
               <NoteToWriteItem fixture={f} supportedClubId={supportedClubId} />
             </div>
           ))}
