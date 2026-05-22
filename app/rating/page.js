@@ -349,7 +349,7 @@ export default async function RatingIndexPage() {
         <RateableColumn entries={rateableEntries} />
         <div style={{
           alignSelf: 'stretch',
-          backgroundColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: '#909090',
         }} />
         <NoteToWriteColumn fixtures={noteToWriteFixtures} supportedClubId={supportedClubId} />
       </div>
@@ -464,7 +464,7 @@ function NotedItem({ fixture, supportedClubId }) {
 const sectionHeaderStyle = {
   display: 'flex', alignItems: 'baseline', gap: 10,
   marginBottom: 10, paddingBottom: 6,
-  borderBottom: '1px solid #1a1a1a',
+  borderBottom: '1px solid #909090',
 }
 const sectionTitleStyle = {
   fontSize: 12, fontWeight: 800, color: '#fff',
