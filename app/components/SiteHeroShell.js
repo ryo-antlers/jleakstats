@@ -30,7 +30,7 @@ export default function SiteHeroShell({ profile }) {
         position: 'sticky', top: 0, zIndex: 50,
         backgroundColor: 'var(--bg-primary)',
         transition: 'padding 0.2s ease',
-        paddingTop: scrolled ? 8 : 28,
+        paddingTop: scrolled ? 8 : 42,
         paddingBottom: scrolled ? 8 : 0,
       }}>
         <div className="site-hero-inner" style={{
@@ -52,7 +52,7 @@ export default function SiteHeroShell({ profile }) {
           </Link>
 
           <div className="deco-circles" style={{
-            position: 'relative', width: 120, height: 120, flexShrink: 0,
+            position: 'relative', width: 120, height: 131, flexShrink: 0,
           }}>
             <Link
               href="/search"
