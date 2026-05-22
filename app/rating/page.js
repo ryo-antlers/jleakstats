@@ -1,9 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
-import { Building2, Flag, Users } from 'lucide-react'
 import sql from '@/lib/db'
 import Link from 'next/link'
 import TopLogo from '@/app/components/TopLogo'
 import ProfileHeader from '@/app/components/ProfileHeader'
+import MatchCard from '@/app/components/MatchCard'
 import { TYPE_META } from '@/lib/fantype/type-meta'
 import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
 
@@ -242,28 +242,37 @@ export default async function RatingIndexPage() {
       AND f.round_number IS NOT NULL
   `.catch(() => []) : []
 
-  // 過去採点履歴 (採点済みの fixture+team ペア)
-  const pastRows = await sql`
+  // 推しクラブの 2026 終了試合 (全て) — 「ノートを書く」「試合ノート」用
+  const allFinishedFixtures = await sql`
     SELECT
       f.id, f.date, f.home_team_id, f.away_team_id, f.home_score, f.away_score,
       f.home_penalty, f.away_penalty, f.status, f.league_id, f.round_number,
       f.venue_name_ja, f.attendance, f.referee_ja_official,
       ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr, ht.color_primary AS home_color,
-      at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr, at.color_primary AS away_color,
-      fl.team_id AS rated_team_id,
-      COUNT(*)::int AS rated_count,
-      MAX(r.updated_at) AS last_updated_at
-    FROM ratings r
-    JOIN fixture_lineups fl
-      ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
-    JOIN fixtures f ON f.id = r.fixture_id
+      at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr, at.color_primary AS away_color
+    FROM fixtures f
     LEFT JOIN teams_master ht ON ht.id = f.home_team_id
     LEFT JOIN teams_master at ON at.id = f.away_team_id
-    WHERE r.clerk_user_id = ${userId}
-    GROUP BY f.id, fl.team_id, ht.id, at.id
-    ORDER BY MAX(r.updated_at) DESC
-    LIMIT 50
+    WHERE f.season = 2026
+      AND f.finished_at IS NOT NULL
+      AND (f.home_team_id = ${supportedClubId} OR f.away_team_id = ${supportedClubId})
+    ORDER BY f.date DESC
   `
+
+  // 観戦ノート記入済 fixture_id 一覧
+  const notedRows = await sql`
+    SELECT fixture_id FROM watch_notes WHERE clerk_user_id = ${userId}
+  `
+  const notedSet = new Set(notedRows.map(r => Number(r.fixture_id)))
+  const rateableIds = new Set(rateableEntries.map(e => Number(e.fixture.id)))
+
+  // 「ノートを書く」 = 推しクラブの終了試合のうち、ノート未記入 + 採点可能以外
+  const noteToWriteFixtures = allFinishedFixtures.filter(f =>
+    !notedSet.has(Number(f.id)) && !rateableIds.has(Number(f.id))
+  )
+
+  // 「試合ノート」 = 推しクラブの終了試合のうち、観戦ノート記入済 (新しい順)
+  const notedFixtures = allFinishedFixtures.filter(f => notedSet.has(Number(f.id)))
 
   // ユーザーヘッダー用 アバター文字 / 色
   const _avatarRaw = (profile.avatar_text ?? '').trim()
@@ -329,21 +338,14 @@ export default async function RatingIndexPage() {
         </div>
       )}
 
-      {/* 採点可能 */}
-      <Section title="採点可能" count={rateableEntries.length}>
-        {rateableEntries.length === 0 ? (
-          <EmptyMessage>採点可能な試合はありません</EmptyMessage>
-        ) : (
-          rateableEntries.map(({ fixture, teamId, isHome }) => (
-            <RateableItem
-              key={`${fixture.id}-${teamId}`}
-              fixture={fixture}
-              teamId={teamId}
-              isHome={isHome}
-            />
-          ))
-        )}
-      </Section>
+      {/* 上部 2 列: [採点可能 1 試合] | [ノートを書く: 横スクロール] */}
+      <div className="rating-top-row" style={{
+        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24,
+        marginBottom: 32,
+      }}>
+        <RateableColumn entries={rateableEntries} />
+        <NoteToWriteColumn fixtures={noteToWriteFixtures} supportedClubId={supportedClubId} />
+      </div>
 
       {/* 選手別 節ごと採点 */}
       {supportedClubId && teamPlayers.length > 0 && (
@@ -354,15 +356,16 @@ export default async function RatingIndexPage() {
         />
       )}
 
-      {/* 過去採点履歴 */}
-      <Section title="採点履歴" count={pastRows.length}>
-        {pastRows.length === 0 ? (
-          <EmptyMessage>採点履歴はまだありません</EmptyMessage>
+      {/* 試合ノート (観戦ノート記入済の試合、新しい順) */}
+      <Section title="試合ノート" count={notedFixtures.length}>
+        {notedFixtures.length === 0 ? (
+          <EmptyMessage>まだ試合ノートはありません</EmptyMessage>
         ) : (
-          pastRows.map(row => (
-            <PastItem
-              key={`${row.id}-${row.rated_team_id}`}
-              row={row}
+          notedFixtures.map(f => (
+            <NotedItem
+              key={f.id}
+              fixture={f}
+              supportedClubId={supportedClubId}
             />
           ))
         )}
@@ -371,25 +374,105 @@ export default async function RatingIndexPage() {
   )
 }
 
+// 上部左: 採点可能 (1 試合のみ想定)
+function RateableColumn({ entries }) {
+  return (
+    <div>
+      <div style={sectionHeaderStyle}>
+        <h2 style={sectionTitleStyle}>採点可能</h2>
+        <span style={sectionCountStyle}>{entries.length}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {entries.length === 0 ? (
+          <EmptyMessage>採点可能な試合はありません</EmptyMessage>
+        ) : (
+          entries.map(({ fixture, teamId, isHome }) => (
+            <RateableItem
+              key={`${fixture.id}-${teamId}`}
+              fixture={fixture}
+              teamId={teamId}
+              isHome={isHome}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+// 上部右: ノートを書く (横スクロール)
+function NoteToWriteColumn({ fixtures, supportedClubId }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={sectionHeaderStyle}>
+        <h2 style={sectionTitleStyle}>ノートを書く</h2>
+        <span style={sectionCountStyle}>{fixtures.length}</span>
+      </div>
+      {fixtures.length === 0 ? (
+        <EmptyMessage>未記入の試合はありません</EmptyMessage>
+      ) : (
+        <div style={{
+          display: 'flex', gap: 12, overflowX: 'auto',
+          paddingBottom: 8,
+        }}>
+          {fixtures.map(f => (
+            <div key={f.id} style={{ flex: '0 0 200px' }}>
+              <NoteToWriteItem fixture={f} supportedClubId={supportedClubId} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ノート未記入の試合カード — /rating/[id] へ
+function NoteToWriteItem({ fixture, supportedClubId }) {
+  const isUserHome = Number(fixture.home_team_id) === supportedClubId
+  return (
+    <MatchCard
+      fixtureHref={`/rating/${fixture.id}`}
+      ratingHref={null}
+      fixture={fixture}
+      isUserHome={isUserHome}
+      action={null}
+    />
+  )
+}
+
+// 試合ノート (記入済) カード — /rating/[id] へ (自分のページなので編集モード)
+function NotedItem({ fixture, supportedClubId }) {
+  const isUserHome = Number(fixture.home_team_id) === supportedClubId
+  return (
+    <MatchCard
+      fixtureHref={`/rating/${fixture.id}`}
+      ratingHref={null}
+      fixture={fixture}
+      isUserHome={isUserHome}
+      action={null}
+    />
+  )
+}
+
+const sectionHeaderStyle = {
+  display: 'flex', alignItems: 'baseline', gap: 10,
+  marginBottom: 10, paddingBottom: 6,
+  borderBottom: '1px solid #1a1a1a',
+}
+const sectionTitleStyle = {
+  fontSize: 12, fontWeight: 800, color: '#fff',
+  letterSpacing: '0.18em', margin: 0, textTransform: 'uppercase',
+}
+const sectionCountStyle = {
+  fontSize: 10, color: 'rgba(255,255,255,0.4)',
+}
+
 function Section({ title, count, children }) {
   return (
     <section style={{ marginBottom: 32 }}>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 10,
-        marginBottom: 10,
-        paddingBottom: 6,
-        borderBottom: '1px solid #1a1a1a',
-      }}>
-        <h2 style={{
-          fontSize: 12, fontWeight: 800, color: '#fff',
-          letterSpacing: '0.18em', margin: 0,
-          textTransform: 'uppercase',
-        }}>
-          {title}
-        </h2>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
-          {count}
-        </span>
+      <div style={sectionHeaderStyle}>
+        <h2 style={sectionTitleStyle}>{title}</h2>
+        <span style={sectionCountStyle}>{count}</span>
       </div>
       <div className="rating-section-grid" style={{
         display: 'grid',
@@ -415,146 +498,6 @@ function EmptyMessage({ children }) {
   )
 }
 
-// 共通カードレイアウト (search ページと同じ構造)
-//   fixtureHref: スコア箱・メタ情報のクリック先 (試合ページ)
-//   ratingHref:  アクションボタンのクリック先 (採点ページ) — 任意
-function MatchCard({ fixtureHref, ratingHref, fixture, isUserHome, action }) {
-  const homeColor = normalizeColor(fixture.home_color)
-  const awayColor = normalizeColor(fixture.away_color)
-  const homeText = textOn(homeColor)
-  const awayText = textOn(awayColor)
-  const homeName = fixture.home_abbr || fixture.home_short || fixture.home_name || '-'
-  const awayName = fixture.away_abbr || fixture.away_short || fixture.away_name || '-'
-  const isPK = fixture.status === 'PEN' && fixture.home_penalty != null && fixture.away_penalty != null
-  const comp = leagueLabel(fixture.league_id)
-  const attendance = fixture.attendance != null ? Number(fixture.attendance).toLocaleString() : null
-  const venue = fixture.venue_name_ja || null
-
-  const halfStyle = (bg, txt, lose) => ({
-    backgroundColor: bg, color: txt,
-    opacity: lose ? 0.45 : 1,
-    padding: '8px 8px 18px',
-    display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', gap: 2,
-    minWidth: 0, minHeight: 78,
-    position: 'relative',
-  })
-  const teamNameStyle = (txt) => ({
-    fontWeight: 900, fontSize: 13, color: txt,
-    letterSpacing: '0.04em',
-    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-    maxWidth: '100%',
-  })
-  const scoreStyle = (txt) => ({
-    fontWeight: 900, fontSize: 26, color: txt,
-    letterSpacing: '0.02em',
-  })
-  const pkStyle = (txt) => ({
-    position: 'absolute', bottom: 3, left: 0, right: 0,
-    textAlign: 'center', fontSize: 12, fontWeight: 800,
-    color: txt, letterSpacing: '0.06em',
-  })
-  const linkReset = {
-    display: 'block', textDecoration: 'none', color: 'inherit',
-  }
-
-  return (
-    <div
-      className="search-card"
-      style={{
-        display: 'flex', flexDirection: 'column',
-        color: '#fff', fontVariantNumeric: 'tabular-nums',
-        height: '100%', overflow: 'hidden',
-      }}
-    >
-      {/* 上 + 中央スコア箱: 試合ページへ */}
-      <Link href={fixtureHref} style={{ ...linkReset, display: 'flex', flexDirection: 'column' }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-          padding: '12px 12px 10px',
-        }}>
-          <span style={{
-            fontSize: 11, color: '#fff',
-            fontWeight: 800, letterSpacing: '0.02em',
-          }}>
-            {formatJST(fixture.date)}
-          </span>
-          {comp && (
-            <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
-              color: '#bbb', textTransform: 'uppercase',
-            }}>
-              {comp}{fixture.round_number ? ` 第${fixture.round_number}節` : ''}
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-          <div style={halfStyle(homeColor, homeText, !isUserHome)}>
-            <span style={teamNameStyle(homeText)}>{homeName}</span>
-            <span style={scoreStyle(homeText)}>{fixture.home_score}</span>
-            {isPK && <span style={pkStyle(homeText)}>PK {fixture.home_penalty}</span>}
-          </div>
-          <div style={halfStyle(awayColor, awayText, isUserHome)}>
-            <span style={teamNameStyle(awayText)}>{awayName}</span>
-            <span style={scoreStyle(awayText)}>{fixture.away_score}</span>
-            {isPK && <span style={pkStyle(awayText)}>PK {fixture.away_penalty}</span>}
-          </div>
-        </div>
-      </Link>
-
-      {/* 下: アクション (採点ページへ) + メタ情報 (試合ページへ) */}
-      <div style={{ marginTop: 'auto' }}>
-        {action && ratingHref && (
-          <Link href={ratingHref} style={{ ...linkReset, paddingTop: 8 }}>
-            {action}
-          </Link>
-        )}
-        <Link href={fixtureHref} style={{
-          ...linkReset,
-          padding: '10px 12px 12px',
-        }}>
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 4,
-            fontSize: 10, fontWeight: 700, color: '#fff',
-            minWidth: 0,
-          }}>
-            {venue && (
-              <span style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                overflow: 'hidden', minWidth: 0,
-              }}>
-                <Building2 size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                <span style={{
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{venue}</span>
-              </span>
-            )}
-            {attendance && (
-              <span style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                whiteSpace: 'nowrap',
-              }}>
-                <Users size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                <span>{attendance}人</span>
-              </span>
-            )}
-            {fixture.referee_ja_official && (
-              <span style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                overflow: 'hidden', minWidth: 0,
-              }}>
-                <Flag size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-                <span style={{
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>{fixture.referee_ja_official}</span>
-              </span>
-            )}
-          </div>
-        </Link>
-      </div>
-    </div>
-  )
-}
 
 function RateableItem({ fixture, teamId, isHome }) {
   const teamColor = normalizeColor(isHome ? fixture.home_color : fixture.away_color)
@@ -575,20 +518,6 @@ function RateableItem({ fixture, teamId, isHome }) {
       fixture={fixture}
       isUserHome={isHome}
       action={action}
-    />
-  )
-}
-
-function PastItem({ row }) {
-  const isHome = Number(row.rated_team_id) === Number(row.home_team_id)
-  // 採点履歴クリックで自分の採点を確認できるページへ (viewOnly モード)
-  return (
-    <MatchCard
-      fixtureHref={`/rating/${row.id}`}
-      ratingHref={null}
-      fixture={row}
-      isUserHome={isHome}
-      action={null}
     />
   )
 }
