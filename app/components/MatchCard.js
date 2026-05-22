@@ -92,6 +92,8 @@ export default function MatchCard({ fixtureHref, ratingHref, fixture, isUserHome
         display: 'flex', flexDirection: 'column',
         color: '#fff', fontVariantNumeric: 'tabular-nums',
         height: '100%', overflow: 'hidden',
+        // 親 grid/flex の幅に従う (内部の長いスタジアム名等でカードが広がるのを防ぐ)
+        width: '100%', minWidth: 0,
       }}
     >
       {/* 上 + 中央スコア箱 */}
