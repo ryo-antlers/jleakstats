@@ -1,24 +1,28 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-// グローバルヘッダーの Client 部分
-//   - PC: 左ロゴ + 中央ナビ + 右アバター
-//   - スマホ (< 768px): 中央ナビをハンバーガーに折りたたみ
+// グローバルヘッダー (Pattern E4 — Pill Active、推しクラブカラー)
+//   - 左: 「J Leak Stats」テキストロゴ
+//   - 中央: ナビ (試合検索 / 採点 / 観戦ノート / FANTYPE)
+//     現在ページのピルは推しクラブカラー (未ログイン or 推しクラブ未設定なら緑にフォールバック)
+//   - 右: ユーザーアバター or Sign in
+//   - スマホ (≤ 768px): 中央ナビをハンバーガーに折りたたみ
 //
 // props.profile: { display_name, avatar_text, handle, jersey_number, club_color } | null
 
 const NAV_ITEMS = [
-  { href: '/search', label: '試合検索' },
-  { href: '/rating', label: '採点' },
-  { href: '/notes',  label: '観戦ノート' },
+  { href: '/search',  label: '試合検索' },
+  { href: '/rating',  label: '採点' },
+  { href: '/notes',   label: '観戦ノート' },
   { href: '/fantype', label: 'FANTYPE' },
 ]
 
 function normalizeColor(raw) {
-  if (!raw) return '#444'
+  if (!raw) return null
   const v = String(raw).trim()
-  if (!v) return '#444'
+  if (!v) return null
   return v.startsWith('#') ? v : `#${v}`
 }
 
@@ -31,49 +35,72 @@ function textOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
 }
 
+function isActive(pathname, href) {
+  if (!pathname) return false
+  return pathname === href || pathname.startsWith(href + '/')
+}
+
 export default function SiteHeaderMenu({ profile }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const pathname = usePathname()
+
+  // アクティブピルの背景色: 推しクラブカラー or 緑フォールバック
+  const accent = normalizeColor(profile?.club_color) || '#00ff87'
+  const accentText = textOn(accent)
 
   return (
     <>
       <header className="site-header" style={{
         position: 'sticky', top: 0, zIndex: 50,
-        backgroundColor: 'rgba(17,17,17,0.92)',
+        backgroundColor: 'rgba(10,10,10,0.92)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
       }}>
         <div style={{
           maxWidth: 'var(--site-max-width, 1024px)',
           margin: '0 auto',
-          padding: '10px 16px',
-          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 16px',
+          display: 'flex', alignItems: 'center', gap: 16,
         }}>
-          {/* 左: ロゴ */}
+          {/* 左: ロゴテキスト */}
           <Link href="/" aria-label="トップへ" style={{
-            display: 'inline-flex', alignItems: 'center', lineHeight: 0,
-            flexShrink: 0,
+            fontSize: 15, fontWeight: 900, letterSpacing: '0.04em',
+            color: '#fff', textDecoration: 'none',
+            whiteSpace: 'nowrap', flexShrink: 0,
           }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/apple-icon.png" alt="J.Leak Stats" width={32} height={32}
-              style={{ display: 'block', borderRadius: 6 }} />
+            J Leak Stats
           </Link>
 
-          {/* 中央: PC 用ナビ */}
+          {/* 中央: PC ナビ (ピル) */}
           <nav className="site-header-nav-desktop" style={{
-            flex: 1, display: 'flex', justifyContent: 'center', gap: 8,
+            flex: 1, display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 4,
           }}>
-            {NAV_ITEMS.map(item => (
-              <Link key={item.href} href={item.href} style={navLinkStyle}>
-                {item.label}
-              </Link>
-            ))}
+            {NAV_ITEMS.map(item => {
+              const active = isActive(pathname, item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{
+                    fontSize: 12, fontWeight: 800, letterSpacing: '0.06em',
+                    padding: '7px 14px',
+                    borderRadius: 999,
+                    color: active ? accentText : 'rgba(255,255,255,0.7)',
+                    backgroundColor: active ? accent : 'transparent',
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
           </nav>
 
-          {/* 右: アバター */}
+          {/* 右: アバター + ハンバーガー */}
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <UserSlot profile={profile} />
-            {/* スマホ用ハンバーガー */}
             <button
               type="button"
               className="site-header-hamburger"
@@ -90,23 +117,29 @@ export default function SiteHeaderMenu({ profile }) {
         {menuOpen && (
           <nav className="site-header-nav-mobile" style={{
             borderTop: '1px solid rgba(255,255,255,0.08)',
-            padding: '8px 16px 12px',
-            display: 'flex', flexDirection: 'column', gap: 2,
+            padding: '10px 16px 14px',
+            display: 'flex', flexDirection: 'column', gap: 4,
           }}>
-            {NAV_ITEMS.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  ...navLinkStyle,
-                  padding: '10px 8px',
-                  fontSize: 13,
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_ITEMS.map(item => {
+              const active = isActive(pathname, item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    fontSize: 13, fontWeight: 800, letterSpacing: '0.06em',
+                    padding: '10px 14px',
+                    borderRadius: 999,
+                    color: active ? accentText : 'rgba(255,255,255,0.85)',
+                    backgroundColor: active ? accent : 'transparent',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
           </nav>
         )}
       </header>
@@ -139,7 +172,7 @@ function UserSlot({ profile }) {
   }
   const handle = profile.handle ?? null
   const href = handle ? `/u/${handle}` : '/rating'
-  const clubColor = normalizeColor(profile.club_color)
+  const clubColor = normalizeColor(profile.club_color) ?? '#444'
   const clubText = textOn(clubColor)
   const customAvatar = (profile.avatar_text ?? '').trim()
   const letters = customAvatar || [...(profile.display_name ?? '?').trim()].slice(0, 2).join('') || '?'
@@ -157,8 +190,6 @@ function UserSlot({ profile }) {
   )
 }
 
-// ヘッダー用の小さいユニフォーム形アイコン (背番号 + 名前 縦並び)
-//   ProfileHeader の JerseyAvatar と同じ path、サイズだけ小さく
 function MiniJersey({ color, textColor, jerseyNumber, avatarLetters }) {
   const hasNumber = jerseyNumber != null
   return (
@@ -192,14 +223,6 @@ function MiniJersey({ color, textColor, jerseyNumber, avatarLetters }) {
       </div>
     </div>
   )
-}
-
-const navLinkStyle = {
-  fontSize: 12, fontWeight: 800, letterSpacing: '0.06em',
-  padding: '6px 12px',
-  color: 'rgba(255,255,255,0.85)',
-  textDecoration: 'none',
-  whiteSpace: 'nowrap',
 }
 
 const hamburgerStyle = {
