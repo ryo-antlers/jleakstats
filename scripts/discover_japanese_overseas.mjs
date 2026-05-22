@@ -1,20 +1,20 @@
-// 海外リーグでプレーする日本人選手を API-Football から発見し、
-// players_master の canonical_id へ紐付けて player_overseas_status を埋める。
+// 海外リーグでプレーする「J 所属歴のある」選手 (日本人 + 元 J 外国人) を
+// API-Football から発見し、canonical_id へ紐付けて player_overseas_status を埋める。
 //
 // マッチング戦略:
-//   1) dob (生年月日) 完全一致を必須条件
-//   2) 同じ dob で複数候補が出た場合は name_en で絞り込み
+//   1) 国籍は不問。API-Football 全選手 vs jleakstats DB の「J 所属歴あり」プール
+//   2) dob (生年月日) 完全一致を必須条件
+//   3) 同じ dob で複数候補が出た場合は name_en で絞り込み (substring 包含)
+//   4) is_active=true の選手は J リーグ復帰済みなので除外
 //
 // 実行 (dry-run):
 //   node --env-file=.env.local scripts/discover_japanese_overseas.mjs
 // 適用 (DB 書き込み):
 //   node --env-file=.env.local scripts/discover_japanese_overseas.mjs --apply
-// シーズン指定 (デフォルト 2025):
-//   node --env-file=.env.local scripts/discover_japanese_overseas.mjs --season 2024 --apply
+// 日本人だけに絞る (旧挙動):
+//   node --env-file=.env.local scripts/discover_japanese_overseas.mjs --jp-only --apply
 //
-// API-Football Pro plan (7,500/day) 前提。
-// 目安: 主要 ~25 リーグ × 平均 20 チーム = 500 team-squads fetch + 25 team-list
-//      ≒ 525 call、300ms スリープで wall-clock 約 3 分。
+// API-Football Pro plan (7,500/day) 前提。46 リーグ巡回で ~2,100 call / ~22 min。
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -29,6 +29,7 @@ const args = process.argv.slice(2)
 const APPLY = args.includes('--apply')
 const USE_CACHE = args.includes('--use-cache')   // 直近の discover 結果を再利用 (API 0 call)
 const SAVE_CACHE = args.includes('--save-cache') // 今回の discover 結果を JSON に保存
+const JP_ONLY = args.includes('--jp-only')       // 日本人だけ拾う (旧挙動。foreigner ex-J は除外)
 const SEASON =
   Number(args[args.indexOf('--season') + 1]) ||
   // 欧州 25-26 シーズン (2026/5 時点ではほぼ終了)。MLS / 北欧は同年カレンダー
@@ -126,6 +127,26 @@ function norm(s) {
     .toLowerCase()
 }
 
+// api と db で名前 token (3 文字以上) が 1 つでも一致するか?
+// dob だけ偶然一致した別人を弾くための最低限のフィルタ。
+function nameTokenOverlap(apiPlayer, dbCandidate) {
+  const apiTokens = new Set(
+    `${apiPlayer.firstname ?? ''} ${apiPlayer.lastname ?? ''} ${apiPlayer.name ?? ''}`
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 3),
+  )
+  const dbTokens = (dbCandidate.name_en ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 3)
+  return dbTokens.some((t) => apiTokens.has(t))
+}
+
 // 候補の中から name_en 類似度で最良を選ぶ
 function pickBestByName(apiPlayer, candidates) {
   const apiFull = norm(`${apiPlayer.firstname ?? ''}${apiPlayer.lastname ?? ''}`)
@@ -191,18 +212,20 @@ if (!USE_CACHE) for (const league of TARGET_LEAGUES) {
         console.log(`    ⚠ ${t.team.name} page=${page} 失敗: ${e.message}`)
         break
       }
-      const jps = res.filter((p) => p.player?.nationality === 'Japan')
-      if (jps.length > 0) {
-        for (const p of jps) {
-          const apiP = p.player
-          const stat = p.statistics?.[0]
-          discovered.push({
-            apiPlayer: apiP,
-            apiTeam: t.team,
-            apiLeague: league,
-            position: stat?.games?.position ?? null,
-          })
-        }
+      // --jp-only: 日本人だけ。default: 全員 (matching 段で ex-J プールと突合)
+      const targets = JP_ONLY
+        ? res.filter((p) => p.player?.nationality === 'Japan')
+        : res
+      for (const p of targets) {
+        const apiP = p.player
+        if (!apiP?.birth?.date) continue // dob 無しは matching 不能なのでスキップ
+        const stat = p.statistics?.[0]
+        discovered.push({
+          apiPlayer: apiP,
+          apiTeam: t.team,
+          apiLeague: league,
+          position: stat?.games?.position ?? null,
+        })
       }
       // pagination
       const total = res.length
@@ -215,7 +238,7 @@ if (!USE_CACHE) for (const league of TARGET_LEAGUES) {
 }
 
 console.log(`\n\n✅ API 呼び出し: ${apiCallCount} 回 (チーム巡回: ${teamCount})`)
-console.log(`✅ 日本人発見: ${discovered.length} 件\n`)
+console.log(`✅ squad メンバー収集: ${discovered.length} 件${JP_ONLY ? ' (--jp-only)' : ''}\n`)
 
 if (SAVE_CACHE && !USE_CACHE) {
   fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true })
@@ -226,7 +249,29 @@ if (SAVE_CACHE && !USE_CACHE) {
   console.log(`💾 cache 保存: ${CACHE_PATH}`)
 }
 
-// canonical_id へ紐付け
+// ex-J プールを 1 クエリで pre-load (5,000+ squad に対し per-row クエリ回避)
+console.log('🔄 ex-J 候補プールを pre-load...')
+const allExJ = (await pool.query(`
+  SELECT pm.id, pm.name_ja, pm.name_en, pm.dob, pm.is_active, pm.team_id
+  FROM players_master pm
+  WHERE pm.dob IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM player_career_summary pcs
+      WHERE pcs.canonical_id = pm.id
+        AND pcs.team_id IS NOT NULL
+        AND pcs.team_id NOT IN (4316, 4320, 4325, 7000)
+    )
+`)).rows
+const exJByDob = new Map()
+for (const row of allExJ) {
+  const ymd = dbDobToYYYYMMDD(row.dob)
+  if (!ymd) continue
+  if (!exJByDob.has(ymd)) exJByDob.set(ymd, [])
+  exJByDob.get(ymd).push(row)
+}
+console.log(`   → ${exJByDob.size} unique dobs, ${allExJ.length} 候補 をメモリへ\n`)
+
+// canonical_id へ紐付け (in-memory lookup)
 for (const d of discovered) {
   const apiP = d.apiPlayer
   const dobYMD = apiP.birth?.date
@@ -234,14 +279,9 @@ for (const d of discovered) {
     unmatched.push({ ...d, reason: 'no birth.date' })
     continue
   }
-  const cands = (await pool.query(
-    `SELECT id, name_ja, name_en, dob, is_active, team_id
-     FROM players_master
-     WHERE dob = $1::date`,
-    [dobYMD],
-  )).rows
+  const cands = exJByDob.get(dobYMD) ?? []
   if (cands.length === 0) {
-    unmatched.push({ ...d, reason: 'dob 該当無し' })
+    // ex-J プールに該当 dob 無し = J 所属歴のない選手 (海外で完結) なので静かに無視
     continue
   }
   let chosen
@@ -254,8 +294,13 @@ for (const d of discovered) {
       continue
     }
   }
+  // 名前完全否定の防衛: api と db で 1 文字も共通する token がなければスキップ
+  // (例: 名前が全然違うのに dob だけ偶然一致したケースを弾く)
+  if (!nameTokenOverlap(apiP, chosen)) {
+    unmatched.push({ ...d, reason: `dob ${dobYMD} 一致するが name mismatch (db: ${chosen.name_ja})` })
+    continue
+  }
   // is_active=true は jleakstats 側で「現在Jリーグでプレー中」が確定している
-  // → API-Football の squad キャッシュに残っていても海外組ではないので除外
   if (chosen.is_active === true) {
     skippedActive.push({ ...d, canonical: chosen })
     continue
