@@ -101,7 +101,7 @@ export default async function UserMatchPage({ params }) {
 
   // 観戦ノート
   const noteRows = await sql`
-    SELECT watch_type, access, companion, memo, departure_prefecture, departure_city
+    SELECT watch_type, access, companion, next_visit_memo, departure_prefecture, departure_city
     FROM watch_notes
     WHERE clerk_user_id = ${targetUserId} AND fixture_id = ${fixtureId}
   `
@@ -254,9 +254,9 @@ function NoteReadOnly({ note }) {
       {note.companion && (
         <Row label="同行者"><span style={textStyle}>{note.companion}</span></Row>
       )}
-      {note.memo && (
-        <Row label="メモ">
-          <span style={{ ...textStyle, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{note.memo}</span>
+      {note.next_visit_memo && (
+        <Row label="次回観戦時メモ">
+          <span style={{ ...textStyle, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{note.next_visit_memo}</span>
         </Row>
       )}
     </div>

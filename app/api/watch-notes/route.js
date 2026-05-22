@@ -7,7 +7,7 @@ import { isValidMunicipality } from '@/lib/jp/municipalities'
 const WATCH_TYPES = ['stadium', 'dazn', 'tv', 'no_watch']
 const ACCESS_TYPES = ['train', 'car', 'bus', 'walk', 'other']
 const COMPANION_MAX = 50
-const MEMO_MAX = 500
+const NEXT_VISIT_MEMO_MAX = 500
 
 // GET /api/watch-notes?fixture_id=...  自分のノート (1 件)
 // GET /api/watch-notes?user_id=...     他ユーザーのノート一覧 (ログイン必須)
@@ -28,7 +28,7 @@ export async function GET(request) {
       return Response.json({ error: 'Invalid fixture_id' }, { status: 400 })
     }
     const rows = await sql`
-      SELECT id, fixture_id, watch_type, access, companion, memo,
+      SELECT id, fixture_id, watch_type, access, companion, next_visit_memo,
              departure_prefecture, departure_city, created_at, updated_at
       FROM watch_notes
       WHERE clerk_user_id = ${userId} AND fixture_id = ${fid}
@@ -46,7 +46,7 @@ export async function GET(request) {
     }
     const limit = Math.min(Math.max(Number(limitRaw) || 6, 1), 50)
     const rows = await sql`
-      SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.memo,
+      SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.next_visit_memo,
              wn.departure_prefecture, wn.departure_city, wn.created_at, wn.updated_at,
              f.date AS fixture_date, f.home_team_id, f.away_team_id,
              f.home_score, f.away_score, f.home_penalty, f.away_penalty,
@@ -68,7 +68,7 @@ export async function GET(request) {
 }
 
 // POST /api/watch-notes  自分のノートを upsert
-//   body: { fixture_id, watch_type, access?, companion?, memo? }
+//   body: { fixture_id, watch_type, access?, companion?, next_visit_memo?, departure_prefecture?, departure_city? }
 export async function POST(request) {
   const { userId } = await auth()
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -115,18 +115,19 @@ export async function POST(request) {
     }
   }
 
-  // memo: 500字、NG ワード弾く
-  let memo = null
-  if (body.memo != null) {
-    const m = String(body.memo).trim()
+  // next_visit_memo: 500字、NG ワード弾く
+  //   「次回観戦時の備忘メモ」(自分が次に観戦する時のためのヒント)
+  let nextVisitMemo = null
+  if (body.next_visit_memo != null) {
+    const m = String(body.next_visit_memo).trim()
     if (m.length > 0) {
-      if ([...m].length > MEMO_MAX) {
-        return Response.json({ error: `メモは${MEMO_MAX}文字以内` }, { status: 400 })
+      if ([...m].length > NEXT_VISIT_MEMO_MAX) {
+        return Response.json({ error: `次回観戦時の備忘メモは${NEXT_VISIT_MEMO_MAX}文字以内` }, { status: 400 })
       }
       if (containsNG(m)) {
-        return Response.json({ error: 'メモに使用できない言葉が含まれています' }, { status: 400 })
+        return Response.json({ error: '次回観戦時の備忘メモに使用できない言葉が含まれています' }, { status: 400 })
       }
-      memo = m
+      nextVisitMemo = m
     }
   }
 
@@ -161,17 +162,17 @@ export async function POST(request) {
 
   await sql`
     INSERT INTO watch_notes (
-      clerk_user_id, fixture_id, watch_type, access, companion, memo,
+      clerk_user_id, fixture_id, watch_type, access, companion, next_visit_memo,
       departure_prefecture, departure_city, created_at, updated_at
     ) VALUES (
-      ${userId}, ${fixtureId}, ${watchType}, ${access}, ${companion}, ${memo},
+      ${userId}, ${fixtureId}, ${watchType}, ${access}, ${companion}, ${nextVisitMemo},
       ${departurePrefecture}, ${departureCity}, NOW(), NOW()
     )
     ON CONFLICT (clerk_user_id, fixture_id) DO UPDATE SET
       watch_type           = EXCLUDED.watch_type,
       access               = EXCLUDED.access,
       companion            = EXCLUDED.companion,
-      memo                 = EXCLUDED.memo,
+      next_visit_memo      = EXCLUDED.next_visit_memo,
       departure_prefecture = EXCLUDED.departure_prefecture,
       departure_city       = EXCLUDED.departure_city,
       updated_at           = NOW()
