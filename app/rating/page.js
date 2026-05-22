@@ -340,7 +340,7 @@ export default async function RatingIndexPage() {
 
       {/* 上部 2 列: [採点可能 1 試合] | [ノートを書く: 横スクロール] */}
       <div className="rating-top-row" style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24,
+        display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24,
         marginBottom: 32,
       }}>
         <RateableColumn entries={rateableEntries} />
@@ -499,25 +499,15 @@ function EmptyMessage({ children }) {
 }
 
 
-function RateableItem({ fixture, teamId, isHome }) {
-  const teamColor = normalizeColor(isHome ? fixture.home_color : fixture.away_color)
-  const action = (
-    <span style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-      padding: '8px 10px',
-      backgroundColor: teamColor, color: textOn(teamColor),
-      fontSize: 11, fontWeight: 900, letterSpacing: '0.08em',
-    }}>
-      採点する ▸
-    </span>
-  )
+function RateableItem({ fixture, isHome }) {
+  // カードクリックで /rating/[id] (採点 + 観戦ノート統合画面) へ直接遷移
   return (
     <MatchCard
-      fixtureHref={`/fixture/${fixture.id}`}
-      ratingHref={`/rating/${fixture.id}?team=${teamId}`}
+      fixtureHref={`/rating/${fixture.id}`}
+      ratingHref={null}
       fixture={fixture}
       isUserHome={isHome}
-      action={action}
+      action={null}
     />
   )
 }
