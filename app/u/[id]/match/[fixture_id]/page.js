@@ -5,7 +5,9 @@ import sql from '@/lib/db'
 import RatingPageView from '@/app/rating/rating-view'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
+  SEAT_TYPE_LABELS, SEAT_TYPE_ICONS,
 } from '@/app/notes/_shared'
+import TimelineDisplay from '@/app/notes/timeline-display'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,7 +103,8 @@ export default async function UserMatchPage({ params }) {
 
   // 観戦ノート
   const noteRows = await sql`
-    SELECT watch_type, access, companion, next_visit_memo, departure_prefecture, departure_city
+    SELECT watch_type, access, seat_type, companion, next_visit_memo,
+           departure_prefecture, departure_city, timeline
     FROM watch_notes
     WHERE clerk_user_id = ${targetUserId} AND fixture_id = ${fixtureId}
   `
@@ -234,6 +237,7 @@ export default async function UserMatchPage({ params }) {
 
 // 観戦ノートの読み取り専用表示
 function NoteReadOnly({ note }) {
+  const hasTimeline = Array.isArray(note.timeline) && note.timeline.length > 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Row label="観戦区分">
@@ -242,6 +246,11 @@ function NoteReadOnly({ note }) {
       {note.watch_type === 'stadium' && note.access && (
         <Row label="アクセス">
           <Chip>{ACCESS_ICONS[note.access]} {ACCESS_LABELS[note.access]}</Chip>
+        </Row>
+      )}
+      {note.watch_type === 'stadium' && note.seat_type && (
+        <Row label="座席">
+          <Chip>{SEAT_TYPE_ICONS[note.seat_type]} {SEAT_TYPE_LABELS[note.seat_type]}</Chip>
         </Row>
       )}
       {note.watch_type === 'stadium' && note.departure_prefecture && (
@@ -258,6 +267,16 @@ function NoteReadOnly({ note }) {
         <Row label="次回観戦時メモ">
           <span style={{ ...textStyle, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{note.next_visit_memo}</span>
         </Row>
+      )}
+      {hasTimeline && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: '0.18em',
+            color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase',
+            marginBottom: 14, textAlign: 'center',
+          }}>1 日のタイムライン</div>
+          <TimelineDisplay entries={note.timeline} />
+        </div>
       )}
     </div>
   )

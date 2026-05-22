@@ -31,6 +31,16 @@ export const ACCESS_ICONS = {
   other: '✈️',
 }
 
+export const SEAT_TYPE_LABELS = {
+  goal_back: 'ゴール裏',
+  reserved:  '指定席',
+}
+
+export const SEAT_TYPE_ICONS = {
+  goal_back: '🪧',
+  reserved:  '💺',
+}
+
 export function normalizeColor(raw) {
   if (!raw) return '#444'
   const v = String(raw).trim()
