@@ -1,7 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import sql from '@/lib/db'
-import TopLogo from '@/app/components/TopLogo'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
   normalizeColor, textOn, leagueLabel, formatJST,
@@ -23,7 +22,6 @@ export default async function NotesPage() {
   if (!userId) {
     return (
       <>
-        <TopLogo />
         <EmptyState
           title="ログインが必要です"
           message="観戦ノートはログインユーザー専用です"
@@ -78,7 +76,6 @@ export default async function NotesPage() {
 
   return (
     <div>
-      <TopLogo />
 
       <div style={{
         padding: '16px 0',

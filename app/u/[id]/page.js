@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
-import TopLogo from '@/app/components/TopLogo'
 import ProfileHeader from '@/app/components/ProfileHeader'
 import MatchCard from '@/app/components/MatchCard'
 import { TYPE_META } from '@/lib/fantype/type-meta'
@@ -220,7 +219,6 @@ export default async function UserProfilePage({ params }) {
 
   return (
     <div>
-      <TopLogo />
 
       <ProfileHeader
         profile={user}

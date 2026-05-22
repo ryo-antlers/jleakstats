@@ -2,7 +2,6 @@ import sql from '@/lib/db'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
-import TopLogo from '@/app/components/TopLogo'
 import RatingPageView from '../rating-view'
 import NoteForm from '@/app/notes/[fixture_id]/note-form'
 
@@ -149,7 +148,6 @@ export default async function RatingFixturePage({ params }) {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
-      <TopLogo />
 
       <div style={{ textAlign: 'center', marginBottom: 14 }}>
         <Link href={`/fixture/${fixture.id}`} style={{
