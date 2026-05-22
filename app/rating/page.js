@@ -418,7 +418,7 @@ function NoteToWriteColumn({ fixtures, supportedClubId }) {
       {fixtures.length === 0 ? (
         <EmptyMessage>未記入の試合はありません</EmptyMessage>
       ) : (
-        <div style={{
+        <div className="no-scrollbar" style={{
           display: 'flex', gap: 12, overflowX: 'auto',
           paddingBottom: 8,
         }}>
