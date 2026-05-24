@@ -17,7 +17,19 @@ const TIMELINE_TEXT_MAX = 100
 // afterSaveMode:
 //   'redirect-to-notes' (default): 保存後 /notes へ遷移 (従来の /notes/[fixture_id] 動作)
 //   'refresh':                     保存後にページを refresh のみ (例: /rating/[id] に埋め込む場合)
-export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redirect-to-notes' }) {
+// layoutMode:
+//   'default' (default): 現状 (観戦区分 4 列 / アクセス 5 列 / 座席 2 列、gap 28)
+//   'compact':           radio を 2 列に、gap 縮める
+//   'inline':            radio を横スクロール 1 行に
+//   'wide':              ratio 縦 1 列、大きな radio (デザインラボ用)
+// timelineMode: タイムラインのライブプレビュー表示モード (TimelineDisplay に渡す)
+export default function NoteForm({
+  fixtureId,
+  initialNote,
+  afterSaveMode = 'redirect-to-notes',
+  layoutMode = 'default',
+  timelineMode = 'vertical',
+}) {
   const router = useRouter()
   const isEdit = !!initialNote
 
@@ -118,40 +130,48 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
     }
   }
 
+  // layoutMode に応じた grid 設定
+  const formGap = layoutMode === 'compact' ? 18 : layoutMode === 'wide' ? 32 : 28
+  const watchCols  = layoutMode === 'compact' ? 2 : layoutMode === 'wide' ? 4 : 4
+  const accessCols = layoutMode === 'compact' ? 3 : layoutMode === 'wide' ? 5 : 5
+  const seatCols   = 2
+  const isInline   = layoutMode === 'inline'
+  const radioWrap = (cols, children) => isInline
+    ? <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+        {children.map((c, i) => <div key={i} style={{ flex: '0 0 110px' }}>{c}</div>)}
+      </div>
+    : <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>{children}</div>
+
   return (
     <form onSubmit={handleSubmit} style={{
-      display: 'flex', flexDirection: 'column', gap: 28,
-      maxWidth: 640, margin: '0 auto',
+      display: 'flex', flexDirection: 'column', gap: formGap,
+      maxWidth: layoutMode === 'wide' ? '100%' : 640, margin: '0 auto',
     }}>
       {/* 観戦区分 */}
       <Field label="観戦区分">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-          {['stadium', 'dazn', 'tv', 'no_watch'].map(k => (
-            <RadioCard
-              key={k}
-              selected={watchType === k}
-              onClick={() => setWatchType(k)}
-              icon={WATCH_TYPE_ICONS[k]}
-              label={WATCH_TYPE_LABELS[k]}
-            />
-          ))}
-        </div>
+        {radioWrap(watchCols, ['stadium', 'dazn', 'tv', 'no_watch'].map(k => (
+          <RadioCard
+            key={k}
+            selected={watchType === k}
+            onClick={() => setWatchType(k)}
+            icon={WATCH_TYPE_ICONS[k]}
+            label={WATCH_TYPE_LABELS[k]}
+          />
+        )))}
       </Field>
 
       {/* アクセス手段 (stadium のみ表示) */}
       {watchType === 'stadium' && (
         <Field label="アクセス手段">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-            {['train', 'car', 'bus', 'walk', 'other'].map(k => (
-              <RadioCard
-                key={k}
-                selected={access === k}
-                onClick={() => setAccess(k === access ? '' : k)}
-                icon={ACCESS_ICONS[k]}
-                label={ACCESS_LABELS[k]}
-              />
-            ))}
-          </div>
+          {radioWrap(accessCols, ['train', 'car', 'bus', 'walk', 'other'].map(k => (
+            <RadioCard
+              key={k}
+              selected={access === k}
+              onClick={() => setAccess(k === access ? '' : k)}
+              icon={ACCESS_ICONS[k]}
+              label={ACCESS_LABELS[k]}
+            />
+          )))}
           <p style={hintStyle}>選択しなくても OK (再タップで解除)</p>
         </Field>
       )}
@@ -159,17 +179,15 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
       {/* 座席タイプ (stadium のみ表示) */}
       {watchType === 'stadium' && (
         <Field label="座席">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-            {['goal_back', 'reserved'].map(k => (
-              <RadioCard
-                key={k}
-                selected={seatType === k}
-                onClick={() => setSeatType(k === seatType ? '' : k)}
-                icon={SEAT_TYPE_ICONS[k]}
-                label={SEAT_TYPE_LABELS[k]}
-              />
-            ))}
-          </div>
+          {radioWrap(seatCols, ['goal_back', 'reserved'].map(k => (
+            <RadioCard
+              key={k}
+              selected={seatType === k}
+              onClick={() => setSeatType(k === seatType ? '' : k)}
+              icon={SEAT_TYPE_ICONS[k]}
+              label={SEAT_TYPE_LABELS[k]}
+            />
+          )))}
           <p style={hintStyle}>選択しなくても OK (再タップで解除)</p>
         </Field>
       )}
@@ -305,7 +323,7 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
               color: 'rgba(255,255,255,0.35)', margin: '0 0 12px',
               textTransform: 'uppercase',
             }}>Preview</p>
-            <TimelineDisplay entries={timeline.filter(e => e.time && e.text.trim())} />
+            <TimelineDisplay entries={timeline.filter(e => e.time && e.text.trim())} mode={timelineMode} />
           </div>
         )}
       </Field>
