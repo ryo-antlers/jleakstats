@@ -1,5 +1,14 @@
 // 観戦ノート関連の定数と小さなユーティリティ
 //   /notes と /notes/[fixture_id]、後段で /u/[id] からも参照する
+//
+// アイコンはサイトの他の場所と統一するため lucide-react を使用 (絵文字不可)。
+// 各 _ICONS は React コンポーネントを返すので、利用側で <Icon size={...} /> として描画する。
+
+import {
+  MapPin, MonitorPlay, Tv, Moon,
+  TrainFront, Car, Bus, Footprints, Plane,
+  Goal, Armchair,
+} from 'lucide-react'
 
 export const WATCH_TYPE_LABELS = {
   stadium:  '現地',
@@ -9,10 +18,10 @@ export const WATCH_TYPE_LABELS = {
 }
 
 export const WATCH_TYPE_ICONS = {
-  stadium:  '⚽',
-  dazn:     '📺',
-  tv:       '📺',
-  no_watch: '💤',
+  stadium:  MapPin,
+  dazn:     MonitorPlay,
+  tv:       Tv,
+  no_watch: Moon,
 }
 
 export const ACCESS_LABELS = {
@@ -24,11 +33,11 @@ export const ACCESS_LABELS = {
 }
 
 export const ACCESS_ICONS = {
-  train: '🚄',
-  car:   '🚗',
-  bus:   '🚌',
-  walk:  '🚶',
-  other: '✈️',
+  train: TrainFront,
+  car:   Car,
+  bus:   Bus,
+  walk:  Footprints,
+  other: Plane,
 }
 
 export const SEAT_TYPE_LABELS = {
@@ -37,8 +46,8 @@ export const SEAT_TYPE_LABELS = {
 }
 
 export const SEAT_TYPE_ICONS = {
-  goal_back: '🪧',
-  reserved:  '💺',
+  goal_back: Goal,
+  reserved:  Armchair,
 }
 
 export function normalizeColor(raw) {
