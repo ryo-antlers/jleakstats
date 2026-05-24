@@ -38,12 +38,11 @@ export default async function RatingFixturePage({ params, searchParams }) {
   const fixtureId = Number(id)
   if (!Number.isFinite(fixtureId) || fixtureId <= 0) notFound()
 
-  // デザインラボモード: ?lab=1..3
+  // デザインラボモード: ?lab=1..5
   //   未指定なら通常 (production) レイアウト。
-  //   1: Editorial / 2: Neon Stadium / 3: Brutalist Mono
   const sp = (await searchParams) ?? {}
   const labRaw = Number(sp.lab)
-  const labVariant = Number.isInteger(labRaw) && labRaw >= 1 && labRaw <= 3 ? labRaw : null
+  const labVariant = Number.isInteger(labRaw) && labRaw >= 1 && labRaw <= 5 ? labRaw : null
 
   // プロフィール + 推しクラブ
   const profiles = await sql`
