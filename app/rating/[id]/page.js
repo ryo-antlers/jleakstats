@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import RatingPageView from '../rating-view'
 import NoteForm from '@/app/notes/[fixture_id]/note-form'
+import RatingLabView from './lab-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,7 @@ function textOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
 }
 
-export default async function RatingFixturePage({ params }) {
+export default async function RatingFixturePage({ params, searchParams }) {
   const { userId } = await auth()
   if (!userId) {
     redirect(`/sign-in?redirect_url=/rating`)
@@ -36,6 +37,12 @@ export default async function RatingFixturePage({ params }) {
   const { id } = await params
   const fixtureId = Number(id)
   if (!Number.isFinite(fixtureId) || fixtureId <= 0) notFound()
+
+  // デザインラボモード: ?lab=1..5
+  //   未指定なら通常 (production) レイアウト。
+  const sp = (await searchParams) ?? {}
+  const labRaw = Number(sp.lab)
+  const labVariant = Number.isInteger(labRaw) && labRaw >= 1 && labRaw <= 5 ? labRaw : null
 
   // プロフィール + 推しクラブ
   const profiles = await sql`
@@ -146,6 +153,23 @@ export default async function RatingFixturePage({ params }) {
   const homeColor = normalizeColor(fixture.home_color)
   const awayColor = normalizeColor(fixture.away_color)
   const isPK = fixture.status === 'PEN' && fixture.home_penalty != null
+
+  // ラボモード: 専用 UI に丸投げ
+  if (labVariant !== null) {
+    return (
+      <RatingLabView
+        fixtureId={fixtureId}
+        fixture={fixture}
+        lineups={lineups}
+        teamInfo={teamInfo}
+        myRatings={myRatings}
+        viewOnly={viewOnly}
+        note={note}
+        isNoWatch={isNoWatch}
+        initialVariant={labVariant}
+      />
+    )
+  }
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
