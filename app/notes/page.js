@@ -169,9 +169,9 @@ function NoteCard({ row }) {
         display: 'flex', flexDirection: 'column', gap: 6,
       }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span style={chipStyle}>{WATCH_TYPE_ICONS[row.watch_type]} {WATCH_TYPE_LABELS[row.watch_type]}</span>
+          <IconChip Icon={WATCH_TYPE_ICONS[row.watch_type]} label={WATCH_TYPE_LABELS[row.watch_type]} />
           {row.watch_type === 'stadium' && row.access && (
-            <span style={chipStyle}>{ACCESS_ICONS[row.access]} {ACCESS_LABELS[row.access]}</span>
+            <IconChip Icon={ACCESS_ICONS[row.access]} label={ACCESS_LABELS[row.access]} />
           )}
         </div>
         {row.companion && (
@@ -265,6 +265,22 @@ const chipStyle = {
   padding: '3px 8px', borderRadius: 999,
   color: 'rgba(255,255,255,0.85)',
   backgroundColor: 'rgba(255,255,255,0.08)',
+}
+
+// アイコン (lucide コンポーネント) + ラベル のチップ
+function IconChip({ Icon, label }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+      padding: '4px 9px', borderRadius: 999,
+      color: 'rgba(255,255,255,0.85)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+    }}>
+      {Icon ? <Icon size={12} strokeWidth={1.8} /> : null}
+      <span>{label}</span>
+    </span>
+  )
 }
 
 const halfStyle = (bg, txt) => ({

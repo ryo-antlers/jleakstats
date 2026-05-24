@@ -376,23 +376,23 @@ function Field({ label, children }) {
   )
 }
 
-function RadioCard({ selected, onClick, icon, label }) {
+function RadioCard({ selected, onClick, icon: Icon, label }) {
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
-        padding: '12px 4px',
+        padding: '14px 4px 12px',
         border: selected ? '1px solid #00ff87' : '1px solid rgba(255,255,255,0.12)',
         backgroundColor: selected ? 'rgba(0,255,135,0.1)' : 'transparent',
         color: selected ? '#00ff87' : 'rgba(255,255,255,0.85)',
         cursor: 'pointer', fontFamily: 'inherit',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         fontSize: 11, fontWeight: selected ? 800 : 500,
         transition: 'all 0.12s ease',
       }}
     >
-      <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+      {Icon ? <Icon size={20} strokeWidth={1.6} /> : null}
       <span>{label}</span>
     </button>
   )

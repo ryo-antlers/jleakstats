@@ -241,16 +241,16 @@ function NoteReadOnly({ note }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Row label="観戦区分">
-        <Chip>{WATCH_TYPE_ICONS[note.watch_type]} {WATCH_TYPE_LABELS[note.watch_type]}</Chip>
+        <IconChip Icon={WATCH_TYPE_ICONS[note.watch_type]} label={WATCH_TYPE_LABELS[note.watch_type]} />
       </Row>
       {note.watch_type === 'stadium' && note.access && (
         <Row label="アクセス">
-          <Chip>{ACCESS_ICONS[note.access]} {ACCESS_LABELS[note.access]}</Chip>
+          <IconChip Icon={ACCESS_ICONS[note.access]} label={ACCESS_LABELS[note.access]} />
         </Row>
       )}
       {note.watch_type === 'stadium' && note.seat_type && (
         <Row label="座席">
-          <Chip>{SEAT_TYPE_ICONS[note.seat_type]} {SEAT_TYPE_LABELS[note.seat_type]}</Chip>
+          <IconChip Icon={SEAT_TYPE_ICONS[note.seat_type]} label={SEAT_TYPE_LABELS[note.seat_type]} />
         </Row>
       )}
       {note.watch_type === 'stadium' && note.departure_prefecture && (
@@ -303,6 +303,22 @@ function Chip({ children }) {
       color: 'rgba(255,255,255,0.85)',
       backgroundColor: 'rgba(255,255,255,0.08)',
     }}>{children}</span>
+  )
+}
+
+// アイコン (lucide コンポーネント) + ラベル のチップ
+function IconChip({ Icon, label }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+      padding: '4px 10px', borderRadius: 999,
+      color: 'rgba(255,255,255,0.85)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+    }}>
+      {Icon ? <Icon size={13} strokeWidth={1.8} /> : null}
+      <span>{label}</span>
+    </span>
   )
 }
 
