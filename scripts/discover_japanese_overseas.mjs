@@ -356,8 +356,8 @@ if (APPLY && matched.length) {
     await pool.query(
       `INSERT INTO player_overseas_status
          (canonical_id, api_football_id, team_id, team_name, team_logo,
-          league_id, league_name, country, season, position, fetched_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          league_id, league_name, country, season, position, nationality, fetched_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
        ON CONFLICT (canonical_id) DO UPDATE SET
          api_football_id = EXCLUDED.api_football_id,
          team_id         = EXCLUDED.team_id,
@@ -368,6 +368,7 @@ if (APPLY && matched.length) {
          country         = EXCLUDED.country,
          season          = EXCLUDED.season,
          position        = EXCLUDED.position,
+         nationality     = EXCLUDED.nationality,
          fetched_at      = NOW()`,
       [
         m.canonical.id,
@@ -380,6 +381,7 @@ if (APPLY && matched.length) {
         m.apiLeague.country,
         SEASON,
         m.position,
+        apiP.nationality ?? null,
       ],
     )
     // player_external_ids の補完
