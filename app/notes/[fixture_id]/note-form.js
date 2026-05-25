@@ -1,17 +1,40 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
 } from '../_shared'
-import TimelineDisplay from '../timeline-display'
-import { Plus, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 
 const NEXT_VISIT_MEMO_MAX = 500
 const MATCH_IMPRESSION_MAX = 500
 const TIMELINE_MAX_ENTRIES = 30
 const TIMELINE_TEXT_MAX = 100
-const TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+// 先頭の HH:mm を時刻として吸い出す (例「12:30 牛串」「9:05 着いた」)
+const TIME_PREFIX_RE = /^(\d{1,2}):(\d{1,2})\s+(.+)$/
+
+function nowHHMM() {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// 入力テキストから {time, text} を抽出。先頭に HH:mm があればその時刻、なければ現在時刻。
+function parseChatEntry(raw) {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const m = trimmed.match(TIME_PREFIX_RE)
+  if (m) {
+    const h = parseInt(m[1], 10)
+    const min = parseInt(m[2], 10)
+    if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+      return {
+        time: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
+        text: m[3].trim(),
+      }
+    }
+  }
+  return { time: nowHHMM(), text: trimmed }
+}
 
 // afterSaveMode:
 //   'redirect-to-notes' (default): 保存後 /notes へ遷移
@@ -29,34 +52,30 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
     return initial.map(e => ({ time: String(e?.time ?? ''), text: String(e?.text ?? '') }))
   })
 
-  // 常駐インラインエディタ: 一番下に常に「時刻 + テキスト + 追加」が見えている
-  const [draftTime, setDraftTime] = useState('')
-  const [draftText, setDraftText] = useState('')
+  // チャット風の 1 行入力欄 (時刻はテキストから自動推測 or 現在時刻)
+  const [draft, setDraft] = useState('')
+  const draftParsed = draft.trim() ? parseChatEntry(draft) : null
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successFlash, setSuccessFlash] = useState(false)
 
   function commitDraft() {
-    const time = draftTime.trim()
-    const text = draftText.trim()
-    if (!time || !text) return
-    if (!TIME_HHMM_RE.test(time)) return
-    if ([...text].length > TIMELINE_TEXT_MAX) return
+    if (!draftParsed) return
+    if (!draftParsed.text) return
+    if ([...draftParsed.text].length > TIMELINE_TEXT_MAX) return
     if (timeline.length >= TIMELINE_MAX_ENTRIES) return
-    setTimeline(prev => [...prev, { time, text }])
-    setDraftTime('')
-    setDraftText('')
+    setTimeline(prev => [...prev, draftParsed])
+    setDraft('')
   }
   function removeTimelineEntry(idx) {
     setTimeline(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const canAddDraft =
-    draftTime.trim().length > 0 &&
-    draftText.trim().length > 0 &&
-    TIME_HHMM_RE.test(draftTime.trim()) &&
-    [...draftText.trim()].length <= TIMELINE_TEXT_MAX &&
+  const canSendDraft =
+    !!draftParsed &&
+    draftParsed.text.length > 0 &&
+    [...draftParsed.text].length <= TIMELINE_TEXT_MAX &&
     timeline.length < TIMELINE_MAX_ENTRIES
 
   async function handleSubmit(e) {
@@ -64,12 +83,11 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
     setError(null)
     setLoading(true)
     try {
-      // 入力途中のドラフトも保存 (バリデーション通れば)
+      // 入力途中のチャットドラフトも保存 (バリデーション通れば)
       const finalTimeline = [...timeline]
-      const dt = draftTime.trim()
-      const dx = draftText.trim()
-      if (dt && dx && TIME_HHMM_RE.test(dt) && [...dx].length <= TIMELINE_TEXT_MAX) {
-        finalTimeline.push({ time: dt, text: dx })
+      const dp = draft.trim() ? parseChatEntry(draft) : null
+      if (dp && dp.text && [...dp.text].length <= TIMELINE_TEXT_MAX) {
+        finalTimeline.push(dp)
       }
       const res = await fetch('/api/watch-notes', {
         method: 'POST',
@@ -88,10 +106,9 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         return
       }
       // 保存成功したらドラフトクリア
-      if (dt && dx) {
+      if (dp) {
         setTimeline(finalTimeline)
-        setDraftTime('')
-        setDraftText('')
+        setDraft('')
       }
       if (afterSaveMode === 'refresh') {
         setSuccessFlash(true)
@@ -173,79 +190,41 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         </Field>
       )}
 
-      {/* 1 日のタイムライン (常駐インラインエディタ) */}
+      {/* 1 日のタイムライン (チャット風入力) */}
       <Field label="1 日のタイムライン">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {/* 確定済みエントリ */}
-          {timeline.length === 0 && (
-            <p style={hintStyle}>
-              「並んだもの」「食べたもの」「買ったもの」など、その日の出来事を時刻つきで残せます。
-            </p>
-          )}
-          {timeline.map((entry, idx) => (
-            <div key={idx} style={committedRowStyle}>
-              <span style={{
-                fontSize: 13, fontWeight: 700, letterSpacing: '0.02em',
-                color: '#fff', fontVariantNumeric: 'tabular-nums',
-                width: 60, flex: '0 0 60px',
-              }}>{entry.time}</span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#fff' }}>{entry.text}</span>
-              <button
-                type="button"
-                onClick={() => removeTimelineEntry(idx)}
-                aria-label="この行を削除"
-                style={{
-                  width: 28, height: 28, padding: 0, flex: '0 0 auto',
-                  background: 'transparent', border: 'none',
-                  color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              ><X size={14} strokeWidth={1.8} /></button>
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* チャットエントリ (時刻順、上から並ぶ) */}
+          {[...timeline]
+            .sort((a, b) => String(a.time).localeCompare(String(b.time)))
+            .map((entry, displayIdx) => {
+              const realIdx = timeline.findIndex(e => e === entry || (e.time === entry.time && e.text === entry.text))
+              return (
+                <ChatRow
+                  key={`${entry.time}-${entry.text}-${displayIdx}`}
+                  entry={entry}
+                  onRemove={() => removeTimelineEntry(realIdx)}
+                />
+              )
+            })}
 
-          {/* 常駐インラインエディタ (一番下) */}
+          {/* チャット入力欄 (常駐) */}
           {timeline.length < TIMELINE_MAX_ENTRIES && (
-            <div style={draftRowStyle}>
-              <input
-                type="time"
-                value={draftTime}
-                onChange={e => setDraftTime(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && canAddDraft) { e.preventDefault(); commitDraft() } }}
-                style={{
-                  ...inputStyle, width: 110, flex: '0 0 110px',
-                  padding: '8px 10px',
-                }}
-              />
-              <input
-                type="text"
-                value={draftText}
-                onChange={e => setDraftText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && canAddDraft) { e.preventDefault(); commitDraft() } }}
-                maxLength={TIMELINE_TEXT_MAX}
-                placeholder="例: 牛串とビール / グッズ列に並んだ"
-                style={{ ...inputStyle, flex: 1, minWidth: 0, padding: '8px 10px' }}
-              />
-              <button
-                type="button"
-                onClick={commitDraft}
-                disabled={!canAddDraft}
-                aria-label="追加"
-                style={{
-                  width: 36, height: 36, flex: '0 0 auto', padding: 0,
-                  border: '1px solid rgba(0,255,135,0.6)',
-                  backgroundColor: canAddDraft ? 'rgba(0,255,135,0.15)' : 'rgba(255,255,255,0.02)',
-                  color: canAddDraft ? '#00ff87' : 'rgba(255,255,255,0.25)',
-                  cursor: canAddDraft ? 'pointer' : 'not-allowed',
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'inherit',
-                }}
-              ><Plus size={16} strokeWidth={2} /></button>
-            </div>
+            <ChatInput
+              value={draft}
+              onChange={setDraft}
+              onSend={commitDraft}
+              canSend={canSendDraft}
+              parsedTime={draftParsed?.time}
+              isParsedFromPrefix={draft.trim().match(TIME_PREFIX_RE) !== null}
+            />
           )}
           {timeline.length >= TIMELINE_MAX_ENTRIES && (
             <p style={hintStyle}>タイムラインは {TIMELINE_MAX_ENTRIES} 件まで</p>
           )}
+
+          <p style={hintStyle}>
+            例:「12:30 牛串とビール」「グッズ列に並んだ」←先頭が HH:mm ならその時刻、なければ送信時の時刻。
+          </p>
         </div>
       </Field>
 
@@ -327,27 +306,128 @@ function Field({ label, children }) {
 }
 
 // 掲示板スタイルの「裸」textarea
-//   - 枠なし、下に薄い線、内容に応じて高さが伸びる (rows=2 → 内容次第)
+//   - 枠なし、textarea 自身に下線
+//   - 1 行から開始、内容に応じて自動拡張 (scrollHeight)
 //   - 例文プレースホルダ・文字数カウントなし
 function BareTextarea({ value, onChange, maxLength }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      maxLength={maxLength}
+      rows={1}
+      style={{
+        width: '100%', boxSizing: 'border-box',
+        padding: '4px 0',
+        backgroundColor: 'transparent',
+        border: 'none',
+        borderBottom: '1px solid rgba(255,255,255,0.18)',
+        outline: 'none',
+        color: '#fff', fontFamily: 'inherit',
+        fontSize: 14, lineHeight: 1.65,
+        resize: 'none', overflow: 'hidden',
+      }}
+    />
+  )
+}
+
+// チャットエントリの読み取り表示
+function ChatRow({ entry, onRemove }) {
   return (
     <div style={{
-      borderBottom: '1px solid rgba(255,255,255,0.12)',
-      paddingBottom: 4,
+      display: 'flex', gap: 12, alignItems: 'baseline',
+      padding: '8px 10px',
+      border: '1px solid rgba(255,255,255,0.06)',
+      backgroundColor: 'rgba(255,255,255,0.02)',
     }}>
-      <textarea
-        value={value}
-        onChange={onChange}
-        maxLength={maxLength}
-        rows={3}
+      <span style={{
+        fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
+        color: '#00ff87', fontVariantNumeric: 'tabular-nums',
+        width: 48, flex: '0 0 48px',
+      }}>{entry.time}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: 1.5, color: '#fff' }}>{entry.text}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="この行を削除"
         style={{
-          width: '100%', boxSizing: 'border-box',
-          padding: '4px 0', resize: 'vertical', minHeight: 60,
+          width: 24, height: 24, padding: 0, flex: '0 0 auto',
+          background: 'transparent', border: 'none',
+          color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      ><X size={14} strokeWidth={1.8} /></button>
+    </div>
+  )
+}
+
+// チャット風の入力欄 (1 行入力 + Enter 送信)
+function ChatInput({ value, onChange, onSend, canSend, parsedTime, isParsedFromPrefix }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+  return (
+    <div style={{
+      display: 'flex', gap: 8, alignItems: 'center',
+      padding: '8px 10px',
+      border: '1px solid rgba(0,255,135,0.18)',
+      backgroundColor: 'rgba(0,255,135,0.03)',
+    }}>
+      <span style={{
+        flex: '0 0 auto', minWidth: 44,
+        fontSize: 11, fontWeight: 700,
+        color: parsedTime ? (isParsedFromPrefix ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)') : 'rgba(255,255,255,0.2)',
+        fontVariantNumeric: 'tabular-nums',
+      }}>{parsedTime ?? '--:--'}</span>
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            if (canSend) onSend()
+          }
+        }}
+        maxLength={TIMELINE_TEXT_MAX + 12} // HH:mm prefix 分の余裕
+        rows={1}
+        placeholder="今、何が起きた？ (例: 牛串とビール)"
+        style={{
+          flex: 1, minWidth: 0,
+          padding: '4px 0',
           backgroundColor: 'transparent', border: 'none', outline: 'none',
           color: '#fff', fontFamily: 'inherit',
-          fontSize: 14, lineHeight: 1.6,
+          fontSize: 14, lineHeight: 1.5,
+          resize: 'none', overflow: 'hidden',
         }}
       />
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={!canSend}
+        aria-label="追加"
+        style={{
+          width: 32, height: 32, flex: '0 0 auto', padding: 0,
+          border: 'none',
+          backgroundColor: canSend ? '#00ff87' : 'rgba(0,255,135,0.15)',
+          color: canSend ? '#000' : 'rgba(255,255,255,0.3)',
+          cursor: canSend ? 'pointer' : 'not-allowed',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'inherit',
+        }}
+      ><Send size={14} strokeWidth={2.2} /></button>
     </div>
   )
 }
@@ -391,18 +471,4 @@ const inputStyle = {
 
 const hintStyle = {
   fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6,
-}
-
-const committedRowStyle = {
-  display: 'flex', gap: 10, alignItems: 'center',
-  padding: '8px 10px',
-  border: '1px solid rgba(255,255,255,0.06)',
-  backgroundColor: 'rgba(255,255,255,0.02)',
-}
-
-const draftRowStyle = {
-  display: 'flex', gap: 6, alignItems: 'center',
-  padding: 4,
-  borderTop: '1px dashed rgba(255,255,255,0.12)',
-  marginTop: 4,
 }
