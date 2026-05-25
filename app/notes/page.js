@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import sql from '@/lib/db'
 import {
-  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
+  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
   normalizeColor, textOn, leagueLabel, formatJST,
 } from './_shared'
 
@@ -41,7 +41,7 @@ export default async function NotesPage() {
 
   // 記録済みノート (新しい順)
   const recorded = await sql`
-    SELECT wn.id, wn.fixture_id, wn.watch_type, wn.access, wn.companion, wn.next_visit_memo,
+    SELECT wn.id, wn.fixture_id, wn.watch_type, wn.next_visit_memo,
            wn.updated_at,
            f.date AS fixture_date, f.home_team_id, f.away_team_id,
            f.home_score, f.away_score, f.home_penalty, f.away_penalty,
@@ -170,15 +170,7 @@ function NoteCard({ row }) {
       }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <IconChip Icon={WATCH_TYPE_ICONS[row.watch_type]} label={WATCH_TYPE_LABELS[row.watch_type]} />
-          {row.watch_type === 'stadium' && row.access && (
-            <IconChip Icon={ACCESS_ICONS[row.access]} label={ACCESS_LABELS[row.access]} />
-          )}
         </div>
-        {row.companion && (
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-            <span style={{ color: 'rgba(255,255,255,0.4)' }}>同行: </span>{row.companion}
-          </div>
-        )}
         {row.next_visit_memo && (
           <div style={{
             fontSize: 11, color: 'rgba(255,255,255,0.85)',

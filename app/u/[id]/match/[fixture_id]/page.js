@@ -4,8 +4,7 @@ import Link from 'next/link'
 import sql from '@/lib/db'
 import RatingPageView from '@/app/rating/rating-view'
 import {
-  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS, ACCESS_LABELS, ACCESS_ICONS,
-  SEAT_TYPE_LABELS, SEAT_TYPE_ICONS,
+  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
 } from '@/app/notes/_shared'
 import TimelineDisplay from '@/app/notes/timeline-display'
 
@@ -103,8 +102,7 @@ export default async function UserMatchPage({ params }) {
 
   // 観戦ノート
   const noteRows = await sql`
-    SELECT watch_type, access, seat_type, companion, next_visit_memo,
-           departure_prefecture, departure_city, timeline
+    SELECT watch_type, next_visit_memo, timeline
     FROM watch_notes
     WHERE clerk_user_id = ${targetUserId} AND fixture_id = ${fixtureId}
   `
@@ -243,26 +241,6 @@ function NoteReadOnly({ note }) {
       <Row label="観戦区分">
         <IconChip Icon={WATCH_TYPE_ICONS[note.watch_type]} label={WATCH_TYPE_LABELS[note.watch_type]} />
       </Row>
-      {note.watch_type === 'stadium' && note.access && (
-        <Row label="アクセス">
-          <IconChip Icon={ACCESS_ICONS[note.access]} label={ACCESS_LABELS[note.access]} />
-        </Row>
-      )}
-      {note.watch_type === 'stadium' && note.seat_type && (
-        <Row label="座席">
-          <IconChip Icon={SEAT_TYPE_ICONS[note.seat_type]} label={SEAT_TYPE_LABELS[note.seat_type]} />
-        </Row>
-      )}
-      {note.watch_type === 'stadium' && note.departure_prefecture && (
-        <Row label="出発地">
-          <span style={textStyle}>
-            {note.departure_prefecture}{note.departure_city ? ` ${note.departure_city}` : ''}
-          </span>
-        </Row>
-      )}
-      {note.companion && (
-        <Row label="同行者"><span style={textStyle}>{note.companion}</span></Row>
-      )}
       {note.next_visit_memo && (
         <Row label="次回観戦時メモ">
           <span style={{ ...textStyle, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{note.next_visit_memo}</span>

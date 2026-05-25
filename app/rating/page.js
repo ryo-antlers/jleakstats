@@ -4,7 +4,6 @@ import Link from 'next/link'
 import ProfileHeader from '@/app/components/ProfileHeader'
 import MatchCard from '@/app/components/MatchCard'
 import { TYPE_META } from '@/lib/fantype/type-meta'
-import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
 
 export const dynamic = 'force-dynamic'
 
@@ -285,10 +284,6 @@ export default async function RatingIndexPage() {
     ? `/fantype/result/${profile.fantype_type_code}${profile.fantype_answers ? `?a=${profile.fantype_answers}` : ''}`
     : null
 
-  // 今季の現地観戦距離 (km、四捨五入された整数)
-  //   watch_notes の departure_* を元に算出
-  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({ clerkUserId: userId })
-
   // 初観戦試合の詳細を別途取得して profile にマージ
   if (profile.first_match_fixture_id && profile.supported_club_id) {
     const fm = await sql`
@@ -315,7 +310,6 @@ export default async function RatingIndexPage() {
         avatarLetters={_initial}
         fantypeMeta={fantypeMeta}
         fantypeHref={fantypeHref}
-        seasonDistanceKm={seasonDistanceKm}
         editHref="/profile-setup?next=/rating"
       />
 

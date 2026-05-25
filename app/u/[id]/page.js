@@ -5,7 +5,6 @@ import sql from '@/lib/db'
 import ProfileHeader from '@/app/components/ProfileHeader'
 import MatchCard from '@/app/components/MatchCard'
 import { TYPE_META } from '@/lib/fantype/type-meta'
-import { calcSeasonStadiumDistanceKm } from '@/lib/notes/distance'
 
 export const dynamic = 'force-dynamic'
 
@@ -136,10 +135,6 @@ export default async function UserProfilePage({ params }) {
     ? `/fantype/result/${user.fantype_type_code}${user.fantype_answers ? `?a=${user.fantype_answers}` : ''}`
     : null
 
-  // 今季の現地観戦距離 (km、四捨五入された整数)
-  //   watch_notes の departure_* を元に算出
-  const seasonDistanceKm = await calcSeasonStadiumDistanceKm({ clerkUserId })
-
   // 試合ノート (観戦ノート記入済の試合、MatchCard で並べる)
   //   ログイン済みユーザーのみに公開、ゲストは空配列
   const notedFixtures = viewerId ? await sql`
@@ -227,7 +222,6 @@ export default async function UserProfilePage({ params }) {
         avatarLetters={initial}
         fantypeMeta={fantypeMeta}
         fantypeHref={fantypeHref}
-        seasonDistanceKm={seasonDistanceKm}
       />
 
       {/* 選手別 採点 (推しクラブの選手 × 節 マトリクス) */}
