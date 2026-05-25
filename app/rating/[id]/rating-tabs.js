@@ -7,11 +7,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 
-export default function RatingTabs({ noteContent, ratingContent, showRating = true, defaultTab = 'note' }) {
+export default function RatingTabs({ noteContent, ratingContent, showRating = true, defaultTab = 'rating' }) {
+  // 順番: 左=採点 / 右=ノート
+  // 採点不可 (showRating=false) のときはノートのみ
   const tabs = showRating
     ? [
-        { key: 'note',   label: 'ノート' },
         { key: 'rating', label: '採点' },
+        { key: 'note',   label: 'ノート' },
       ]
     : [
         { key: 'note',   label: 'ノート' },
@@ -22,7 +24,8 @@ export default function RatingTabs({ noteContent, ratingContent, showRating = tr
       const hash = window.location.hash.slice(1)
       if (tabs.some(t => t.key === hash)) return hash
     }
-    return defaultTab
+    if (tabs.some(t => t.key === defaultTab)) return defaultTab
+    return tabs[0].key
   })
 
   const navRef = useRef(null)
