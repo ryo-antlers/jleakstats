@@ -1,30 +1,24 @@
 'use client'
 // /rating/[id]?paper=1 用の紙カードビュー
 //   - 各セクションが「白い紙の付箋」として stack される
-//   - 各カードの上端にクラブカラーのタブが少しはみ出ている
+//   - 各カードの上端にクラブカラーのタブ (前面 = z-index で紙の上)
 //   - カードは左右に交互ステッガー
-//   - カード内は白背景に黒テキスト (サイト本体の黒背景に対して反転)
-//
-// クラブカラー (tabColor) は推しクラブの color_primary を使う。
+//   - 紙エリアは純白の単色、選択肢のみを載せる
+//   - 選択中の表現は色変更なし、下線のみ
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useWatchNoteState, WATCH_NOTE_LIMITS } from '@/app/notes/use-watch-note-state'
-import {
-  WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
-  ACCESS_LABELS, ACCESS_ICONS,
-  SEAT_TYPE_LABELS, SEAT_TYPE_ICONS,
-} from '@/app/notes/_shared'
+import { WATCH_TYPE_LABELS, ACCESS_LABELS, SEAT_TYPE_LABELS } from '@/app/notes/_shared'
 import { PREFECTURES } from '@/lib/jp/prefectures'
 import { municipalities } from '@/lib/jp/municipalities'
 import RatingPageView from '@/app/rating/rating-view'
 import { Plus, X } from 'lucide-react'
 
-// 紙色 (わずかにクリーム寄り)
-const PAPER     = '#f7f4ec'
+const PAPER     = '#ffffff'
 const INK       = '#1c1c1c'
-const INK_MUTED = '#6e6e6e'
-const HAIRLINE  = '#cfc9b8'
+const INK_MUTED = '#7c7c7c'
+const HAIRLINE  = '#dcdcdc'
 
 function normalizeColor(raw) {
   if (!raw) return '#cc0033'
@@ -55,10 +49,8 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
 
   return (
     <div style={{ paddingTop: 16, paddingBottom: 80, paddingInline: 14 }}>
-      {/* スコアヘッダー (通常 page の見た目を踏襲) */}
       <ScoreHeader fixture={fixture} />
 
-      {/* ラボから抜けるリンク */}
       <div style={{ textAlign: 'center', marginBottom: 22 }}>
         <Link href={`/rating/${fixtureId}`} style={{
           fontSize: 10, color: 'rgba(255,255,255,0.4)',
@@ -67,56 +59,38 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
       </div>
 
       <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 38 }}>
-        {/* Card 1: 観戦区分 */}
         <PaperCard side="left" tabColor={clubColor} tabInk={tabInk} tabLabel="観戦区分">
-          <SectionLabel>How did you watch?</SectionLabel>
-          <RadioGrid
-            cols={2}
+          <Choices
             options={['stadium', 'dazn', 'tv', 'no_watch']}
             labels={WATCH_TYPE_LABELS}
-            icons={WATCH_TYPE_ICONS}
             value={s.watchType}
             onChange={s.setWatchType}
-            clubColor={clubColor}
           />
         </PaperCard>
 
         {s.watchType === 'stadium' && (
           <>
-            {/* Card 2: アクセス */}
             <PaperCard side="right" tabColor={clubColor} tabInk={tabInk} tabLabel="アクセス">
-              <SectionLabel>How did you get there?</SectionLabel>
-              <RadioGrid
-                cols={5}
+              <Choices
                 options={['train', 'car', 'bus', 'walk', 'other']}
                 labels={ACCESS_LABELS}
-                icons={ACCESS_ICONS}
                 value={s.access}
                 onChange={v => s.setAccess(v === s.access ? '' : v)}
-                clubColor={clubColor}
-                small
+                clearable
               />
-              <Hint>選択しなくても OK (再タップで解除)</Hint>
             </PaperCard>
 
-            {/* Card 3: 座席 */}
             <PaperCard side="left" tabColor={clubColor} tabInk={tabInk} tabLabel="座席">
-              <SectionLabel>Where were you sitting?</SectionLabel>
-              <RadioGrid
-                cols={2}
+              <Choices
                 options={['goal_back', 'reserved']}
                 labels={SEAT_TYPE_LABELS}
-                icons={SEAT_TYPE_ICONS}
                 value={s.seatType}
                 onChange={v => s.setSeatType(v === s.seatType ? '' : v)}
-                clubColor={clubColor}
+                clearable
               />
-              <Hint>選択しなくても OK</Hint>
             </PaperCard>
 
-            {/* Card 4: 出発地 */}
             <PaperCard side="right" tabColor={clubColor} tabInk={tabInk} tabLabel="出発地">
-              <SectionLabel>Where did you come from?</SectionLabel>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <PaperSelect
                   value={s.departurePrefecture}
@@ -140,9 +114,7 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
           </>
         )}
 
-        {/* Card 5: 同行者 */}
         <PaperCard side="left" tabColor={clubColor} tabInk={tabInk} tabLabel="同行者">
-          <SectionLabel>Who were you with?</SectionLabel>
           <PaperInput
             type="text"
             value={s.companion}
@@ -150,17 +122,14 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
             maxLength={WATCH_NOTE_LIMITS.COMPANION_MAX}
             placeholder="例: ゴール裏の仲間と / ひとり"
           />
-          <Hint align="right">{[...s.companion].length}/{WATCH_NOTE_LIMITS.COMPANION_MAX}</Hint>
         </PaperCard>
 
-        {/* Card 6: 次回観戦メモ */}
         <PaperCard side="right" tabColor={clubColor} tabInk={tabInk} tabLabel="次回への一言">
-          <SectionLabel>A note to your future self.</SectionLabel>
           <textarea
             value={s.nextVisitMemo}
             onChange={e => s.setNextVisitMemo(e.target.value)}
             maxLength={WATCH_NOTE_LIMITS.NEXT_VISIT_MEMO_MAX}
-            placeholder="駐車場満車だった、コンビニで弁当買い忘れた、ゴール裏は寒い…"
+            placeholder="駐車場満車だった、コンビニで弁当買い忘れた…"
             rows={5}
             style={{
               width: '100%', boxSizing: 'border-box',
@@ -172,18 +141,10 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
               fontFamily: 'inherit',
             }}
           />
-          <Hint align="right">{[...s.nextVisitMemo].length}/{WATCH_NOTE_LIMITS.NEXT_VISIT_MEMO_MAX}</Hint>
         </PaperCard>
 
-        {/* Card 7: タイムライン */}
-        <PaperCard side="left" tabColor={clubColor} tabInk={tabInk} tabLabel="1 日のタイムライン">
-          <SectionLabel>The day, hour by hour.</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-            {s.timeline.length === 0 && (
-              <p style={{ fontSize: 13, color: INK_MUTED, lineHeight: 1.55, margin: 0 }}>
-                「並んだもの」「食べたもの」「買ったもの」など、その日の出来事を時刻つきで残せます。
-              </p>
-            )}
+        <PaperCard side="left" tabColor={clubColor} tabInk={tabInk} tabLabel="タイムライン">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {s.timeline.map((entry, idx) => (
               <div key={idx} style={{
                 display: 'flex', gap: 10, alignItems: 'center',
@@ -236,21 +197,19 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 alignSelf: 'flex-start',
-                padding: '8px 12px',
-                color: clubColor, fontSize: 11, fontWeight: 800,
-                letterSpacing: '0.16em', textTransform: 'uppercase',
+                padding: '6px 0',
+                color: INK, fontSize: 13, fontWeight: 700,
                 backgroundColor: 'transparent',
-                border: `1px dashed ${clubColor}80`,
+                border: 'none',
+                borderBottom: `1px solid ${INK}`,
                 cursor: s.timeline.length >= WATCH_NOTE_LIMITS.TIMELINE_MAX_ENTRIES ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit',
               }}>
-              <Plus size={13} strokeWidth={2} /> Add Entry
+              <Plus size={13} strokeWidth={2} /> 追加
             </button>
-            <Hint>{s.timeline.length}/{WATCH_NOTE_LIMITS.TIMELINE_MAX_ENTRIES} ・ 保存時に時刻順に並びます</Hint>
           </div>
         </PaperCard>
 
-        {/* Save / Delete / Flash */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 14,
           flexWrap: 'wrap', marginTop: 8, paddingInline: 4,
@@ -313,27 +272,32 @@ export default function PaperView({ fixtureId, fixture, lineups, teamInfo, myRat
   )
 }
 
-// ─────────── 紙カード本体 ───────────
+// ─────────── 紙カード ───────────
 
 function PaperCard({ side = 'left', tabColor, tabInk, tabLabel, children }) {
-  // side で marginRight / marginLeft を切り替えて左右にずらす。
-  // タブも反対側に少し寄せる (バランス)。
   const stagger = 30
   const wrapStyle = side === 'left'
     ? { marginRight: stagger }
     : { marginLeft: stagger }
-  const tabLeft = side === 'left' ? '28%' : 'auto'
+  const tabLeft  = side === 'left' ? '28%' : 'auto'
   const tabRight = side === 'left' ? 'auto' : '28%'
 
   return (
     <div style={{ position: 'relative', ...wrapStyle }}>
-      {/* タブ (上端から少しはみ出す) */}
+      {/* 紙本体 (奥) */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        backgroundColor: PAPER,
+        color: INK,
+        padding: '34px 22px 26px',
+      }}>{children}</div>
+
+      {/* タブ (前面 = z-index 2、紙の上に重ねる) */}
       <div style={{
         position: 'absolute',
-        top: -16,
+        top: -10,
         left: tabLeft,
         right: tabRight,
-        width: 'auto',
         minWidth: 120,
         maxWidth: 200,
         padding: '7px 16px 8px',
@@ -342,49 +306,19 @@ function PaperCard({ side = 'left', tabColor, tabInk, tabLabel, children }) {
         fontSize: 10, fontWeight: 900,
         letterSpacing: '0.18em', textTransform: 'uppercase',
         textAlign: 'center',
-        zIndex: 1,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+        zIndex: 2,
         display: 'inline-block',
       }}>{tabLabel}</div>
-
-      {/* 紙本体 */}
-      <div style={{
-        position: 'relative', zIndex: 2,
-        backgroundColor: PAPER,
-        color: INK,
-        padding: '30px 22px 26px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2)',
-      }}>{children}</div>
     </div>
   )
 }
 
-// ─────────── カード内の共通サブパーツ ───────────
+// ─────────── 選択肢 (テキストのみ、active = 下線) ───────────
 
-function SectionLabel({ children }) {
+function Choices({ options, labels, value, onChange, clearable = false }) {
   return (
-    <p style={{
-      margin: '0 0 14px',
-      fontSize: 13, color: INK_MUTED, fontStyle: 'italic',
-      fontFamily: 'Georgia, "Hiragino Mincho ProN", "Yu Mincho", serif',
-    }}>{children}</p>
-  )
-}
-
-function Hint({ children, align = 'left' }) {
-  return (
-    <p style={{
-      margin: '8px 0 0', fontSize: 10, color: INK_MUTED,
-      textAlign: align, letterSpacing: '0.04em',
-    }}>{children}</p>
-  )
-}
-
-function RadioGrid({ cols, options, labels, icons, value, onChange, clubColor, small = false }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 24px' }}>
       {options.map(opt => {
-        const Icon = icons?.[opt]
         const active = value === opt
         return (
           <button
@@ -392,27 +326,43 @@ function RadioGrid({ cols, options, labels, icons, value, onChange, clubColor, s
             type="button"
             onClick={() => onChange(opt)}
             style={{
-              padding: small ? '10px 4px' : '14px 6px',
-              border: active ? `1.5px solid ${clubColor}` : `1px solid ${HAIRLINE}`,
-              backgroundColor: active ? `${clubColor}14` : '#fff',
-              color: active ? clubColor : INK,
-              cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: small ? 6 : 8,
-              fontSize: small ? 11 : 12,
-              fontWeight: active ? 800 : 600,
+              padding: '4px 0',
+              color: INK,
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 15,
+              fontWeight: active ? 700 : 500,
               letterSpacing: '0.02em',
-              transition: 'all 0.12s ease',
+              textDecoration: active ? 'underline' : 'none',
+              textDecorationThickness: 2,
+              textUnderlineOffset: 5,
             }}
-          >
-            {Icon ? <Icon size={small ? 17 : 19} strokeWidth={1.7} /> : null}
-            <span>{labels[opt]}</span>
-          </button>
+          >{labels[opt]}</button>
         )
       })}
+      {clearable && value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          style={{
+            padding: '4px 0',
+            color: INK_MUTED,
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: 12,
+            letterSpacing: '0.02em',
+          }}
+        >(clear)</button>
+      )}
     </div>
   )
 }
+
+// ─────────── 紙の上のインプット ───────────
 
 function PaperInput(props) {
   return (
@@ -451,7 +401,7 @@ function PaperSelect({ children, style, ...props }) {
   )
 }
 
-// ─────────── スコアヘッダー (通常 page と同じ) ───────────
+// ─────────── スコアヘッダー ───────────
 
 function ScoreHeader({ fixture }) {
   const homeColor = normalizeColor(fixture.home_color)
