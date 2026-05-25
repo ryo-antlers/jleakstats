@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import RatingPageView from '../rating-view'
 import NoteForm from '@/app/notes/[fixture_id]/note-form'
+import RatingTabs from './rating-tabs'
 
 export const dynamic = 'force-dynamic'
 
@@ -195,33 +196,30 @@ export default async function RatingFixturePage({ params }) {
         </div>
       </div>
 
-      {/* 観戦記録セクション (常に表示) */}
-      <section style={{
-        maxWidth: 560, margin: '0 auto 24px',
-        paddingTop: 18, borderTop: '1px solid #1a1a1a',
-      }}>
-        <p style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
-          color: 'rgba(255,255,255,0.4)', margin: '14px 0 16px',
-          textAlign: 'center',
-        }}>WATCH NOTE</p>
-        <NoteForm
-          fixtureId={fixtureId}
-          initialNote={note}
-          afterSaveMode="refresh"
+      {/* ノート / 採点タブ */}
+      <div style={{ paddingTop: 6 }}>
+        <RatingTabs
+          showRating={!isNoWatch}
+          noteContent={
+            <NoteForm
+              fixtureId={fixtureId}
+              initialNote={note}
+              afterSaveMode="refresh"
+            />
+          }
+          ratingContent={
+            !isNoWatch ? (
+              <RatingPageView
+                fixture={fixture}
+                lineups={lineups}
+                teamInfo={teamInfo}
+                myRatings={myRatings}
+                viewOnly={viewOnly}
+              />
+            ) : null
+          }
         />
-      </section>
-
-      {/* 選手別 採点 (観戦区分 ≠ 観てない のみ表示) */}
-      {!isNoWatch && (
-        <RatingPageView
-          fixture={fixture}
-          lineups={lineups}
-          teamInfo={teamInfo}
-          myRatings={myRatings}
-          viewOnly={viewOnly}
-        />
-      )}
+      </div>
     </div>
   )
 }
