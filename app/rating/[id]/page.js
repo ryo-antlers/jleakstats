@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import RatingPageView from '../rating-view'
 import NoteForm from '@/app/notes/[fixture_id]/note-form'
+import PaperView from './paper-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,7 @@ function textOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
 }
 
-export default async function RatingFixturePage({ params }) {
+export default async function RatingFixturePage({ params, searchParams }) {
   const { userId } = await auth()
   if (!userId) {
     redirect(`/sign-in?redirect_url=/rating`)
@@ -36,6 +37,11 @@ export default async function RatingFixturePage({ params }) {
   const { id } = await params
   const fixtureId = Number(id)
   if (!Number.isFinite(fixtureId) || fixtureId <= 0) notFound()
+
+  // ?paper=1 のとき紙カードビュー (実験)
+  //   未指定なら通常レイアウト。
+  const sp = (await searchParams) ?? {}
+  const paperMode = sp.paper === '1' || sp.paper === 'true'
 
   // プロフィール + 推しクラブ
   const profiles = await sql`
@@ -146,6 +152,22 @@ export default async function RatingFixturePage({ params }) {
   const homeColor = normalizeColor(fixture.home_color)
   const awayColor = normalizeColor(fixture.away_color)
   const isPK = fixture.status === 'PEN' && fixture.home_penalty != null
+
+  // 紙カードビュー (実験) — ?paper=1
+  if (paperMode) {
+    return (
+      <PaperView
+        fixtureId={fixtureId}
+        fixture={fixture}
+        lineups={lineups}
+        teamInfo={teamInfo}
+        myRatings={myRatings}
+        viewOnly={viewOnly}
+        note={note}
+        isNoWatch={isNoWatch}
+      />
+    )
+  }
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
