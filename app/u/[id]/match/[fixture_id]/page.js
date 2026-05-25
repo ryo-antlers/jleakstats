@@ -102,7 +102,7 @@ export default async function UserMatchPage({ params }) {
 
   // 観戦ノート
   const noteRows = await sql`
-    SELECT watch_type, next_visit_memo, timeline
+    SELECT watch_type, match_impression, next_visit_memo, timeline
     FROM watch_notes
     WHERE clerk_user_id = ${targetUserId} AND fixture_id = ${fixtureId}
   `
@@ -144,7 +144,6 @@ export default async function UserMatchPage({ params }) {
   const homeColor = normalizeColor(fixture.home_color)
   const awayColor = normalizeColor(fixture.away_color)
   const isPK = fixture.status === 'PEN' && fixture.home_penalty != null
-  const isNoWatch = note?.watch_type === 'no_watch'
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>
@@ -218,8 +217,8 @@ export default async function UserMatchPage({ params }) {
         )}
       </section>
 
-      {/* 採点 (読み取り専用、観てない 以外で 1 件でも採点があれば表示) */}
-      {!isNoWatch && targetRatings.length > 0 && supportedClubId && lineups.length > 0 && (
+      {/* 採点 (読み取り専用、1 件でも採点があれば表示) */}
+      {targetRatings.length > 0 && supportedClubId && lineups.length > 0 && (
         <RatingPageView
           fixture={fixture}
           lineups={lineups}
@@ -241,8 +240,13 @@ function NoteReadOnly({ note }) {
       <Row label="観戦区分">
         <IconChip Icon={WATCH_TYPE_ICONS[note.watch_type]} label={WATCH_TYPE_LABELS[note.watch_type]} />
       </Row>
-      {note.next_visit_memo && (
-        <Row label="次回観戦時メモ">
+      {note.match_impression && (
+        <Row label="試合の感想">
+          <span style={{ ...textStyle, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{note.match_impression}</span>
+        </Row>
+      )}
+      {note.watch_type === 'stadium' && note.next_visit_memo && (
+        <Row label="忘備録">
           <span style={{ ...textStyle, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{note.next_visit_memo}</span>
         </Row>
       )}

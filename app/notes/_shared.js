@@ -4,18 +4,16 @@
 // アイコンはサイトの他の場所と統一するため lucide-react を使用 (絵文字不可)。
 // 各 _ICONS は React コンポーネントを返すので、利用側で <Icon size={...} /> として描画する。
 
-import { MapPin, MonitorPlay, Moon } from 'lucide-react'
+import { MapPin, MonitorPlay } from 'lucide-react'
 
 export const WATCH_TYPE_LABELS = {
   stadium:   'スタジアム',
   streaming: '配信',
-  no_watch:  '観てない',
 }
 
 export const WATCH_TYPE_ICONS = {
   stadium:   MapPin,
   streaming: MonitorPlay,
-  no_watch:  Moon,
 }
 
 export function normalizeColor(raw) {

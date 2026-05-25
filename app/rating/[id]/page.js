@@ -60,7 +60,7 @@ export default async function RatingFixturePage({ params }) {
     SELECT
       f.id, f.date, f.home_team_id, f.away_team_id,
       f.home_score, f.away_score, f.home_penalty, f.away_penalty,
-      f.status, f.round_number, f.league_id, f.finished_at,
+      f.status, f.round_number, f.league_id, f.finished_at, f.venue_name_ja,
       ht.name_ja AS home_name, ht.short_name AS home_short, ht.abbr AS home_abbr,
       ht.color_primary AS home_color,
       at.name_ja AS away_name, at.short_name AS away_short, at.abbr AS away_abbr,
@@ -125,14 +125,14 @@ export default async function RatingFixturePage({ params }) {
   const viewOnly = myRatings.length > 0
 
   // 観戦ノート (既存があれば取得、無ければ null)
-  //   watch_type が 'no_watch' のときは採点 UI を非表示
+  //   watch_type は 'stadium' / 'streaming' の 2 値 (no_watch 廃止済み)
   const noteRows = await sql`
-    SELECT id, watch_type, next_visit_memo, timeline, created_at, updated_at
+    SELECT id, watch_type, match_impression, next_visit_memo, timeline,
+           created_at, updated_at
     FROM watch_notes
     WHERE clerk_user_id = ${userId} AND fixture_id = ${fixtureId}
   `
   const note = noteRows[0] ?? null
-  const isNoWatch = note?.watch_type === 'no_watch'
 
   // 推しクラブの teamInfo (rating-view が使う形式)
   const isHome = Number(fixture.home_team_id) === supportedClubId
@@ -199,24 +199,23 @@ export default async function RatingFixturePage({ params }) {
       {/* ノート / 採点タブ */}
       <div style={{ paddingTop: 6 }}>
         <RatingTabs
-          showRating={!isNoWatch}
+          showRating={true}
           noteContent={
             <NoteForm
               fixtureId={fixtureId}
               initialNote={note}
               afterSaveMode="refresh"
+              venueName={fixture.venue_name_ja ?? null}
             />
           }
           ratingContent={
-            !isNoWatch ? (
-              <RatingPageView
-                fixture={fixture}
-                lineups={lineups}
-                teamInfo={teamInfo}
-                myRatings={myRatings}
-                viewOnly={viewOnly}
-              />
-            ) : null
+            <RatingPageView
+              fixture={fixture}
+              lineups={lineups}
+              teamInfo={teamInfo}
+              myRatings={myRatings}
+              viewOnly={viewOnly}
+            />
           }
         />
       </div>
