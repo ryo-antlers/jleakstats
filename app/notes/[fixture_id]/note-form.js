@@ -8,6 +8,7 @@ import TimelineDisplay from '../timeline-display'
 import { Plus, X } from 'lucide-react'
 
 const NEXT_VISIT_MEMO_MAX = 500
+const MATCH_IMPRESSION_MAX = 500
 const TIMELINE_MAX_ENTRIES = 30
 const TIMELINE_TEXT_MAX = 100
 const TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -15,11 +16,13 @@ const TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 // afterSaveMode:
 //   'redirect-to-notes' (default): 保存後 /notes へ遷移
 //   'refresh':                     保存後にページを refresh のみ (/rating/[id] に埋め込み時)
-export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redirect-to-notes' }) {
+// venueName: スタジアム名 (忘備録ラベル「(venueName) 忘備録」のために使う、null なら「忘備録」)
+export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redirect-to-notes', venueName = null }) {
   const router = useRouter()
   const isEdit = !!initialNote
 
   const [watchType, setWatchType] = useState(initialNote?.watch_type ?? 'stadium')
+  const [matchImpression, setMatchImpression] = useState(initialNote?.match_impression ?? '')
   const [nextVisitMemo, setNextVisitMemo] = useState(initialNote?.next_visit_memo ?? '')
   const [timeline, setTimeline] = useState(() => {
     const initial = Array.isArray(initialNote?.timeline) ? initialNote.timeline : []
@@ -74,7 +77,8 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         body: JSON.stringify({
           fixture_id: fixtureId,
           watch_type: watchType,
-          next_visit_memo: nextVisitMemo.trim() || null,
+          match_impression: matchImpression.trim() || null,
+          next_visit_memo: watchType === 'stadium' ? (nextVisitMemo.trim() || null) : null,
           timeline: finalTimeline,
         }),
       })
@@ -134,10 +138,10 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
       display: 'flex', flexDirection: 'column', gap: 28,
       maxWidth: 640, margin: '0 auto',
     }}>
-      {/* 観戦区分 */}
+      {/* 観戦区分 (stadium / streaming の 2 択) */}
       <Field label="観戦区分">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {['stadium', 'streaming', 'no_watch'].map(k => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+          {['stadium', 'streaming'].map(k => (
             <RadioCard
               key={k}
               selected={watchType === k}
@@ -149,17 +153,25 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         </div>
       </Field>
 
-      {/* 次回観戦時の備忘メモ */}
-      <Field label="次回観戦時の備忘メモ">
-        <textarea
-          value={nextVisitMemo}
-          onChange={e => setNextVisitMemo(e.target.value)}
-          maxLength={NEXT_VISIT_MEMO_MAX}
-          placeholder="例: 駐車場が満車だった、コンビニで弁当買い忘れた、ゴール裏は寒い…次の自分へのヒント"
-          rows={6}
-          style={{ ...inputStyle, resize: 'vertical', minHeight: 100, fontFamily: 'inherit' }}
+      {/* 試合の感想 (stadium / streaming どちらも表示、掲示板風入力) */}
+      <Field label="試合の感想">
+        <BareTextarea
+          value={matchImpression}
+          onChange={e => setMatchImpression(e.target.value)}
+          maxLength={MATCH_IMPRESSION_MAX}
         />
       </Field>
+
+      {/* スタジアム忘備録 (stadium のみ、ラベルに venue 名) */}
+      {watchType === 'stadium' && (
+        <Field label={`${venueName ? `${venueName} ` : ''}忘備録`}>
+          <BareTextarea
+            value={nextVisitMemo}
+            onChange={e => setNextVisitMemo(e.target.value)}
+            maxLength={NEXT_VISIT_MEMO_MAX}
+          />
+        </Field>
+      )}
 
       {/* 1 日のタイムライン (常駐インラインエディタ) */}
       <Field label="1 日のタイムライン">
@@ -310,6 +322,32 @@ function Field({ label, children }) {
     <div>
       <label style={fieldLabelStyle}>{label}</label>
       {children}
+    </div>
+  )
+}
+
+// 掲示板スタイルの「裸」textarea
+//   - 枠なし、下に薄い線、内容に応じて高さが伸びる (rows=2 → 内容次第)
+//   - 例文プレースホルダ・文字数カウントなし
+function BareTextarea({ value, onChange, maxLength }) {
+  return (
+    <div style={{
+      borderBottom: '1px solid rgba(255,255,255,0.12)',
+      paddingBottom: 4,
+    }}>
+      <textarea
+        value={value}
+        onChange={onChange}
+        maxLength={maxLength}
+        rows={3}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          padding: '4px 0', resize: 'vertical', minHeight: 60,
+          backgroundColor: 'transparent', border: 'none', outline: 'none',
+          color: '#fff', fontFamily: 'inherit',
+          fontSize: 14, lineHeight: 1.6,
+        }}
+      />
     </div>
   )
 }

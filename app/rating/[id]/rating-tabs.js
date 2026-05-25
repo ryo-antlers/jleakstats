@@ -1,9 +1,9 @@
 'use client'
 // /rating/[id] 用のタブ切替
-//   - 「ノート」と「採点」をタブで分ける
+//   - 「採点」と「ノート」をタブで分ける (左=採点 / 右=ノート、初期は採点)
 //   - state 保存のため両方の中身を常にマウント、display 切替で表示制御
 //   - URL hash (#note / #rating) で同期
-//   - 観てない (no_watch) の試合は採点タブを出さない
+//   - showRating=false (採点不可) のときはノートのみ表示
 
 import { useState, useEffect, useRef } from 'react'
 
