@@ -4,7 +4,6 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import RatingPageView from '../rating-view'
 import NoteForm from '@/app/notes/[fixture_id]/note-form'
-import PaperView from './paper-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +27,7 @@ function textOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? '#fff' : '#000'
 }
 
-export default async function RatingFixturePage({ params, searchParams }) {
+export default async function RatingFixturePage({ params }) {
   const { userId } = await auth()
   if (!userId) {
     redirect(`/sign-in?redirect_url=/rating`)
@@ -37,11 +36,6 @@ export default async function RatingFixturePage({ params, searchParams }) {
   const { id } = await params
   const fixtureId = Number(id)
   if (!Number.isFinite(fixtureId) || fixtureId <= 0) notFound()
-
-  // ?paper=1 のとき紙カードビュー (実験)
-  //   未指定なら通常レイアウト。
-  const sp = (await searchParams) ?? {}
-  const paperMode = sp.paper === '1' || sp.paper === 'true'
 
   // プロフィール + 推しクラブ
   const profiles = await sql`
@@ -131,10 +125,8 @@ export default async function RatingFixturePage({ params, searchParams }) {
 
   // 観戦ノート (既存があれば取得、無ければ null)
   //   watch_type が 'no_watch' のときは採点 UI を非表示
-  //   seat_type / timeline を SELECT から外すと NoteForm が空で初期化 → 再保存で消える
   const noteRows = await sql`
-    SELECT id, watch_type, access, seat_type, companion, next_visit_memo,
-           departure_prefecture, departure_city, timeline, created_at, updated_at
+    SELECT id, watch_type, next_visit_memo, timeline, created_at, updated_at
     FROM watch_notes
     WHERE clerk_user_id = ${userId} AND fixture_id = ${fixtureId}
   `
@@ -152,22 +144,6 @@ export default async function RatingFixturePage({ params, searchParams }) {
   const homeColor = normalizeColor(fixture.home_color)
   const awayColor = normalizeColor(fixture.away_color)
   const isPK = fixture.status === 'PEN' && fixture.home_penalty != null
-
-  // 紙カードビュー (実験) — ?paper=1
-  if (paperMode) {
-    return (
-      <PaperView
-        fixtureId={fixtureId}
-        fixture={fixture}
-        lineups={lineups}
-        teamInfo={teamInfo}
-        myRatings={myRatings}
-        viewOnly={viewOnly}
-        note={note}
-        isNoWatch={isNoWatch}
-      />
-    )
-  }
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', paddingTop: 18 }}>

@@ -14,7 +14,6 @@ import Link from 'next/link'
 //   avatarLetters: 文字 (1〜2 字) — アイコン下部に表示
 //   fantypeMeta: TYPE_META[code] か null
 //   fantypeHref: FANTYPE 結果ページへの URL か null
-//   seasonDistanceKm: 今季の現地観戦距離 (0 なら非表示)
 //   editHref: 「プロフィール編集」ボタンの遷移先 (null なら非表示)
 export default function ProfileHeader({
   profile,
@@ -23,11 +22,9 @@ export default function ProfileHeader({
   clubText,
   fantypeMeta,
   fantypeHref,
-  seasonDistanceKm = 0,
   editHref = null,
 }) {
   const hasFirstMatch = !!profile.first_match_date
-  const hasDistance = seasonDistanceKm > 0
 
   return (
     <div style={{
@@ -81,11 +78,6 @@ export default function ProfileHeader({
         {hasFirstMatch && (
           <div style={subLineStyle}>
             初観戦: {formatFirstMatch(profile)}
-          </div>
-        )}
-        {hasDistance && (
-          <div style={subLineStyle}>
-            2026年 観戦総移動距離: {seasonDistanceKm.toLocaleString()} km
           </div>
         )}
       </div>
