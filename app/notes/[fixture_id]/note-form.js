@@ -4,37 +4,13 @@ import { useRouter } from 'next/navigation'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
 } from '../_shared'
-import { Send, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 
 const NEXT_VISIT_MEMO_MAX = 500
 const MATCH_IMPRESSION_MAX = 500
 const TIMELINE_MAX_ENTRIES = 30
 const TIMELINE_TEXT_MAX = 100
-// 先頭の HH:mm を時刻として吸い出す (例「12:30 牛串」「9:05 着いた」)
-const TIME_PREFIX_RE = /^(\d{1,2}):(\d{1,2})\s+(.+)$/
-
-function nowHHMM() {
-  const d = new Date()
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-// 入力テキストから {time, text} を抽出。先頭に HH:mm があればその時刻、なければ現在時刻。
-function parseChatEntry(raw) {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  const m = trimmed.match(TIME_PREFIX_RE)
-  if (m) {
-    const h = parseInt(m[1], 10)
-    const min = parseInt(m[2], 10)
-    if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
-      return {
-        time: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
-        text: m[3].trim(),
-      }
-    }
-  }
-  return { time: nowHHMM(), text: trimmed }
-}
+const TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
 // afterSaveMode:
 //   'redirect-to-notes' (default): 保存後 /notes へ遷移
@@ -52,30 +28,34 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
     return initial.map(e => ({ time: String(e?.time ?? ''), text: String(e?.text ?? '') }))
   })
 
-  // チャット風の 1 行入力欄 (時刻はテキストから自動推測 or 現在時刻)
-  const [draft, setDraft] = useState('')
-  const draftParsed = draft.trim() ? parseChatEntry(draft) : null
+  // 時刻と文章を分けた入力 (常駐)
+  const [draftTime, setDraftTime] = useState('')
+  const [draftText, setDraftText] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successFlash, setSuccessFlash] = useState(false)
 
   function commitDraft() {
-    if (!draftParsed) return
-    if (!draftParsed.text) return
-    if ([...draftParsed.text].length > TIMELINE_TEXT_MAX) return
+    const time = draftTime.trim()
+    const text = draftText.trim()
+    if (!time || !text) return
+    if (!TIME_HHMM_RE.test(time)) return
+    if ([...text].length > TIMELINE_TEXT_MAX) return
     if (timeline.length >= TIMELINE_MAX_ENTRIES) return
-    setTimeline(prev => [...prev, draftParsed])
-    setDraft('')
+    setTimeline(prev => [...prev, { time, text }])
+    setDraftTime('')
+    setDraftText('')
   }
   function removeTimelineEntry(idx) {
     setTimeline(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const canSendDraft =
-    !!draftParsed &&
-    draftParsed.text.length > 0 &&
-    [...draftParsed.text].length <= TIMELINE_TEXT_MAX &&
+  const canAddDraft =
+    draftTime.trim().length > 0 &&
+    draftText.trim().length > 0 &&
+    TIME_HHMM_RE.test(draftTime.trim()) &&
+    [...draftText.trim()].length <= TIMELINE_TEXT_MAX &&
     timeline.length < TIMELINE_MAX_ENTRIES
 
   async function handleSubmit(e) {
@@ -83,11 +63,12 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
     setError(null)
     setLoading(true)
     try {
-      // 入力途中のチャットドラフトも保存 (バリデーション通れば)
+      // 入力途中のドラフトも保存 (バリデーション通れば)
       const finalTimeline = [...timeline]
-      const dp = draft.trim() ? parseChatEntry(draft) : null
-      if (dp && dp.text && [...dp.text].length <= TIMELINE_TEXT_MAX) {
-        finalTimeline.push(dp)
+      const dt = draftTime.trim()
+      const dx = draftText.trim()
+      if (dt && dx && TIME_HHMM_RE.test(dt) && [...dx].length <= TIMELINE_TEXT_MAX) {
+        finalTimeline.push({ time: dt, text: dx })
       }
       const res = await fetch('/api/watch-notes', {
         method: 'POST',
@@ -106,9 +87,10 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         return
       }
       // 保存成功したらドラフトクリア
-      if (dp) {
+      if (dt && dx) {
         setTimeline(finalTimeline)
-        setDraft('')
+        setDraftTime('')
+        setDraftText('')
       }
       if (afterSaveMode === 'refresh') {
         setSuccessFlash(true)
@@ -190,10 +172,10 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         </Field>
       )}
 
-      {/* 1 日のタイムライン (チャット風入力) */}
+      {/* 1 日のタイムライン (時刻 + 文章 を分けて入力) */}
       <Field label="1 日のタイムライン">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* チャットエントリ (時刻順、上から並ぶ) */}
+          {/* 確定済みエントリ (時刻順) */}
           {[...timeline]
             .sort((a, b) => String(a.time).localeCompare(String(b.time)))
             .map((entry, displayIdx) => {
@@ -207,24 +189,20 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
               )
             })}
 
-          {/* チャット入力欄 (常駐) */}
+          {/* 時刻 + 文章 + 追加ボタン (常駐) */}
           {timeline.length < TIMELINE_MAX_ENTRIES && (
-            <ChatInput
-              value={draft}
-              onChange={setDraft}
-              onSend={commitDraft}
-              canSend={canSendDraft}
-              parsedTime={draftParsed?.time}
-              isParsedFromPrefix={draft.trim().match(TIME_PREFIX_RE) !== null}
+            <SplitDraftRow
+              draftTime={draftTime}
+              setDraftTime={setDraftTime}
+              draftText={draftText}
+              setDraftText={setDraftText}
+              onCommit={commitDraft}
+              canCommit={canAddDraft}
             />
           )}
           {timeline.length >= TIMELINE_MAX_ENTRIES && (
             <p style={hintStyle}>タイムラインは {TIMELINE_MAX_ENTRIES} 件まで</p>
           )}
-
-          <p style={hintStyle}>
-            例:「12:30 牛串とビール」「グッズ列に並んだ」←先頭が HH:mm ならその時刻、なければ送信時の時刻。
-          </p>
         </div>
       </Field>
 
@@ -369,65 +347,66 @@ function ChatRow({ entry, onRemove }) {
   )
 }
 
-// チャット風の入力欄 (1 行入力 + Enter 送信)
-function ChatInput({ value, onChange, onSend, canSend, parsedTime, isParsedFromPrefix }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [value])
+// 時刻 + 文章 を分けて入力する常駐ドラフト行
+//   - 時刻は <input type="time"> ピッカー
+//   - 文章は 1 行テキスト (空欄から開始、Enter で追加)
+function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCommit, canCommit }) {
+  function onKey(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (canCommit) onCommit()
+    }
+  }
   return (
     <div style={{
       display: 'flex', gap: 8, alignItems: 'center',
-      padding: '8px 10px',
-      border: '1px solid rgba(0,255,135,0.18)',
-      backgroundColor: 'rgba(0,255,135,0.03)',
+      padding: '4px 0',
+      borderTop: '1px dashed rgba(255,255,255,0.12)',
+      marginTop: 4, paddingTop: 10,
     }}>
-      <span style={{
-        flex: '0 0 auto', minWidth: 44,
-        fontSize: 11, fontWeight: 700,
-        color: parsedTime ? (isParsedFromPrefix ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)') : 'rgba(255,255,255,0.2)',
-        fontVariantNumeric: 'tabular-nums',
-      }}>{parsedTime ?? '--:--'}</span>
-      <textarea
-        ref={ref}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            if (canSend) onSend()
-          }
+      <input
+        type="time"
+        value={draftTime}
+        onChange={e => setDraftTime(e.target.value)}
+        onKeyDown={onKey}
+        style={{
+          width: 110, flex: '0 0 110px',
+          padding: '8px 10px', fontSize: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          backgroundColor: 'transparent', color: '#fff',
+          outline: 'none', borderRadius: 0, fontFamily: 'inherit',
         }}
-        maxLength={TIMELINE_TEXT_MAX + 12} // HH:mm prefix 分の余裕
-        rows={1}
-        placeholder="今、何が起きた？ (例: 牛串とビール)"
+      />
+      <input
+        type="text"
+        value={draftText}
+        onChange={e => setDraftText(e.target.value)}
+        onKeyDown={onKey}
+        maxLength={TIMELINE_TEXT_MAX}
+        placeholder="例: 牛串とビール / グッズ列に並んだ"
         style={{
           flex: 1, minWidth: 0,
-          padding: '4px 0',
-          backgroundColor: 'transparent', border: 'none', outline: 'none',
-          color: '#fff', fontFamily: 'inherit',
-          fontSize: 14, lineHeight: 1.5,
-          resize: 'none', overflow: 'hidden',
+          padding: '8px 10px', fontSize: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          backgroundColor: 'transparent', color: '#fff',
+          outline: 'none', borderRadius: 0, fontFamily: 'inherit',
         }}
       />
       <button
         type="button"
-        onClick={onSend}
-        disabled={!canSend}
+        onClick={onCommit}
+        disabled={!canCommit}
         aria-label="追加"
         style={{
-          width: 32, height: 32, flex: '0 0 auto', padding: 0,
+          width: 36, height: 36, flex: '0 0 auto', padding: 0,
           border: 'none',
-          backgroundColor: canSend ? '#00ff87' : 'rgba(0,255,135,0.15)',
-          color: canSend ? '#000' : 'rgba(255,255,255,0.3)',
-          cursor: canSend ? 'pointer' : 'not-allowed',
+          backgroundColor: canCommit ? '#00ff87' : 'rgba(0,255,135,0.15)',
+          color: canCommit ? '#000' : 'rgba(255,255,255,0.3)',
+          cursor: canCommit ? 'pointer' : 'not-allowed',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'inherit',
         }}
-      ><Send size={14} strokeWidth={2.2} /></button>
+      ><Plus size={16} strokeWidth={2} /></button>
     </div>
   )
 }
