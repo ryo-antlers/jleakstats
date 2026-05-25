@@ -261,19 +261,30 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
         }}>{error}</div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'stretch',
+        marginTop: 8,
+      }}>
         <button
           type="submit"
           disabled={loading}
           style={{
-            padding: '12px 24px', fontSize: 12, fontWeight: 800,
-            letterSpacing: '0.1em',
-            backgroundColor: loading ? 'rgba(0,255,135,0.2)' : '#00ff87',
-            color: loading ? 'rgba(255,255,255,0.3)' : '#000',
+            flex: '1 1 240px', minHeight: 56,
+            padding: '16px 28px', fontSize: 15, fontWeight: 900,
+            letterSpacing: '0.14em',
+            backgroundColor: loading ? 'rgba(0,255,135,0.25)' : '#00ff87',
+            color: loading ? 'rgba(255,255,255,0.35)' : '#000',
             cursor: loading ? 'not-allowed' : 'pointer',
-            border: 'none', textTransform: 'uppercase', fontFamily: 'inherit',
+            border: 'none', fontFamily: 'inherit',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            boxShadow: loading ? 'none' : '0 4px 0 rgba(0,0,0,0.5), 0 6px 20px rgba(0,255,135,0.18)',
+            transform: loading ? 'translateY(2px)' : 'translateY(0)',
+            transition: 'transform 0.12s ease, box-shadow 0.12s ease',
           }}
-        >{loading ? '保存中…' : isEdit ? '変更を保存' : 'ノートを作成'}</button>
+        >
+          {!loading && <span style={{ fontSize: 18, lineHeight: 1 }}>✓</span>}
+          <span>{loading ? '保存中…' : isEdit ? '変更を保存する' : 'ノートを保存する'}</span>
+        </button>
         {isEdit && (
           <button
             type="button"
