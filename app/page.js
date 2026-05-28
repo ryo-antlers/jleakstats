@@ -467,12 +467,22 @@ export default async function HomePage() {
       <LeagueGroupTabs
         groups={groupedFixtures}
         standings={{
-          j1East:    <StandingsPair group="EAST" />,
-          j1West:    <StandingsPair group="WEST" />,
-          j2j3EastA: <StandingsPair group="EAST-A" />,
-          j2j3EastB: <StandingsPair group="EAST-B" />,
-          j2j3WestA: <StandingsPair group="WEST-A" />,
-          j2j3WestB: <StandingsPair group="WEST-B" />,
+          j1Playoff:   <PlayoffStandings items={[
+            { group: 'EAST', label: 'EAST' },
+            { group: 'WEST', label: 'WEST' },
+          ]} />,
+          j1East:      <StandingsPair group="EAST" />,
+          j1West:      <StandingsPair group="WEST" />,
+          j2j3Playoff: <PlayoffStandings items={[
+            { group: 'EAST-A', label: 'EAST-A' },
+            { group: 'EAST-B', label: 'EAST-B' },
+            { group: 'WEST-A', label: 'WEST-A' },
+            { group: 'WEST-B', label: 'WEST-B' },
+          ]} />,
+          j2j3EastA:   <StandingsPair group="EAST-A" />,
+          j2j3EastB:   <StandingsPair group="EAST-B" />,
+          j2j3WestA:   <StandingsPair group="WEST-A" />,
+          j2j3WestB:   <StandingsPair group="WEST-B" />,
         }}
         myProfile={myProfile}
         ratedKeys={ratedKeys}
@@ -489,6 +499,30 @@ function StandingsPair({ group }) {
     <div className="grid-charts-2col">
       <PointsChart group={group} />
       <StandingsChart group={group} />
+    </div>
+  )
+}
+
+// 順位決定戦タブ用: 複数グループの順位表を「見出し + 2 カラムグラフ」で縦に並べる
+function PlayoffStandings({ items }) {
+  return (
+    <div>
+      {items.map((it, i) => (
+        <div key={it.group} style={{ marginBottom: i === items.length - 1 ? 0 : 36 }}>
+          <h3 style={{
+            fontSize: 18, fontWeight: 900,
+            color: '#fff',
+            letterSpacing: '0.1em',
+            marginBottom: 16,
+            paddingBottom: 8,
+            borderBottom: '1px solid rgba(255,255,255,0.18)',
+            fontFamily: 'inherit',
+          }}>
+            {it.label}
+          </h3>
+          <StandingsPair group={it.group} />
+        </div>
+      ))}
     </div>
   )
 }
