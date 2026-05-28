@@ -52,7 +52,7 @@ const TABS_DEF = [
   { key: 'j1Playoff',   label: 'J1 PLAYOFFS',   accent: ACCENT_GREEN },
   { key: 'j1East',      label: 'J1 EAST' },
   { key: 'j1West',      label: 'J1 WEST' },
-  { key: 'j2j3Playoff', label: 'J2J3 PLAYOFFS', accent: ACCENT_GREEN, extraGapAfter: 16 },
+  { key: 'j2j3Playoff', label: 'J2J3 PLAYOFFS', accent: ACCENT_GREEN, extraGapAfter: 28 },
   { key: 'j2j3EastA',   label: 'J2J3 EAST-A' },
   { key: 'j2j3EastB',   label: 'J2J3 EAST-B' },
   { key: 'j2j3WestA',   label: 'J2J3 WEST-A' },
