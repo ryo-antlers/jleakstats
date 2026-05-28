@@ -38,6 +38,7 @@ function teamAbbr(short) {
 const TABS_DEF = [
   { key: 'j1East',     label: 'J1 EAST' },
   { key: 'j1West',     label: 'J1 WEST' },
+  { key: 'j1Playoff',  label: 'J1 順位決定戦' },
   { key: 'j2j3EastA',  label: 'J2J3 EAST-A' },
   { key: 'j2j3EastB',  label: 'J2J3 EAST-B' },
   { key: 'j2j3WestA',  label: 'J2J3 WEST-A' },
@@ -123,8 +124,8 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
       {/* タイムライン */}
       <FixtureTimeline fixtures={fixtures} rateableSet={rateableSet} supportedColor={supportedColor} key={active} />
 
-      {/* アクティブタブの順位表 */}
-      {standings && (
+      {/* アクティブタブの順位表 (該当タブに content がない場合はセクション全体を非表示) */}
+      {standings && standings[active] && (
         <div style={{ marginTop: 32 }}>
           {Object.entries(standings).map(([k, content]) => (
             <div key={k} style={{ display: k === active ? 'block' : 'none' }}>

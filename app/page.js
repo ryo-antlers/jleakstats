@@ -199,9 +199,15 @@ async function getGroupedFixtures() {
     ORDER BY f.date ASC
   `.catch(() => [])
 
-  // J1 振り分け: チームのgroup_name基準 (両端どちらかが該当すればOK)
-  const j1East = j1All.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
-  const j1West = j1All.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
+  // 2026 J1 は EAST/WEST カンファレンス制。レギュラーシーズンは同グループ内のみで対戦するため、
+  // EAST × WEST のクロスグループ試合は順位決定戦 (プレーオフラウンド) と見なせる。
+  // クロスグループ判定で EAST/WEST タブから除外。
+  // 順位決定戦タブには stage_ja に「プレーオフラウンド」を含む正規データのみ表示
+  // (api-football 由来の "Xth place" 重複レコードは隠す)。
+  const isCrossGroup = (f) => f.home_group && f.away_group && f.home_group !== f.away_group
+  const j1East = j1All.filter(f => !isCrossGroup(f) && (f.home_group === 'EAST' || f.away_group === 'EAST'))
+  const j1West = j1All.filter(f => !isCrossGroup(f) && (f.home_group === 'WEST' || f.away_group === 'WEST'))
+  const j1Playoff = j1All.filter(f => (f.stage_ja ?? '').includes('プレーオフラウンド'))
 
   // J2J3 振り分け: stage_ja で完全一致
   const matchStage = (s) => (f) => (f.stage_ja ?? '').includes(s)
@@ -210,7 +216,7 @@ async function getGroupedFixtures() {
   const j2j3WestA = j2j3All.filter(matchStage('WEST-A'))
   const j2j3WestB = j2j3All.filter(matchStage('WEST-B'))
 
-  return { j1East, j1West, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB }
+  return { j1East, j1West, j1Playoff, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB }
 }
 
 async function getEarlyFixtures(fromDate, toDate, excludeRounds) {

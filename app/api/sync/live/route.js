@@ -54,6 +54,9 @@ export async function GET(request) {
         : null
 
       try {
+        // 同一試合が複数 fixture レコードで存在しうる (api-football id と
+        // J リーグ scraper の synthetic id が同居する順位決定戦など)
+        // → id 一致 または (JST日付, ホーム, アウェイ) 一致で両方更新
         await sql`
           UPDATE fixtures SET
             home_score    = ${goals.home},
@@ -67,6 +70,10 @@ export async function GET(request) {
             winner        = ${winner},
             updated_at    = NOW()
           WHERE id = ${f.id}
+             OR (home_team_id = ${teams.home.id}
+                 AND away_team_id = ${teams.away.id}
+                 AND (date AT TIME ZONE 'Asia/Tokyo')::date
+                     = (${f.date}::timestamptz AT TIME ZONE 'Asia/Tokyo')::date)
         `
         updated++
       } catch (err) {
@@ -99,6 +106,7 @@ export async function GET(request) {
             : teams.home.winner === false && teams.away.winner === false ? 'draw'
             : null
           // 終了ステータス (FT/AET/PEN) ならスコアと共に更新
+          // LIVE 更新と同様に id 一致 OR (JST日付, ホーム, アウェイ) 一致で複数レコード対応
           if (['FT', 'AET', 'PEN'].includes(f.status.short)) {
             await sql`
               UPDATE fixtures SET
@@ -114,6 +122,10 @@ export async function GET(request) {
                 finished_at   = COALESCE(finished_at, NOW()),
                 updated_at    = NOW()
               WHERE id = ${f.id}
+                 OR (home_team_id = ${teams.home.id}
+                     AND away_team_id = ${teams.away.id}
+                     AND (date AT TIME ZONE 'Asia/Tokyo')::date
+                         = (${f.date}::timestamptz AT TIME ZONE 'Asia/Tokyo')::date)
             `
             finalized++
           }
