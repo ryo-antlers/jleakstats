@@ -199,18 +199,26 @@ async function getGroupedFixtures() {
     ORDER BY f.date ASC
   `.catch(() => [])
 
-  // J1 振り分け: チームのgroup_name基準 (両端どちらかが該当すればOK)
-  const j1East = j1All.filter(f => f.home_group === 'EAST' || f.away_group === 'EAST')
-  const j1West = j1All.filter(f => f.home_group === 'WEST' || f.away_group === 'WEST')
+  // 2026 J1 は EAST/WEST カンファレンス制。レギュラーシーズンは同グループ内のみで対戦するため、
+  // EAST × WEST のクロスグループ試合は順位決定戦 (プレーオフラウンド) と見なせる。
+  // クロスグループ判定で EAST/WEST タブから除外。
+  // 順位決定戦タブには stage_ja に「プレーオフラウンド」を含む正規データのみ表示
+  // (api-football 由来の "Xth place" 重複レコードは隠す)。
+  const isCrossGroup = (f) => f.home_group && f.away_group && f.home_group !== f.away_group
+  const j1East = j1All.filter(f => !isCrossGroup(f) && (f.home_group === 'EAST' || f.away_group === 'EAST'))
+  const j1West = j1All.filter(f => !isCrossGroup(f) && (f.home_group === 'WEST' || f.away_group === 'WEST'))
+  const j1Playoff = j1All.filter(f => (f.stage_ja ?? '').includes('プレーオフラウンド'))
 
-  // J2J3 振り分け: stage_ja で完全一致
+  // J2J3 振り分け: stage_ja で完全一致 (プレーオフは "EAST-A" 等を含まないので元々除外される)
   const matchStage = (s) => (f) => (f.stage_ja ?? '').includes(s)
   const j2j3EastA = j2j3All.filter(matchStage('EAST-A'))
   const j2j3EastB = j2j3All.filter(matchStage('EAST-B'))
   const j2j3WestA = j2j3All.filter(matchStage('WEST-A'))
   const j2j3WestB = j2j3All.filter(matchStage('WEST-B'))
+  // J2J3 順位決定戦 (1 戦単発、EAST-A×EAST-B / WEST-A×WEST-B の 20 試合)
+  const j2j3Playoff = j2j3All.filter(matchStage('プレーオフラウンド'))
 
-  return { j1East, j1West, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB }
+  return { j1East, j1West, j1Playoff, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB, j2j3Playoff }
 }
 
 async function getEarlyFixtures(fromDate, toDate, excludeRounds) {
@@ -459,12 +467,22 @@ export default async function HomePage() {
       <LeagueGroupTabs
         groups={groupedFixtures}
         standings={{
-          j1East:    <StandingsPair group="EAST" />,
-          j1West:    <StandingsPair group="WEST" />,
-          j2j3EastA: <StandingsPair group="EAST-A" />,
-          j2j3EastB: <StandingsPair group="EAST-B" />,
-          j2j3WestA: <StandingsPair group="WEST-A" />,
-          j2j3WestB: <StandingsPair group="WEST-B" />,
+          j1Playoff:   <PlayoffStandings items={[
+            { group: 'EAST', label: 'EAST' },
+            { group: 'WEST', label: 'WEST' },
+          ]} />,
+          j1East:      <StandingsPair group="EAST" />,
+          j1West:      <StandingsPair group="WEST" />,
+          j2j3Playoff: <PlayoffStandings items={[
+            { group: 'EAST-A', label: 'EAST-A' },
+            { group: 'EAST-B', label: 'EAST-B' },
+            { group: 'WEST-A', label: 'WEST-A' },
+            { group: 'WEST-B', label: 'WEST-B' },
+          ]} />,
+          j2j3EastA:   <StandingsPair group="EAST-A" />,
+          j2j3EastB:   <StandingsPair group="EAST-B" />,
+          j2j3WestA:   <StandingsPair group="WEST-A" />,
+          j2j3WestB:   <StandingsPair group="WEST-B" />,
         }}
         myProfile={myProfile}
         ratedKeys={ratedKeys}
@@ -481,6 +499,30 @@ function StandingsPair({ group }) {
     <div className="grid-charts-2col">
       <PointsChart group={group} />
       <StandingsChart group={group} />
+    </div>
+  )
+}
+
+// 順位決定戦タブ用: 複数グループの順位表を「見出し + 2 カラムグラフ」で縦に並べる
+function PlayoffStandings({ items }) {
+  return (
+    <div>
+      {items.map((it, i) => (
+        <div key={it.group} style={{ marginBottom: i === items.length - 1 ? 0 : 36 }}>
+          <h3 style={{
+            fontSize: 18, fontWeight: 900,
+            color: '#fff',
+            letterSpacing: '0.1em',
+            marginBottom: 16,
+            paddingBottom: 8,
+            borderBottom: '1px solid rgba(255,255,255,0.18)',
+            fontFamily: 'inherit',
+          }}>
+            {it.label}
+          </h3>
+          <StandingsPair group={it.group} />
+        </div>
+      ))}
     </div>
   )
 }

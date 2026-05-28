@@ -35,19 +35,34 @@ function teamAbbr(short) {
   return short.slice(0, 3).toUpperCase()
 }
 
+// タブ文字色の組み合わせ (active / inactive / hover)
+const ACCENT_DEFAULT = {
+  active:   '#fff',
+  inactive: 'rgba(255,255,255,0.55)',
+  hover:    'rgba(255,255,255,0.85)',
+}
+// PLAYOFFS タブ用 緑系 (#53bb33 = rgb(83,187,51))
+const ACCENT_GREEN = {
+  active:   '#53bb33',
+  inactive: 'rgba(83,187,51,0.6)',
+  hover:    'rgba(83,187,51,0.9)',
+}
+
 const TABS_DEF = [
-  { key: 'j1East',     label: 'J1 EAST' },
-  { key: 'j1West',     label: 'J1 WEST' },
-  { key: 'j2j3EastA',  label: 'J2J3 EAST-A' },
-  { key: 'j2j3EastB',  label: 'J2J3 EAST-B' },
-  { key: 'j2j3WestA',  label: 'J2J3 WEST-A' },
-  { key: 'j2j3WestB',  label: 'J2J3 WEST-B' },
+  { key: 'j1Playoff',   label: 'J1 PLAYOFFS',   accent: ACCENT_GREEN },
+  { key: 'j1East',      label: 'J1 EAST' },
+  { key: 'j1West',      label: 'J1 WEST' },
+  { key: 'j2j3Playoff', label: 'J2J3 PLAYOFFS', accent: ACCENT_GREEN, extraGapAfter: 16 },
+  { key: 'j2j3EastA',   label: 'J2J3 EAST-A' },
+  { key: 'j2j3EastB',   label: 'J2J3 EAST-B' },
+  { key: 'j2j3WestA',   label: 'J2J3 WEST-A' },
+  { key: 'j2j3WestB',   label: 'J2J3 WEST-B' },
 ]
 
 export default function LeagueGroupTabs({ groups, standings, rateableIds, myProfile }) {
   const rateableSet = useMemo(() => new Set((rateableIds ?? []).map(Number)), [rateableIds])
   const supportedColor = color(myProfile?.club_color)
-  const [active, setActive] = useState('j1East')
+  const [active, setActive] = useState('j1Playoff')
   const navRef = useRef(null)
   const [underline, setUnderline] = useState({ left: 0, width: 0 })
 
@@ -69,6 +84,7 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
         className="lgt-nav"
         style={{
           display: 'flex',
+          gap: 8,
           position: 'relative',
           borderBottom: '1px solid rgba(255,255,255,0.18)',
           marginTop: 80,
@@ -82,6 +98,7 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
       >
         {TABS_DEF.map(t => {
           const isActive = active === t.key
+          const accent = t.accent ?? ACCENT_DEFAULT
           return (
             <button
               key={t.key}
@@ -91,9 +108,10 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
                 flex: '1 1 0',
                 minWidth: 110,
                 padding: '16px 8px',
+                marginRight: t.extraGapAfter ?? 0,
                 background: 'none',
                 border: 'none',
-                color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                color: isActive ? accent.active : accent.inactive,
                 fontSize: 14,
                 fontWeight: isActive ? 900 : 700,
                 letterSpacing: '0.08em',
@@ -102,8 +120,8 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
                 transition: 'color 0.2s ease, font-weight 0.2s ease',
                 fontFamily: 'inherit',
               }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.85)' }}
-              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'rgba(255,255,255,0.55)' }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = accent.hover }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = accent.inactive }}
             >
               {t.label}
             </button>
@@ -115,16 +133,16 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
           left: underline.left,
           width: underline.width,
           height: 3,
-          backgroundColor: '#fff',
-          transition: 'left 0.36s cubic-bezier(0.4, 0, 0.2, 1), width 0.36s cubic-bezier(0.4, 0, 0.2, 1)',
+          backgroundColor: (TABS_DEF.find(t => t.key === active)?.accent ?? ACCENT_DEFAULT).active,
+          transition: 'left 0.36s cubic-bezier(0.4, 0, 0.2, 1), width 0.36s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease',
         }} />
       </nav>
 
       {/* タイムライン */}
       <FixtureTimeline fixtures={fixtures} rateableSet={rateableSet} supportedColor={supportedColor} key={active} />
 
-      {/* アクティブタブの順位表 */}
-      {standings && (
+      {/* アクティブタブの順位表 (該当タブに content がない場合はセクション全体を非表示) */}
+      {standings && standings[active] && (
         <div style={{ marginTop: 32 }}>
           {Object.entries(standings).map(([k, content]) => (
             <div key={k} style={{ display: k === active ? 'block' : 'none' }}>
