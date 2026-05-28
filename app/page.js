@@ -209,14 +209,16 @@ async function getGroupedFixtures() {
   const j1West = j1All.filter(f => !isCrossGroup(f) && (f.home_group === 'WEST' || f.away_group === 'WEST'))
   const j1Playoff = j1All.filter(f => (f.stage_ja ?? '').includes('プレーオフラウンド'))
 
-  // J2J3 振り分け: stage_ja で完全一致
+  // J2J3 振り分け: stage_ja で完全一致 (プレーオフは "EAST-A" 等を含まないので元々除外される)
   const matchStage = (s) => (f) => (f.stage_ja ?? '').includes(s)
   const j2j3EastA = j2j3All.filter(matchStage('EAST-A'))
   const j2j3EastB = j2j3All.filter(matchStage('EAST-B'))
   const j2j3WestA = j2j3All.filter(matchStage('WEST-A'))
   const j2j3WestB = j2j3All.filter(matchStage('WEST-B'))
+  // J2J3 順位決定戦 (1 戦単発、EAST-A×EAST-B / WEST-A×WEST-B の 20 試合)
+  const j2j3Playoff = j2j3All.filter(matchStage('プレーオフラウンド'))
 
-  return { j1East, j1West, j1Playoff, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB }
+  return { j1East, j1West, j1Playoff, j2j3EastA, j2j3EastB, j2j3WestA, j2j3WestB, j2j3Playoff }
 }
 
 async function getEarlyFixtures(fromDate, toDate, excludeRounds) {
