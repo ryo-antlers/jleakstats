@@ -665,14 +665,60 @@ export function PassAccuracyBar({ playerStats, homeTeamId, homeColor, awayColor 
 
 // ---- 試合前ページ用チャート ----
 
-// 順位推移折れ線グラフ（2クラブハイライト）
+// 順位推移折れ線グラフ
+// - 同グループ対戦 (レギュラーシーズン): 1 枚に 2 クラブハイライト
+// - 異グループ対戦 (順位決定戦 EAST × WEST 等): それぞれのグループ毎に 2 枚を縦並びで表示
 export function FixtureRankChart({ allFixtures, allTeams, homeTeamId, awayTeamId, homeColor, awayColor, currentRound, teamStandings = [] }) {
   if (!allFixtures.length || !allTeams.length) return null
   const homeId = Number(homeTeamId), awayId = Number(awayTeamId)
   const homeTeam = allTeams.find(t => Number(t.id) === homeId)
+  const awayTeam = allTeams.find(t => Number(t.id) === awayId)
   if (!homeTeam) return null
-  const group = homeTeam.group_name
+
+  const homeGroup = homeTeam.group_name
+  const awayGroup = awayTeam?.group_name
+
+  // 同一グループ (もしくは away 不明) → 既存通り 1 枚に 2 ハイライト
+  if (!awayGroup || homeGroup === awayGroup) {
+    return (
+      <RankChartSvg
+        allFixtures={allFixtures} allTeams={allTeams} group={homeGroup}
+        highlights={[
+          { id: homeId, color: homeColor, abbr: homeTeam.abbr },
+          awayTeam ? { id: awayId, color: awayColor, abbr: awayTeam.abbr } : null,
+        ].filter(Boolean)}
+      />
+    )
+  }
+
+  // 異グループ (順位決定戦) → 各グループのレギュラーシーズン順位推移を縦に 2 枚
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {[
+        { group: homeGroup, highlight: { id: homeId, color: homeColor, abbr: homeTeam.abbr } },
+        { group: awayGroup, highlight: { id: awayId, color: awayColor, abbr: awayTeam.abbr } },
+      ].map(({ group, highlight }) => (
+        <div key={group}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)',
+            letterSpacing: '0.1em', marginBottom: 4, textAlign: 'center',
+          }}>
+            {group}
+          </div>
+          <RankChartSvg
+            allFixtures={allFixtures} allTeams={allTeams} group={group}
+            highlights={[highlight]}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// グループ単位の順位推移 SVG (1 グループ + 任意人数のハイライト)
+function RankChartSvg({ allFixtures, allTeams, group, highlights }) {
   const groupTeams = allTeams.filter(t => t.group_name === group)
+  if (groupTeams.length === 0) return null
   const groupTeamIds = new Set(groupTeams.map(t => Number(t.id)))
 
   // 同グループ内の試合のみで rounds を計算 (他グループの先行進度に引きずられないように)
@@ -681,11 +727,11 @@ export function FixtureRankChart({ allFixtures, allTeams, homeTeamId, awayTeamId
   )
   const rounds = [...new Set(groupFixtures.map(f => f.round_number))].sort((a, b) => a - b)
   const points = {}, gd = {}, gf = {}
-  for (const t of allTeams) { points[Number(t.id)] = 0; gd[Number(t.id)] = 0; gf[Number(t.id)] = 0 }
+  for (const t of groupTeams) { points[Number(t.id)] = 0; gd[Number(t.id)] = 0; gf[Number(t.id)] = 0 }
   const history = {}
 
   for (const round of rounds) {
-    for (const f of allFixtures.filter(f => f.round_number === round)) {
+    for (const f of groupFixtures.filter(f => f.round_number === round)) {
       if (f.home_score == null || f.away_score == null) continue
       const h = Number(f.home_team_id), a = Number(f.away_team_id)
       if (!(h in points) || !(a in points)) continue
@@ -719,32 +765,33 @@ export function FixtureRankChart({ allFixtures, allTeams, homeTeamId, awayTeamId
   const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b
   const maxRound = rounds[rounds.length - 1] ?? 1
   const rx = (r) => pad.l + ((r - 1) / Math.max(maxRound - 1, 1)) * plotW
-  const ry = (rank) => pad.t + ((rank - 1) / (teamCount - 1)) * plotH
+  const ry = (rank) => pad.t + ((rank - 1) / Math.max(teamCount - 1, 1)) * plotH
+  const highlightIds = new Set(highlights.map(h => Number(h.id)))
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }}>
       {/* 他チーム（薄い線） */}
-      {groupTeams.filter(t => Number(t.id) !== homeId && Number(t.id) !== awayId).map(team => {
+      {groupTeams.filter(t => !highlightIds.has(Number(t.id))).map(team => {
         const tid = Number(team.id)
         const tr = rounds.filter(r => history[tid]?.[r] != null)
         if (tr.length < 2) return null
         return <polyline key={tid} points={tr.map(r => `${rx(r)},${ry(history[tid][r])}`).join(' ')}
           fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
       })}
-      {/* 2クラブハイライト */}
-      {[{ id: homeId, color: homeColor }, { id: awayId, color: awayColor }].map(({ id, color }) => {
-        const team = allTeams.find(t => Number(t.id) === id)
-        const tr = rounds.filter(r => history[id]?.[r] != null)
+      {/* ハイライトチーム */}
+      {highlights.map(({ id, color, abbr }) => {
+        const tid = Number(id)
+        const tr = rounds.filter(r => history[tid]?.[r] != null)
         if (!tr.length) return null
         const last = tr[tr.length - 1]
-        const rank = history[id][last]
+        const rank = history[tid][last]
         return (
-          <g key={id}>
-            <polyline points={tr.map(r => `${rx(r)},${ry(history[id][r])}`).join(' ')}
+          <g key={tid}>
+            <polyline points={tr.map(r => `${rx(r)},${ry(history[tid][r])}`).join(' ')}
               fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
             <circle cx={rx(last)} cy={ry(rank)} r="4" fill={color} />
             <text x={rx(last) + 8} y={ry(rank)} dominantBaseline="central"
-              style={{ fontSize: 9, fill: color, fontFamily: 'inherit', fontWeight: 700 }}>{team?.abbr}  {rank}位</text>
+              style={{ fontSize: 9, fill: color, fontFamily: 'inherit', fontWeight: 700 }}>{abbr}  {rank}位</text>
           </g>
         )
       })}
