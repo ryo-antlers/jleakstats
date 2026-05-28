@@ -41,18 +41,18 @@ const ACCENT_DEFAULT = {
   inactive: 'rgba(255,255,255,0.55)',
   hover:    'rgba(255,255,255,0.85)',
 }
-// PLAYOFFS タブ用 緑系 (#4caf50 = 開催日ハイライト色と統一)
+// PLAYOFFS タブ用 緑系 (#53bb33 = rgb(83,187,51))
 const ACCENT_GREEN = {
-  active:   '#4caf50',
-  inactive: 'rgba(76,175,80,0.6)',
-  hover:    'rgba(76,175,80,0.9)',
+  active:   '#53bb33',
+  inactive: 'rgba(83,187,51,0.6)',
+  hover:    'rgba(83,187,51,0.9)',
 }
 
 const TABS_DEF = [
   { key: 'j1Playoff',   label: 'J1 PLAYOFFS',   accent: ACCENT_GREEN },
   { key: 'j1East',      label: 'J1 EAST' },
   { key: 'j1West',      label: 'J1 WEST' },
-  { key: 'j2j3Playoff', label: 'J2J3 PLAYOFFS', accent: ACCENT_GREEN },
+  { key: 'j2j3Playoff', label: 'J2J3 PLAYOFFS', accent: ACCENT_GREEN, extraGapAfter: 16 },
   { key: 'j2j3EastA',   label: 'J2J3 EAST-A' },
   { key: 'j2j3EastB',   label: 'J2J3 EAST-B' },
   { key: 'j2j3WestA',   label: 'J2J3 WEST-A' },
@@ -62,7 +62,7 @@ const TABS_DEF = [
 export default function LeagueGroupTabs({ groups, standings, rateableIds, myProfile }) {
   const rateableSet = useMemo(() => new Set((rateableIds ?? []).map(Number)), [rateableIds])
   const supportedColor = color(myProfile?.club_color)
-  const [active, setActive] = useState('j1East')
+  const [active, setActive] = useState('j1Playoff')
   const navRef = useRef(null)
   const [underline, setUnderline] = useState({ left: 0, width: 0 })
 
@@ -108,6 +108,7 @@ export default function LeagueGroupTabs({ groups, standings, rateableIds, myProf
                 flex: '1 1 0',
                 minWidth: 110,
                 padding: '16px 8px',
+                marginRight: t.extraGapAfter ?? 0,
                 background: 'none',
                 border: 'none',
                 color: isActive ? accent.active : accent.inactive,
