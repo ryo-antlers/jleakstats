@@ -36,10 +36,10 @@ function teamAbbr(short) {
 }
 
 const TABS_DEF = [
-  { key: 'j1Playoff',   label: 'J1 順位決定戦' },
+  { key: 'j1Playoff',   label: 'J1 PLAYOFFS' },
   { key: 'j1East',      label: 'J1 EAST' },
   { key: 'j1West',      label: 'J1 WEST' },
-  { key: 'j2j3Playoff', label: 'J2J3 順位決定戦' },
+  { key: 'j2j3Playoff', label: 'J2J3 PLAYOFFS' },
   { key: 'j2j3EastA',   label: 'J2J3 EAST-A' },
   { key: 'j2j3EastB',   label: 'J2J3 EAST-B' },
   { key: 'j2j3WestA',   label: 'J2J3 WEST-A' },
