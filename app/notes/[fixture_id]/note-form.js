@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
 } from '../_shared'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Clock } from 'lucide-react'
 
 const NEXT_VISIT_MEMO_MAX = 500
 const MATCH_IMPRESSION_MAX = 500
@@ -348,7 +348,7 @@ function ChatRow({ entry, onRemove }) {
 }
 
 // 時刻 + 文章 を分けて入力する常駐ドラフト行
-//   - 時刻は <input type="time"> ピッカー
+//   - 時刻はサイト雰囲気に合わせた自前のドロップダウンピッカー
 //   - 文章は 1 行テキスト (空欄から開始、Enter で追加)
 function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCommit, canCommit }) {
   function onKey(e) {
@@ -362,23 +362,7 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
       display: 'flex', gap: 12, alignItems: 'flex-end',
       paddingTop: 6,
     }}>
-      <input
-        type="time"
-        value={draftTime}
-        onChange={e => setDraftTime(e.target.value)}
-        onKeyDown={onKey}
-        style={{
-          width: 120, flex: '0 0 120px',
-          padding: '4px 0', fontSize: 14,
-          border: 'none',
-          borderBottom: '1px solid rgba(255,255,255,0.18)',
-          backgroundColor: 'transparent', color: '#fff',
-          outline: 'none', fontFamily: 'inherit',
-          // ブラウザのフォームコントロール (時計アイコン等) をダーク扱いにする
-          // → Chrome/Safari の時計アイコンが白くなる
-          colorScheme: 'dark',
-        }}
-      />
+      <CustomTimePicker value={draftTime} onChange={setDraftTime} onKeyDown={onKey} />
       <input
         type="text"
         value={draftText}
@@ -413,6 +397,138 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
     </div>
   )
 }
+
+// サイト雰囲気に合わせた自前の時刻ピッカー
+//   - 閉じてる時: 下線スタイル + 時計アイコン
+//   - 開いた時: 真下に 2 カラム (HH / MM) の縦スクロールリスト
+//   - クリック外 / Escape で閉じる
+const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
+function CustomTimePicker({ value, onChange, onKeyDown }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+  const hourColRef = useRef(null)
+  const minuteColRef = useRef(null)
+
+  const [hh = '', mm = ''] = (value || '').split(':')
+
+  // クリック外で閉じる
+  useEffect(() => {
+    if (!open) return
+    function onDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    function onEsc(e) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onEsc)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onEsc)
+    }
+  }, [open])
+
+  // 開いた瞬間に選択行を中央寄せ
+  useEffect(() => {
+    if (!open) return
+    requestAnimationFrame(() => {
+      ;[[hourColRef.current, hh], [minuteColRef.current, mm]].forEach(([col, val]) => {
+        if (!col) return
+        const sel = col.querySelector(`[data-val="${val}"]`)
+        if (sel) col.scrollTop = sel.offsetTop - col.clientHeight / 2 + sel.clientHeight / 2
+      })
+    })
+  }, [open, hh, mm])
+
+  function setHour(h) {
+    onChange(`${h}:${mm || '00'}`)
+  }
+  function setMinute(m) {
+    onChange(`${hh || '00'}:${m}`)
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', width: 120, flex: '0 0 120px' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={onKeyDown}
+        style={{
+          width: '100%', padding: '4px 0', fontSize: 14,
+          border: 'none', borderBottom: '1px solid rgba(255,255,255,0.18)',
+          backgroundColor: 'transparent',
+          color: value ? '#fff' : 'rgba(255,255,255,0.45)',
+          outline: 'none', cursor: 'pointer',
+          textAlign: 'left', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          letterSpacing: '0.04em', fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        <span>{value || '--:--'}</span>
+        <Clock size={14} strokeWidth={1.6} color="#fff" style={{ opacity: 0.6 }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+          zIndex: 50,
+          display: 'flex', gap: 0,
+          backgroundColor: '#0a0a0a',
+          boxShadow: '0 8px 28px rgba(0,0,0,0.6)',
+        }}>
+          {/* WebKit のスクロールバー非表示 (Firefox は inline の scrollbarWidth で対応済) */}
+          <style dangerouslySetInnerHTML={{ __html: '.lab-time-col::-webkit-scrollbar{display:none}' }} />
+          <TimeColumn ref={hourColRef} items={HOURS}   selected={hh} onPick={setHour} />
+          <TimeColumn ref={minuteColRef} items={MINUTES} selected={mm} onPick={setMinute} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+const TimeColumn = ({ items, selected, onPick, ref }) => (
+  <div
+    ref={ref}
+    className="lab-time-col"
+    style={{
+      maxHeight: 220, overflowY: 'auto',
+      display: 'flex', flexDirection: 'column',
+      paddingBlock: 6,
+      minWidth: 60,
+      // Firefox / IE 用にスクロールバー非表示
+      scrollbarWidth: 'none',
+      msOverflowStyle: 'none',
+    }}
+  >
+    {items.map(item => {
+      const isSelected = selected === item
+      return (
+        <button
+          key={item}
+          type="button"
+          data-val={item}
+          onClick={() => onPick(item)}
+          style={{
+            padding: '6px 18px', minWidth: 60,
+            border: 'none',
+            backgroundColor: isSelected ? '#00ff87' : 'transparent',
+            color: isSelected ? '#000' : 'rgba(255,255,255,0.7)',
+            fontFamily: 'inherit', fontSize: 13,
+            fontWeight: isSelected ? 800 : 500,
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.04em',
+            cursor: 'pointer', textAlign: 'center',
+            transition: 'background-color 0.08s ease',
+          }}
+          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+        >{item}</button>
+      )
+    })}
+  </div>
+)
 
 function RadioCard({ selected, onClick, icon: Icon, label }) {
   return (
