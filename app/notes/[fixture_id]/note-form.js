@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
 } from '../_shared'
-import { Plus, X, Clock } from 'lucide-react'
+import { Plus, X, Clock, Pencil, Check } from 'lucide-react'
 
 const NEXT_VISIT_MEMO_MAX = 500
 const MATCH_IMPRESSION_MAX = 500
@@ -31,6 +31,39 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
   // 時刻と文章を分けた入力 (常駐)
   const [draftTime, setDraftTime] = useState('')
   const [draftText, setDraftText] = useState('')
+
+  // 既存エントリの編集
+  const [editingIdx, setEditingIdx] = useState(null)
+  const [editTime, setEditTime] = useState('')
+  const [editText, setEditText] = useState('')
+
+  function startEdit(idx) {
+    const e = timeline[idx]
+    if (!e) return
+    setEditingIdx(idx)
+    setEditTime(e.time)
+    setEditText(e.text)
+  }
+  function cancelEdit() {
+    setEditingIdx(null)
+    setEditTime('')
+    setEditText('')
+  }
+  function commitEdit() {
+    const time = editTime.trim()
+    const text = editText.trim()
+    if (!time || !text) return
+    if (!TIME_HHMM_RE.test(time)) return
+    if ([...text].length > TIMELINE_TEXT_MAX) return
+    if (editingIdx == null) return
+    setTimeline(prev => prev.map((e, i) => i === editingIdx ? { time, text } : e))
+    cancelEdit()
+  }
+  const canCommitEdit =
+    editTime.trim().length > 0 &&
+    editText.trim().length > 0 &&
+    TIME_HHMM_RE.test(editTime.trim()) &&
+    [...editText.trim()].length <= TIMELINE_TEXT_MAX
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -175,22 +208,37 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
       {/* 1 日のタイムライン (時刻 + 文章 を分けて入力) */}
       <Field label="1 日のタイムライン">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* 確定済みエントリ (時刻順) */}
+          {/* 確定済みエントリ (時刻順) — 編集中はその行だけ入力モードに */}
           {[...timeline]
             .sort((a, b) => String(a.time).localeCompare(String(b.time)))
             .map((entry, displayIdx) => {
               const realIdx = timeline.findIndex(e => e === entry || (e.time === entry.time && e.text === entry.text))
+              if (editingIdx === realIdx) {
+                return (
+                  <EditDraftRow
+                    key={`edit-${realIdx}`}
+                    editTime={editTime}
+                    setEditTime={setEditTime}
+                    editText={editText}
+                    setEditText={setEditText}
+                    onSave={commitEdit}
+                    onCancel={cancelEdit}
+                    canSave={canCommitEdit}
+                  />
+                )
+              }
               return (
                 <ChatRow
                   key={`${entry.time}-${entry.text}-${displayIdx}`}
                   entry={entry}
+                  onEdit={() => startEdit(realIdx)}
                   onRemove={() => removeTimelineEntry(realIdx)}
                 />
               )
             })}
 
-          {/* 時刻 + 文章 + 追加ボタン (常駐) */}
-          {timeline.length < TIMELINE_MAX_ENTRIES && (
+          {/* 時刻 + 文章 + 追加ボタン (常駐、編集中は非表示) */}
+          {editingIdx == null && timeline.length < TIMELINE_MAX_ENTRIES && (
             <SplitDraftRow
               draftTime={draftTime}
               setDraftTime={setDraftTime}
@@ -200,7 +248,7 @@ export default function NoteForm({ fixtureId, initialNote, afterSaveMode = 'redi
               canCommit={canAddDraft}
             />
           )}
-          {timeline.length >= TIMELINE_MAX_ENTRIES && (
+          {editingIdx == null && timeline.length >= TIMELINE_MAX_ENTRIES && (
             <p style={hintStyle}>タイムラインは {TIMELINE_MAX_ENTRIES} 件まで</p>
           )}
         </div>
@@ -318,7 +366,7 @@ function BareTextarea({ value, onChange, maxLength }) {
 }
 
 // チャットエントリの読み取り表示
-function ChatRow({ entry, onRemove }) {
+function ChatRow({ entry, onEdit, onRemove }) {
   return (
     <div style={{
       display: 'flex', gap: 12, alignItems: 'baseline',
@@ -334,17 +382,86 @@ function ChatRow({ entry, onRemove }) {
       <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: 1.5, color: '#fff' }}>{entry.text}</span>
       <button
         type="button"
+        onClick={onEdit}
+        aria-label="この行を編集"
+        style={ghostIconBtn}
+      ><Pencil size={13} strokeWidth={1.8} /></button>
+      <button
+        type="button"
         onClick={onRemove}
         aria-label="この行を削除"
-        style={{
-          width: 24, height: 24, padding: 0, flex: '0 0 auto',
-          background: 'transparent', border: 'none',
-          color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        }}
+        style={ghostIconBtn}
       ><X size={14} strokeWidth={1.8} /></button>
     </div>
   )
+}
+
+// 既存エントリの編集モード行 (時刻 + 文章 + ✓ 保存 + × キャンセル)
+function EditDraftRow({ editTime, setEditTime, editText, setEditText, onSave, onCancel, canSave }) {
+  function blockEnter(e) {
+    if (e.key === 'Enter') e.preventDefault()
+  }
+  return (
+    <div style={{
+      display: 'flex', gap: 12, alignItems: 'flex-end',
+      padding: '8px 10px',
+      border: '1px solid rgba(0,255,135,0.35)',
+      backgroundColor: 'rgba(0,255,135,0.04)',
+    }}>
+      <CustomTimePicker value={editTime} onChange={setEditTime} onKeyDown={blockEnter} />
+      <input
+        type="text"
+        value={editText}
+        onChange={e => setEditText(e.target.value)}
+        onKeyDown={blockEnter}
+        maxLength={TIMELINE_TEXT_MAX}
+        style={{
+          flex: 1, minWidth: 0,
+          padding: '4px 0', fontSize: 14,
+          border: 'none',
+          borderBottom: '1px solid rgba(255,255,255,0.18)',
+          backgroundColor: 'transparent', color: '#fff',
+          outline: 'none', fontFamily: 'inherit',
+        }}
+      />
+      <button
+        type="button"
+        onClick={onCancel}
+        aria-label="キャンセル"
+        style={{
+          width: 36, height: 36, flex: '0 0 auto', padding: 0,
+          border: '1px solid rgba(255,255,255,0.18)',
+          backgroundColor: 'transparent',
+          color: 'rgba(255,255,255,0.55)',
+          cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'inherit',
+        }}
+      ><X size={16} strokeWidth={2} /></button>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={!canSave}
+        aria-label="保存"
+        style={{
+          width: 36, height: 36, flex: '0 0 auto', padding: 0,
+          border: 'none',
+          backgroundColor: canSave ? '#00ff87' : 'rgba(0,255,135,0.15)',
+          color: canSave ? '#000' : 'rgba(255,255,255,0.3)',
+          cursor: canSave ? 'pointer' : 'not-allowed',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'inherit',
+        }}
+      ><Check size={16} strokeWidth={2.4} /></button>
+    </div>
+  )
+}
+
+const ghostIconBtn = {
+  width: 24, height: 24, padding: 0, flex: '0 0 auto',
+  background: 'transparent', border: 'none',
+  color: 'rgba(255,255,255,0.35)', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 }
 
 // 時刻 + 文章 を分けて入力する常駐ドラフト行
