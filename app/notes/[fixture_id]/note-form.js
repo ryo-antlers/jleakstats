@@ -349,25 +349,24 @@ function ChatRow({ entry, onRemove }) {
 
 // 時刻 + 文章 を分けて入力する常駐ドラフト行
 //   - 時刻はサイト雰囲気に合わせた自前のドロップダウンピッカー
-//   - 文章は 1 行テキスト (空欄から開始、Enter で追加)
+//   - 文章は 1 行テキスト (空欄から開始)
+//   - 追加は緑の + ボタンを押した時のみ (Enter では誤って外側 form の保存が
+//     走らないように preventDefault だけ実施)
 function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCommit, canCommit }) {
-  function onKey(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (canCommit) onCommit()
-    }
+  function blockEnter(e) {
+    if (e.key === 'Enter') e.preventDefault()
   }
   return (
     <div style={{
       display: 'flex', gap: 12, alignItems: 'flex-end',
       paddingTop: 6,
     }}>
-      <CustomTimePicker value={draftTime} onChange={setDraftTime} onKeyDown={onKey} />
+      <CustomTimePicker value={draftTime} onChange={setDraftTime} onKeyDown={blockEnter} />
       <input
         type="text"
         value={draftText}
         onChange={e => setDraftText(e.target.value)}
-        onKeyDown={onKey}
+        onKeyDown={blockEnter}
         maxLength={TIMELINE_TEXT_MAX}
         placeholder="スタジアムに到着"
         style={{
