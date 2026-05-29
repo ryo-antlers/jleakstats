@@ -374,6 +374,9 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
           borderBottom: '1px solid rgba(255,255,255,0.18)',
           backgroundColor: 'transparent', color: '#fff',
           outline: 'none', fontFamily: 'inherit',
+          // ブラウザのフォームコントロール (時計アイコン等) をダーク扱いにする
+          // → Chrome/Safari の時計アイコンが白くなる
+          colorScheme: 'dark',
         }}
       />
       <input
@@ -382,7 +385,7 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
         onChange={e => setDraftText(e.target.value)}
         onKeyDown={onKey}
         maxLength={TIMELINE_TEXT_MAX}
-        placeholder="例: 牛串とビール / グッズ列に並んだ"
+        placeholder="スタジアムに到着"
         style={{
           flex: 1, minWidth: 0,
           padding: '4px 0', fontSize: 14,
