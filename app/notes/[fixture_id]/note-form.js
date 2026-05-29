@@ -359,10 +359,8 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
   }
   return (
     <div style={{
-      display: 'flex', gap: 8, alignItems: 'center',
-      padding: '4px 0',
-      borderTop: '1px dashed rgba(255,255,255,0.12)',
-      marginTop: 4, paddingTop: 10,
+      display: 'flex', gap: 12, alignItems: 'flex-end',
+      paddingTop: 6,
     }}>
       <input
         type="time"
@@ -370,11 +368,12 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
         onChange={e => setDraftTime(e.target.value)}
         onKeyDown={onKey}
         style={{
-          width: 110, flex: '0 0 110px',
-          padding: '8px 10px', fontSize: 14,
-          border: '1px solid rgba(255,255,255,0.18)',
+          width: 120, flex: '0 0 120px',
+          padding: '4px 0', fontSize: 14,
+          border: 'none',
+          borderBottom: '1px solid rgba(255,255,255,0.18)',
           backgroundColor: 'transparent', color: '#fff',
-          outline: 'none', borderRadius: 0, fontFamily: 'inherit',
+          outline: 'none', fontFamily: 'inherit',
         }}
       />
       <input
@@ -386,10 +385,11 @@ function SplitDraftRow({ draftTime, setDraftTime, draftText, setDraftText, onCom
         placeholder="例: 牛串とビール / グッズ列に並んだ"
         style={{
           flex: 1, minWidth: 0,
-          padding: '8px 10px', fontSize: 14,
-          border: '1px solid rgba(255,255,255,0.18)',
+          padding: '4px 0', fontSize: 14,
+          border: 'none',
+          borderBottom: '1px solid rgba(255,255,255,0.18)',
           backgroundColor: 'transparent', color: '#fff',
-          outline: 'none', borderRadius: 0, fontFamily: 'inherit',
+          outline: 'none', fontFamily: 'inherit',
         }}
       />
       <button
