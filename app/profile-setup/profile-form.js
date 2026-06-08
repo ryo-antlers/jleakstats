@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk } from '@clerk/nextjs'
 import { containsNG } from '@/lib/ng-words'
+import { isReservedHandle } from '@/lib/reserved-handles'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const FIRST_MATCH_YEAR_MIN = 1993
@@ -144,6 +145,7 @@ export default function ProfileForm({
   const disableSubmit =
     loading ||
     !displayName.trim() ||
+    !handle.trim() ||
     !clubId ||
     (clubLocked && clubChangeAttempted)
 
@@ -252,12 +254,14 @@ export default function ProfileForm({
     return null
   })()
 
-  // URL ハンドルのバリデーション (空 / 3〜20文字、半角英数 + _ -)
+  // URL ハンドルのバリデーション (必須 / 3〜20文字、半角英数 + _ -、予約語不可)
+  //   空のときの inline エラーは出さず (入力前から赤くしない)、送信時にブロックする
   const handleError = (() => {
     const v = handle.trim()
     if (v === '') return null
     if (!/^[a-zA-Z0-9_-]+$/.test(v)) return '半角英数と _ - のみ使えます'
     if (v.length < 3 || v.length > 20) return '3〜20文字で入力してください'
+    if (isReservedHandle(v)) return 'このユーザーIDは使用できません'
     return null
   })()
 
@@ -293,8 +297,12 @@ export default function ProfileForm({
       setError(`アイコン文字: ${avatarTextError}`)
       return
     }
+    if (!handle.trim()) {
+      setError('ユーザーIDを入力してください')
+      return
+    }
     if (handleError) {
-      setError(`URLハンドル: ${handleError}`)
+      setError(`ユーザーID: ${handleError}`)
       return
     }
     if (!clubId) {
@@ -316,7 +324,7 @@ export default function ProfileForm({
         body: JSON.stringify({
           display_name: trimmed,
           avatar_text: avatarText.trim() || null,
-          handle: handle.trim() || null,
+          handle: handle.trim().toLowerCase(),
           supported_club_id: clubId,
           jersey_number: jerseyToSend,
           favorite_player_id: favoritePlayerId,
@@ -359,21 +367,18 @@ export default function ProfileForm({
           />
         </Field>
 
-        {/* URL ハンドル (任意) */}
-        <Field label="URLハンドル (任意)">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>/u/</span>
-            <input
-              type="text"
-              value={handle}
-              onChange={e => setHandle(e.target.value)}
-              placeholder="例: marino_taro"
-              maxLength={20}
-              style={{ ...inputStyle, fontFamily: 'monospace' }}
-            />
-          </div>
+        {/* ユーザーID (必須) */}
+        <Field label="ユーザーID">
+          <input
+            type="text"
+            value={handle}
+            onChange={e => setHandle(e.target.value.toLowerCase())}
+            maxLength={20}
+            required
+            style={{ ...inputStyle, fontFamily: 'monospace' }}
+          />
           <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
-            設定するとプロフィールページ URL が短く綺麗になります。半角英数 + _ - で 3〜20文字。
+            半角英数 + _ - で 3〜20文字 (小文字)。
           </p>
           {handleError && (
             <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{handleError}</p>

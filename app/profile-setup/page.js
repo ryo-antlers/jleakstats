@@ -108,7 +108,8 @@ export default async function ProfileSetupPage({ searchParams }) {
         initialFirstMatchFixtures={initialFirstMatchFixtures}
         next={next}
       />
-      <FantypeSection jlsp={jlsp} />
+      {/* FANTYPE は編集ページのみ表示 (新規登録時は出さない) */}
+      {profile && <FantypeSection jlsp={jlsp} />}
     </>
   )
 }

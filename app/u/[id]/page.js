@@ -49,7 +49,7 @@ async function resolveUser(id) {
       FROM user_profiles up
       LEFT JOIN teams_master t ON t.id = up.supported_club_id
       LEFT JOIN players_master fp ON fp.id = up.favorite_player_id
-      WHERE up.handle = ${id}
+      WHERE LOWER(up.handle) = ${id.toLowerCase()}
     `.catch(() => [])
     if (rows.length === 0) {
       rows = await sql`
