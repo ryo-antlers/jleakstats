@@ -94,23 +94,23 @@ export async function POST(request) {
   //   - 重複判定は大文字小文字を無視 (Ryo と ryo を同一視してなりすまし防止)
   //   - DB には常に小文字で保存
   if (!handleRaw || handleRaw.length === 0) {
-    return Response.json({ error: 'URLハンドルを入力してください' }, { status: 400 })
+    return Response.json({ error: 'ユーザーIDを入力してください' }, { status: 400 })
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(handleRaw)) {
-    return Response.json({ error: 'URLハンドルは半角英数と _ - のみ使えます' }, { status: 400 })
+    return Response.json({ error: 'ユーザーIDは半角英数と _ - のみ使えます' }, { status: 400 })
   }
   if (handleRaw.length < 3 || handleRaw.length > 20) {
-    return Response.json({ error: 'URLハンドルは3〜20文字で入力してください' }, { status: 400 })
+    return Response.json({ error: 'ユーザーIDは3〜20文字で入力してください' }, { status: 400 })
   }
   const handle = handleRaw.toLowerCase()
   if (isReservedHandle(handle)) {
-    return Response.json({ error: 'そのURLハンドルは使用できません' }, { status: 400 })
+    return Response.json({ error: 'そのユーザーIDは使用できません' }, { status: 400 })
   }
   const dup = await sql`
     SELECT clerk_user_id FROM user_profiles WHERE LOWER(handle) = ${handle} AND clerk_user_id <> ${userId}
   `
   if (dup.length > 0) {
-    return Response.json({ error: 'そのURLハンドルは既に使われています' }, { status: 409 })
+    return Response.json({ error: 'そのユーザーIDは既に使われています' }, { status: 409 })
   }
 
   // supported_club_id のバリデーション (J1/J2/J3 全グループ)

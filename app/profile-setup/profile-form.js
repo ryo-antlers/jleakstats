@@ -261,7 +261,7 @@ export default function ProfileForm({
     if (v === '') return null
     if (!/^[a-zA-Z0-9_-]+$/.test(v)) return '半角英数と _ - のみ使えます'
     if (v.length < 3 || v.length > 20) return '3〜20文字で入力してください'
-    if (isReservedHandle(v)) return 'このハンドルは使用できません'
+    if (isReservedHandle(v)) return 'このユーザーIDは使用できません'
     return null
   })()
 
@@ -298,11 +298,11 @@ export default function ProfileForm({
       return
     }
     if (!handle.trim()) {
-      setError('URLハンドルを入力してください')
+      setError('ユーザーIDを入力してください')
       return
     }
     if (handleError) {
-      setError(`URLハンドル: ${handleError}`)
+      setError(`ユーザーID: ${handleError}`)
       return
     }
     if (!clubId) {
@@ -367,22 +367,18 @@ export default function ProfileForm({
           />
         </Field>
 
-        {/* URL ハンドル (必須) */}
-        <Field label="URLハンドル">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>/u/</span>
-            <input
-              type="text"
-              value={handle}
-              onChange={e => setHandle(e.target.value.toLowerCase())}
-              placeholder="例: marino_taro"
-              maxLength={20}
-              required
-              style={{ ...inputStyle, fontFamily: 'monospace' }}
-            />
-          </div>
+        {/* ユーザーID (必須) */}
+        <Field label="ユーザーID">
+          <input
+            type="text"
+            value={handle}
+            onChange={e => setHandle(e.target.value.toLowerCase())}
+            maxLength={20}
+            required
+            style={{ ...inputStyle, fontFamily: 'monospace' }}
+          />
           <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
-            あなたのプロフィールページ URL になります。半角英数 + _ - で 3〜20文字 (小文字)。
+            半角英数 + _ - で 3〜20文字 (小文字)。
           </p>
           {handleError && (
             <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{handleError}</p>
