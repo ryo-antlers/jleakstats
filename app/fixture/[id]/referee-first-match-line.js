@@ -28,11 +28,11 @@ export default function RefereeFirstMatchLine({ firstMatch, teamId, clubColor, a
 
   return (
     <div style={{ marginTop: 2, textAlign: align === 'right' ? 'right' : 'left' }}>
-      <span style={{ display: 'block', fontSize: 9, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+      <span style={{ display: 'block', fontSize: 9, color: '#fff', whiteSpace: 'nowrap' }}>
         初担当：{dateStr} vs{' '}
         <span onClick={toggle} style={clickStyle}>{oppName}</span>
         {' '}{result}{' '}
-        <span onClick={toggle} style={{ ...clickStyle, color: 'rgba(255,255,255,0.7)' }}>{scoreStr}</span>
+        <span onClick={toggle} style={clickStyle}>{scoreStr}</span>
       </span>
       {open && hasScorers && (
         <div style={{ paddingTop: 2, textAlign: align === 'right' ? 'right' : 'left' }}>
