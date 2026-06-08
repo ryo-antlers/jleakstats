@@ -66,9 +66,9 @@ function BaselineLine({ record, baseline, align }) {
     : `${baseline.minYear}–${baseline.maxYear}`
   const deltaColor = delta > 0 ? '#d76d6d' : delta < 0 ? '#6d9bd7' : '#fff'
   return (
-    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: align, margin: '2px 0 0 0', lineHeight: 1.4 }}>
+    <div style={{ fontSize: 9, color: '#fff', textAlign: align, margin: '2px 0 0 0', lineHeight: 1.4 }}>
       <span>{`${span} 全試合平均勝率 `}</span>
-      <span style={{ color: '#fff' }}>{`${Math.round(basePct)}%`}</span>
+      <span>{`${Math.round(basePct)}%`}</span>
       <span style={{ color: deltaColor }}>
         {`(${delta > 0 ? '+' : ''}${delta}pt)`}
       </span>
