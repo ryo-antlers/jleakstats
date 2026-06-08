@@ -48,9 +48,9 @@ function WinRateDonut({ record, clubColor, align }) {
           fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1,
         }}>{Math.round(winPct)}%</div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: 'rgba(255,255,255,0.7)', textAlign: align === 'right' ? 'right' : 'left' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: '#fff', textAlign: align === 'right' ? 'right' : 'left' }}>
         <span>{`${total}試合`}</span>
-        <span style={{ color: 'rgba(255,255,255,0.5)' }}>{`${w}勝 ${d}分 ${l}敗`}</span>
+        <span>{`${w}勝 ${d}分 ${l}敗`}</span>
       </div>
     </div>
   )
@@ -91,7 +91,7 @@ function Column({ align, teamId, clubColor, record, baseline, firstMatch, histor
         isOpen={openKey === firstKey}
         onToggle={() => setOpenKey(prev => prev === firstKey ? null : firstKey)}
       />
-      <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', margin: '8px 0 2px 0', textAlign: align }}>直近5試合</p>
+      <p style={{ fontSize: 9, color: '#fff', margin: '8px 0 2px 0', textAlign: align }}>直近5試合</p>
       <div style={{ borderTop: `1px solid ${clubColor}`, paddingTop: 10 }}>
         {history.map((f, i) => (
           <RefereeMatchRow
