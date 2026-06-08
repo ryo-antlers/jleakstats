@@ -3,16 +3,17 @@
 // 動作:
 //   1. fixture_player_stats / fixture_lineups / fixture_events で使われている
 //      API-Football ID のうち player_external_ids に未登録のものを抽出
-//   2. チーム別にグループ化
-//   3. 各チームの API-Football roster を取得 (dob 含む)
-//   4. dob + team で canonical 検索 → 一致なら link
-//   5. 失敗は pending_reviews に積む
+//      (各 orphan の観測シーズン = MAX(season) も取得)
+//   2. 各 orphan を /players?id=X で個別取得。観測シーズン優先で複数シーズンを
+//      試し、dob が取れたら確定 (2024〜2025在籍→2026離脱の選手の取りこぼし防止)
+//   3. dob + team で canonical 検索 → 一致なら link
+//   4. 失敗は pending_reviews に積む (reason: not_in_api / no_dob / no_match / ambiguous)
 //
 // 実行: node --env-file=.env.local scripts/link_api_football_orphans.mjs
 //        node --env-file=.env.local scripts/link_api_football_orphans.mjs --dry-run
 
 import { neon } from '@neondatabase/serverless'
-import { fetchPlayersByTeam, fetchPlayerById } from '../lib/api-football.js'
+import { fetchPlayerById, sleep } from '../lib/api-football.js'
 
 const sql = neon(process.env.DATABASE_URL)
 const DRY_RUN = process.argv.includes('--dry-run')
@@ -57,6 +58,12 @@ const orphans = await sql`
       SELECT 1 FROM player_external_ids
       WHERE source='api-football' AND external_id = apr.player_id::text
     )
+    -- admin で skip 済みのものは再検出しない (毎週レポートに再浮上させない)
+    AND NOT EXISTS (
+      SELECT 1 FROM pending_reviews pr
+      WHERE pr.source='api-football' AND pr.external_id = apr.player_id::text
+        AND pr.status='skipped'
+    )
   GROUP BY apr.player_id, apr.team_id
   ORDER BY apr.team_id, apr.player_id
 `
@@ -67,13 +74,24 @@ if (orphans.length === 0) {
   process.exit(0)
 }
 
-// チーム別にグループ化
+// チーム別にグループ化 (playerId → 観測シーズン)
 const byTeam = new Map()
 for (const r of orphans) {
-  if (!byTeam.has(r.team_id)) byTeam.set(r.team_id, new Set())
-  byTeam.get(r.team_id).add(r.player_id)
+  if (!byTeam.has(r.team_id)) byTeam.set(r.team_id, new Map())
+  byTeam.get(r.team_id).set(r.player_id, r.season)
 }
 console.error(`対象チーム数: ${byTeam.size}`)
+
+// fixture データから選手名を回収 (API-Football に居ない選手も admin で実名表示できるように)
+const orphanIds = orphans.map(o => o.player_id)
+const nameRows = await sql`
+  SELECT player_id, MAX(player_name_ja) AS ja, MAX(player_name_en) AS en FROM (
+    SELECT player_id, player_name_ja, player_name_en FROM fixture_lineups WHERE player_id = ANY(${orphanIds})
+    UNION ALL
+    SELECT player_id, player_name_ja, player_name_en FROM fixture_events WHERE player_id = ANY(${orphanIds})
+  ) t GROUP BY player_id`
+const nameByPlayer = new Map()
+for (const r of nameRows) nameByPlayer.set(r.player_id, r.ja || r.en || null)
 
 // ─── DB 状態ロード (canonical 検索用) ──────────────
 const pmRows = await sql`SELECT id, name_ja, dob, team_id, canonical_id FROM players_master`
@@ -101,155 +119,109 @@ for (const r of pmRows) {
   canonicalByDob.get(key).push(r.id)
 }
 
-// ─── 各チームの roster 取得 → マッチング ────────────
+// ─── 各 orphan を個別取得 → マッチング ───────────────
+// dob+team で canonical 検索するヘルパー (±1日のズレも吸収)
+function matchByDob(dob, teamId) {
+  let candidates = canonicalByDobTeam.get(`${dob}|${teamId}`) ?? []
+  if (candidates.length === 0) {
+    const dt = new Date(dob).getTime()
+    candidates = [
+      ...(canonicalByDobTeam.get(`${new Date(dt - 86400000).toISOString().slice(0,10)}|${teamId}`) ?? []),
+      ...(canonicalByDobTeam.get(`${new Date(dt + 86400000).toISOString().slice(0,10)}|${teamId}`) ?? []),
+    ]
+  }
+  return candidates
+}
+
+// 観測シーズンを先頭に、過去シーズンへフォールバックして dob を探す
+// (2024〜2025在籍→2026離脱の選手は season=2026 では空で返るため)
+const FALLBACK_SEASONS = [2026, 2025, 2024]
+
 const newLinks = []  // { canonical_id, api_football_id, name }
 const pendings = []  // pending_reviews 用
 
-for (const [teamId, ids] of byTeam) {
-  console.error(`\nチーム ${teamId}: ${ids.size}件のオーファン`)
-  let roster
-  try {
-    roster = await fetchPlayersByTeam(teamId, 2026, 1)
-  } catch (e) {
-    console.error(`  ✗ API-Football fetch 失敗: ${e.message}`)
-    // fetch失敗時は pending に積む
-    for (const id of ids) {
-      pendings.push({
-        source: 'api-football',
-        external_id: String(id),
-        observed_name: null,
-        observed_team_id: teamId,
-        observed_dob: null,
-        candidate_canonicals: null,
-        reason: `fetch_failed: ${e.message.slice(0, 100)}`,
-      })
+for (const [teamId, idSeasonMap] of byTeam) {
+  console.error(`\nチーム ${teamId}: ${idSeasonMap.size}件のオーファン`)
+
+  for (const [id, observedSeason] of idSeasonMap) {
+    const seasons = [...new Set([observedSeason, ...FALLBACK_SEASONS].filter(Boolean))]
+
+    // dob が取れるまでシーズンを試す。レコードはあるが dob 無しの場合は名前だけ保持
+    let record = null
+    let recordSeason = null
+    for (const s of seasons) {
+      let p
+      try {
+        p = (await fetchPlayerById(id, s))?.[0]?.player
+      } catch (e) {
+        console.error(`  ✗ /players?id=${id}&season=${s}: ${e.message.slice(0, 80)}`)
+        await sleep(300)
+        continue
+      }
+      if (p) {
+        record = p
+        recordSeason = s
+        if (p.birth?.date) break  // dob が取れたら確定
+      }
+      await sleep(150)
     }
-    continue
-  }
 
-  // roster で見つかった orphan を track (見つからない分は後で pending)
-  const foundIds = new Set()
+    // 名前は API レコード優先、無ければ fixture データから回収
+    const observedName = record?.name ?? nameByPlayer.get(id) ?? null
+    const dob = record?.birth?.date ?? null
 
-  for (const entry of roster ?? []) {
-    const p = entry.player
-    if (!p?.id || !ids.has(p.id)) continue
-    foundIds.add(p.id)
-
-    const dob = p.birth?.date ?? null
-    const lastName = p.lastname ?? null
-
+    // どのシーズンでも API に存在しない = 真に紐付け不能 (名前は fixture から復元)
+    if (!record) {
+      pendings.push({ source: 'api-football', external_id: String(id), observed_name: observedName,
+        observed_team_id: teamId, observed_dob: null, candidate_canonicals: null, reason: 'not_in_api' })
+      continue
+    }
+    // レコードはあるが dob が全シーズンで無い = 手動入力必要
     if (!dob) {
-      pendings.push({
-        source: 'api-football',
-        external_id: String(p.id),
-        observed_name: p.name,
-        observed_team_id: teamId,
-        observed_dob: null,
-        candidate_canonicals: null,
-        reason: 'no_dob',
-      })
+      pendings.push({ source: 'api-football', external_id: String(id), observed_name: observedName,
+        observed_team_id: teamId, observed_dob: null, candidate_canonicals: null, reason: 'no_dob' })
       continue
     }
 
-    // dob + team で canonical 検索
-    const dobTeamKey = `${dob}|${teamId}`
-    let candidates = canonicalByDobTeam.get(dobTeamKey) ?? []
-
-    // dob ±1日 (JST/UTC ズレ対策) も試す
-    if (candidates.length === 0) {
-      const dt = new Date(dob).getTime()
-      const dobMinus1 = new Date(dt - 86400000).toISOString().slice(0,10)
-      const dobPlus1  = new Date(dt + 86400000).toISOString().slice(0,10)
-      candidates = [
-        ...(canonicalByDobTeam.get(`${dobMinus1}|${teamId}`) ?? []),
-        ...(canonicalByDobTeam.get(`${dobPlus1}|${teamId}`) ?? []),
-      ]
-    }
-
+    // dob + team
+    const candidates = matchByDob(dob, teamId)
     if (candidates.length === 1) {
-      newLinks.push({ canonical_id: candidates[0], api_football_id: p.id, name: p.name, dob, team: teamId })
+      newLinks.push({ canonical_id: candidates[0], api_football_id: id, name: observedName, dob, team: teamId, season: recordSeason })
       continue
     }
-
-    // dob のみ (移籍してきた選手) で検索
+    // dob のみ (移籍してきた選手)
     const allDobMatches = canonicalByDob.get(dob) ?? []
     if (allDobMatches.length === 1) {
-      newLinks.push({ canonical_id: allDobMatches[0], api_football_id: p.id, name: p.name, dob, team: teamId, note: 'transferred' })
+      newLinks.push({ canonical_id: allDobMatches[0], api_football_id: id, name: observedName, dob, team: teamId, season: recordSeason, note: 'transferred' })
       continue
     }
 
-    // 失敗 → pending_review
     pendings.push({
-      source: 'api-football',
-      external_id: String(p.id),
-      observed_name: p.name,
-      observed_team_id: teamId,
-      observed_dob: dob,
+      source: 'api-football', external_id: String(id), observed_name: observedName,
+      observed_team_id: teamId, observed_dob: dob,
       candidate_canonicals: candidates.length > 0 ? candidates : (allDobMatches.length > 0 ? allDobMatches : null),
       reason: candidates.length === 0 && allDobMatches.length === 0
         ? 'no_match'
         : `ambiguous (${candidates.length || allDobMatches.length}候補)`,
     })
   }
+}
 
-  // roster に居なかった orphan は個別取得 (/players?id=X) で詳細を入手
-  for (const id of ids) {
-    if (foundIds.has(id)) continue
-    let observedName = null
-    let observedDob = null
-    try {
-      const detail = await fetchPlayerById(id, 2026)
-      const p = detail?.[0]?.player
-      if (p) {
-        observedName = p.name
-        observedDob = p.birth?.date ?? null
-
-        // dob が取れた場合はマッチング再試行
-        if (observedDob) {
-          const dobTeamKey = `${observedDob}|${teamId}`
-          let candidates = canonicalByDobTeam.get(dobTeamKey) ?? []
-          if (candidates.length === 0) {
-            const dt = new Date(observedDob).getTime()
-            candidates = [
-              ...(canonicalByDobTeam.get(`${new Date(dt - 86400000).toISOString().slice(0,10)}|${teamId}`) ?? []),
-              ...(canonicalByDobTeam.get(`${new Date(dt + 86400000).toISOString().slice(0,10)}|${teamId}`) ?? []),
-            ]
-          }
-          if (candidates.length === 1) {
-            newLinks.push({ canonical_id: candidates[0], api_football_id: id, name: observedName, dob: observedDob, team: teamId, note: 'individual_fetch' })
-            continue  // pending に積まずに次へ
-          }
-          // dob のみで再検索
-          const allDobMatches = canonicalByDob.get(observedDob) ?? []
-          if (allDobMatches.length === 1) {
-            newLinks.push({ canonical_id: allDobMatches[0], api_football_id: id, name: observedName, dob: observedDob, team: teamId, note: 'individual_fetch_transferred' })
-            continue
-          }
-        }
-      }
-    } catch (e) {
-      console.error(`  ✗ /players?id=${id} 取得失敗: ${e.message.slice(0, 80)}`)
-    }
-
-    pendings.push({
-      source: 'api-football',
-      external_id: String(id),
-      observed_name: observedName,
-      observed_team_id: teamId,
-      observed_dob: observedDob,
-      candidate_canonicals: null,
-      reason: observedDob ? 'no_match_with_dob' : 'no_dob',
-    })
-  }
+// pending の理由別内訳 (ambiguous は候補数を畳んで集計)
+const reasonCounts = {}
+for (const p of pendings) {
+  const key = p.reason.startsWith('ambiguous') ? 'ambiguous' : p.reason
+  reasonCounts[key] = (reasonCounts[key] ?? 0) + 1
 }
 
 console.error(`\n=== マッチング結果 ===`)
 console.error(`  自動link: ${newLinks.length}件`)
 console.error(`  pending: ${pendings.length}件`)
+console.error(`  pending 内訳: ${JSON.stringify(reasonCounts)}`)
 
 if (DRY_RUN) {
   console.log(JSON.stringify({
-    summary: { orphans: orphans.length, auto_linked: newLinks.length, pending: pendings.length },
+    summary: { orphans: orphans.length, auto_linked: newLinks.length, pending: pendings.length, pending_by_reason: reasonCounts },
     new_links: newLinks.slice(0, 20),
     pendings: pendings.slice(0, 20),
   }, null, 2))
@@ -264,6 +236,12 @@ for (const l of newLinks) {
     INSERT INTO player_external_ids (canonical_id, source, external_id)
     VALUES (${l.canonical_id}, 'api-football', ${String(l.api_football_id)})
     ON CONFLICT (source, external_id) DO NOTHING
+  `)
+  // 自動 link できたものは、過去の pending 行 (旧バージョンが no_dob 等で積んだもの) を閉じる
+  queries.push(sql`
+    UPDATE pending_reviews
+    SET status = 'resolved', resolved_canonical_id = ${l.canonical_id}, resolved_by = 'cron', resolved_at = NOW()
+    WHERE source = 'api-football' AND external_id = ${String(l.api_football_id)} AND status = 'pending'
   `)
 }
 
@@ -285,6 +263,7 @@ const summary = {
   orphans: orphans.length,
   auto_linked: newLinks.length,
   pending: pendings.length,
+  pending_by_reason: reasonCounts,
 }
 
 queries.push(sql`
