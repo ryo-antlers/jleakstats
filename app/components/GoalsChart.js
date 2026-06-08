@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 async function getTopScorers(group) {
   return await sql`
@@ -7,7 +8,7 @@ async function getTopScorers(group) {
       FROM fixture_player_stats fps
       JOIN fixtures f ON fps.fixture_id = f.id
       JOIN teams_master tm ON fps.team_id = tm.id
-      WHERE f.season = 2026 AND tm.group_name = ${group} AND fps.goals > 0
+      WHERE f.season = ${SEASON} AND tm.group_name = ${group} AND fps.goals > 0
       GROUP BY fps.player_id
       HAVING SUM(fps.goals) > 0
       ORDER BY total_goals DESC
@@ -24,7 +25,7 @@ async function getTopScorers(group) {
     JOIN top_scorers ts ON fps.player_id = ts.player_id
     JOIN players_master pm ON fps.player_id = pm.id
     JOIN teams_master tm ON fps.team_id = tm.id
-    WHERE f.season = 2026 AND f.round_number IS NOT NULL
+    WHERE f.season = ${SEASON} AND f.round_number IS NOT NULL
     GROUP BY fps.player_id, f.round_number, pm.name_ja, pm.name_en, tm.color_primary
     ORDER BY fps.player_id, f.round_number
   `.catch(() => [])

@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import TeamTabs from './team-tabs'
@@ -8,7 +9,7 @@ async function getTeam(id) {
     SELECT tm.*,
       s.rank, s.played, s.win, s.draw, s.lose, s.goals_for, s.goals_against, s.goals_diff, s.points, s.form
     FROM teams_master tm
-    LEFT JOIN standings s ON s.team_id = tm.id AND s.season = 2026
+    LEFT JOIN standings s ON s.team_id = tm.id AND s.season = ${SEASON}
     WHERE tm.id = ${id}
   `.catch(() => [])
   return rows[0] ?? null
@@ -26,7 +27,7 @@ async function getTeamFixtures(teamId) {
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
     LEFT JOIN referees_master rm ON rm.name_en = f.referee_en AND rm.name_ja IS NOT NULL
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
     ORDER BY f.date ASC
   `.catch(() => [])
@@ -39,7 +40,7 @@ async function getGroupFixtures(group) {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
       AND ht.group_name = ${group} AND at.group_name = ${group}
       AND f.round_number IS NOT NULL
     ORDER BY f.round_number ASC
@@ -70,7 +71,7 @@ async function getAllTeamStats() {
       FROM fixture_player_stats
       GROUP BY fixture_id, team_id
     ) fps ON fps.fixture_id = fs.fixture_id AND fps.team_id = fs.team_id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
     GROUP BY fs.team_id, f.home_team_id, f.away_team_id, f.home_score, f.away_score
   `.catch(() => [])
 }
@@ -86,7 +87,7 @@ async function getLeagueGoalsAndCleanSheets() {
       COUNT(*) AS games
     FROM teams_master t
     JOIN fixtures f ON (f.home_team_id = t.id OR f.away_team_id = t.id)
-      AND f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+      AND f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
     WHERE t.group_name IN ('EAST', 'WEST')
     GROUP BY t.id
   `.catch(() => [])
@@ -99,7 +100,7 @@ async function getLeaguePlayerStats() {
       SUM(fps.duels_won) AS duels_won
     FROM fixture_player_stats fps
     JOIN fixtures f ON fps.fixture_id = f.id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
     GROUP BY fps.team_id
   `.catch(() => [])
 }
@@ -113,7 +114,7 @@ async function getLeagueTeamStatAggregates() {
     FROM fixture_statistics fs
     JOIN fixtures f ON fs.fixture_id = f.id
     JOIN fixture_statistics opp ON opp.fixture_id = f.id AND opp.team_id != fs.team_id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
     GROUP BY fs.team_id
   `.catch(() => [])
 }
@@ -365,7 +366,7 @@ async function getTeamPlayerRankings(teamId) {
     JOIN fixtures f ON fps.fixture_id = f.id
     LEFT JOIN players_master pm ON fps.player_id = pm.id
     LEFT JOIN players_master cpm ON cpm.id = COALESCE(pm.canonical_id, pm.id)
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
       AND fps.team_id = ${teamId} AND fps.minutes > 0
     GROUP BY COALESCE(pm.canonical_id, pm.id), cpm.name_en, cpm.name_ja
     HAVING SUM(fps.minutes) > 0

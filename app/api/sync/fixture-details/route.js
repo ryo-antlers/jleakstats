@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import {
   fetchFixtureStatistics,
   fetchFixtureEvents,
@@ -28,7 +29,7 @@ export async function GET(request) {
         SELECT f.id FROM fixtures f
         LEFT JOIN fixture_statistics fs ON f.id = fs.fixture_id
         WHERE f.status IN ('FT', 'AET', 'PEN')
-          AND f.season = 2026
+          AND f.season = ${SEASON}
           AND fs.fixture_id IS NULL
         ORDER BY f.date DESC
         LIMIT 10

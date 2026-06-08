@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 async function getFixtureResults() {
   return await sql`
@@ -10,7 +11,7 @@ async function getFixtureResults() {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
       AND f.round_number IS NOT NULL
     ORDER BY f.round_number ASC
   `

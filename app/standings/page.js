@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import Link from 'next/link'
 
 async function getFixtures() {
@@ -7,7 +8,7 @@ async function getFixtures() {
            f.home_score, f.away_score, f.home_penalty, f.away_penalty,
            f.status, f.date
     FROM fixtures f
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
     ORDER BY f.date ASC
   `.catch(() => [])
 }

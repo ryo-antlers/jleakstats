@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import {
   WATCH_TYPE_LABELS, WATCH_TYPE_ICONS,
   normalizeColor, textOn, leagueLabel, formatJST,
@@ -68,7 +69,7 @@ export default async function NotesPage() {
     LEFT JOIN teams_master ht ON ht.id = f.home_team_id
     LEFT JOIN teams_master at ON at.id = f.away_team_id
     WHERE f.finished_at IS NOT NULL
-      AND f.season = 2026
+      AND f.season = ${SEASON}
       AND (f.home_team_id = ${supportedClubId} OR f.away_team_id = ${supportedClubId})
     ORDER BY f.date DESC
     LIMIT 100

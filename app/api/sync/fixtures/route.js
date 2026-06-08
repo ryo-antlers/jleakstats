@@ -1,5 +1,6 @@
 import sql from '@/lib/db'
 import { fetchFixtures, API_LEAGUES_ALL, apiLeagueToDbLeague } from '@/lib/api-football'
+import { SEASON } from '@/lib/season'
 
 // J1 + J2/J3百年構想 の試合を API-Football から UPSERT
 // (J2 は試合スタッツ/選手スタッツは取れないが、fixtures自体は J1 と同様に同期)
@@ -43,7 +44,7 @@ export async function GET(request) {
             status, elapsed, winner,
             updated_at
           ) VALUES (
-            ${f.id}, ${dbLeague}, 2026,
+            ${f.id}, ${dbLeague}, ${SEASON},
             ${league.round}, ${roundNumber},
             ${f.date},
             ${f.referee ?? null},

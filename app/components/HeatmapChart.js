@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 async function getMatches(group) {
   return await sql`
@@ -11,7 +12,7 @@ async function getMatches(group) {
     FROM fixtures f
     JOIN teams_master ht ON f.home_team_id = ht.id
     JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND f.status IN ('FT', 'AET', 'PEN')
       AND ht.group_name = ${group}
       AND at.group_name = ${group}
@@ -22,7 +23,7 @@ async function getTeams(group) {
   return await sql`
     SELECT tm.id, tm.abbr, tm.color_primary, s.rank
     FROM teams_master tm
-    LEFT JOIN standings s ON s.team_id = tm.id AND s.season = 2026
+    LEFT JOIN standings s ON s.team_id = tm.id AND s.season = ${SEASON}
     WHERE tm.group_name = ${group}
     ORDER BY s.rank ASC
   `.catch(() => [])

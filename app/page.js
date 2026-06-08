@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 export const revalidate = 0 // キャッシュ無効・常に最新
 
@@ -103,7 +104,7 @@ async function getRoundInfo() {
   return await sql`
     SELECT round_number, MIN(date) AS first_date, COUNT(*) AS match_count
     FROM fixtures
-    WHERE season = 2026 AND round_number IS NOT NULL
+    WHERE season = ${SEASON} AND round_number IS NOT NULL
     GROUP BY round_number
     ORDER BY MIN(date) ASC
   `.catch(() => [])
@@ -127,7 +128,7 @@ async function getFixturesByRound(roundNumber) {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.round_number = ${roundNumber}
+    WHERE f.season = ${SEASON} AND f.round_number = ${roundNumber}
   `.catch(() => [])
   return rows.sort((a, b) => {
     const dateDiff = new Date(a.date) - new Date(b.date)
@@ -153,7 +154,7 @@ async function getFixturesInRange(fromDate, toDate) {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND f.league_id = 98
       AND f.date >= ${fromDate}
       AND f.date < ${toDate}
@@ -177,7 +178,7 @@ async function getGroupedFixtures() {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.league_id = 98
+    WHERE f.season = ${SEASON} AND f.league_id = 98
     ORDER BY f.date ASC
   `.catch(() => [])
 
@@ -195,7 +196,7 @@ async function getGroupedFixtures() {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.league_id = 2
+    WHERE f.season = ${SEASON} AND f.league_id = 2
     ORDER BY f.date ASC
   `.catch(() => [])
 
@@ -234,7 +235,7 @@ async function getEarlyFixtures(fromDate, toDate, excludeRounds) {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND f.date >= ${fromDate}
       AND f.date < ${toDate}
       AND f.round_number NOT IN (${excludeA}, ${excludeB})

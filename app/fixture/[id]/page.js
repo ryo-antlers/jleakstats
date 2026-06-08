@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import { getRoundNumber, statusMap, formatDateJa } from '@/lib/utils'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -51,7 +52,7 @@ async function getSeasonAllFixtures() {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
       AND f.round_number IS NOT NULL
     ORDER BY f.round_number ASC
   `.catch(() => [])
@@ -79,7 +80,7 @@ async function getSeasonTeamStats(homeTeamId, awayTeamId) {
     FROM fixture_statistics fs
     JOIN fixtures f ON fs.fixture_id = f.id
     JOIN fixture_statistics opp ON opp.fixture_id = f.id AND opp.team_id != fs.team_id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND (fs.team_id = ${homeTeamId} OR fs.team_id = ${awayTeamId})
       AND f.status IN ('FT', 'AET', 'PEN')
     GROUP BY fs.team_id
@@ -108,7 +109,7 @@ async function getSeasonPlayerStats(homeTeamId, awayTeamId) {
     FROM fixture_player_stats fps
     JOIN fixtures f ON fps.fixture_id = f.id
     LEFT JOIN players_master pm ON fps.player_id = pm.id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND (fps.team_id = ${homeTeamId} OR fps.team_id = ${awayTeamId})
       AND f.status IN ('FT', 'AET', 'PEN')
       AND fps.minutes > 0
@@ -126,7 +127,7 @@ async function getRecentForm(homeTeamId, awayTeamId) {
     FROM fixtures f
     LEFT JOIN teams_master ht ON f.home_team_id = ht.id
     LEFT JOIN teams_master at ON f.away_team_id = at.id
-    WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+    WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
       AND (f.home_team_id = ${homeTeamId} OR f.away_team_id = ${homeTeamId}
            OR f.home_team_id = ${awayTeamId} OR f.away_team_id = ${awayTeamId})
     ORDER BY f.date DESC
@@ -145,7 +146,7 @@ async function getRecentForm(homeTeamId, awayTeamId) {
 // 起点: players_master.is_active=true (Step 4 でCSVから設定済)
 //   - 採点ページ (/rating) と同じく未出場選手も候補に含める
 //   - ベテラン移籍直後 (まだ未出場) でも過去ゴールが正しくランクインする
-async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = 2026) {
+async function getGoalsVsOpponent(currentSquadTeamId, opponentTeamId, season = SEASON) {
   return await sql`
     WITH current_squad_canonicals AS (
       SELECT
@@ -273,7 +274,7 @@ async function getPlayerStats(fixtureId) {
         SUM(CASE WHEN f.status = 'AET' THEN fps2.minutes ELSE LEAST(fps2.minutes, 90) END) AS total_minutes
       FROM fixture_player_stats fps2
       JOIN fixtures f ON fps2.fixture_id = f.id
-      WHERE f.season = 2026
+      WHERE f.season = ${SEASON}
       GROUP BY fps2.player_id
     ) season_total ON fps.player_id = season_total.player_id
     WHERE fps.fixture_id = ${fixtureId} AND fps.minutes > 0
@@ -2414,7 +2415,7 @@ export default async function FixturePage({ params }) {
         const dataJsx = showPreMatchView ? (() => {
           const hid = Number(fixture.home_team_id)
           const aid = Number(fixture.away_team_id)
-          const currentSeason = Number(fixture.season ?? 2026)
+          const currentSeason = Number(fixture.season ?? SEASON)
           // 試合のJST時刻情報
           const koJst = new Date(new Date(fixture.date).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }))
           const koHour = koJst.getHours()

@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PlayerTabs from './player-tabs'
@@ -52,7 +53,7 @@ async function getPlayerMatches(playerIds) {
     LEFT JOIN teams_master at ON f.away_team_id = at.id
     LEFT JOIN fixture_lineups fl ON fl.fixture_id = fps.fixture_id AND fl.player_id = fps.player_id
     WHERE fps.player_id = ANY(${playerIds})
-      AND f.season = 2026
+      AND f.season = ${SEASON}
       AND f.status IN ('FT', 'AET', 'PEN')
     ORDER BY f.date DESC
   `.catch(() => [])
@@ -120,7 +121,7 @@ async function getTeamPlayersStats(teamId) {
     JOIN players_master pm ON fps.player_id = pm.id
     JOIN players_master cpm ON cpm.id = COALESCE(pm.canonical_id, pm.id)
     WHERE fps.team_id = ${teamId}
-      AND f.season = 2026
+      AND f.season = ${SEASON}
       AND f.status IN ('FT', 'AET', 'PEN')
     GROUP BY COALESCE(pm.canonical_id, pm.id), cpm.name_ja
     HAVING SUM(fps.minutes) > 0

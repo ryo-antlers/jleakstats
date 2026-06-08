@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -25,7 +26,7 @@ export async function GET(request) {
         SELECT tm.color_primary FROM fixture_player_stats fps
         JOIN teams_master tm ON tm.id = fps.team_id
         JOIN fixtures f ON f.id = fps.fixture_id
-        WHERE fps.player_id = ${id} AND f.season = 2026
+        WHERE fps.player_id = ${id} AND f.season = ${SEASON}
         ORDER BY f.date DESC LIMIT 1
       `
       return Response.json({ color: rows[0]?.color_primary ?? null })

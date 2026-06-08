@@ -1,5 +1,6 @@
 import sql from '@/lib/db'
 import { fetchPlayersByTeam } from '@/lib/api-football'
+import { SEASON } from '@/lib/season'
 
 // 全チームの選手リストを取得してplayers_masterに登録（is_activeも更新）
 export async function GET(request) {
@@ -20,7 +21,7 @@ export async function GET(request) {
     try {
       let page = 1
       while (true) {
-        const res = await fetchPlayersByTeam(team.id, 2026, page)
+        const res = await fetchPlayersByTeam(team.id, SEASON, page)
         if (!res || res.length === 0) break
 
         for (const entry of res) {

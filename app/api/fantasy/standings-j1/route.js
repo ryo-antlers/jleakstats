@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 export async function GET() {
   const [fixtures, teams] = await Promise.all([
@@ -6,7 +7,7 @@ export async function GET() {
       SELECT home_team_id, away_team_id, home_score, away_score,
              home_penalty, away_penalty, status
       FROM fixtures
-      WHERE season = 2026 AND status IN ('FT', 'AET', 'PEN')
+      WHERE season = ${SEASON} AND status IN ('FT', 'AET', 'PEN')
     `,
     sql`
       SELECT id, name_ja, short_name, abbr, color_primary, group_name

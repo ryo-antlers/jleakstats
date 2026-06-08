@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 // 今日（JST）に試合があるか確認
 export async function GET(request) {
@@ -17,7 +18,7 @@ export async function GET(request) {
 
   const result = await sql`
     SELECT COUNT(*) AS count FROM fixtures
-    WHERE season = 2026
+    WHERE season = ${SEASON}
       AND date >= ${todayStart.toISOString()}
       AND date <= ${todayEnd.toISOString()}
   `

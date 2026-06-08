@@ -1,5 +1,6 @@
 import sql from '@/lib/db'
 import { fetchStandings, API_LEAGUES_ALL, apiLeagueToDbLeague } from '@/lib/api-football'
+import { SEASON } from '@/lib/season'
 
 // J1 + J2/J3百年構想 の順位表を API-Football から UPSERT
 //   J1: 1グループ "J-League" (20チーム)
@@ -62,7 +63,7 @@ export async function GET(request) {
               away_played, away_win, away_draw, away_lose,
               updated_at
             ) VALUES (
-              ${t.team.id}, 2026, ${dbLeague}, ${t.group ?? null},
+              ${t.team.id}, ${SEASON}, ${dbLeague}, ${t.group ?? null},
               ${t.rank}, ${t.rank}, ${t.points}, ${t.goalsDiff}, ${t.form},
               ${t.all.played}, ${t.all.win}, ${t.all.draw}, ${t.all.lose},
               ${t.all.goals.for}, ${t.all.goals.against},

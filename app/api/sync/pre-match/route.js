@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import { fetchFixtureLineups } from '@/lib/api-football'
 
 // 試合開始0〜2時間前のラインナップを取得して保存
@@ -17,7 +18,7 @@ export async function GET(request) {
       SELECT f.id FROM fixtures f
       LEFT JOIN fixture_lineups fl ON fl.fixture_id = f.id
       WHERE f.status = 'NS'
-        AND f.season = 2026
+        AND f.season = ${SEASON}
         AND f.date >= ${from.toISOString()}
         AND f.date <= ${to.toISOString()}
         AND fl.fixture_id IS NULL

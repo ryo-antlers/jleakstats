@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 // テーブル作成
 async function ensureTables() {
@@ -114,7 +115,7 @@ export async function GET() {
     const fixtures = await sql`
       SELECT id, date, round_number
       FROM fixtures
-      WHERE season = 2026 AND round_number IS NOT NULL
+      WHERE season = ${SEASON} AND round_number IS NOT NULL
       ORDER BY date ASC
     `
 

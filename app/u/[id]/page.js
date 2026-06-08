@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import ProfileHeader from '@/app/components/ProfileHeader'
 import MatchCard from '@/app/components/MatchCard'
 import { TYPE_META } from '@/lib/fantype/type-meta'
@@ -185,7 +186,7 @@ export default async function UserProfilePage({ params }) {
     FROM fixtures f
     LEFT JOIN teams_master ht ON ht.id = f.home_team_id
     LEFT JOIN teams_master at ON at.id = f.away_team_id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND f.round_number IS NOT NULL
       AND (f.home_team_id = ${supportedClubId} OR f.away_team_id = ${supportedClubId})
     ORDER BY f.round_number ASC
@@ -208,7 +209,7 @@ export default async function UserProfilePage({ params }) {
     JOIN fixture_lineups fl ON fl.fixture_id = r.fixture_id AND fl.player_id = r.player_id
     WHERE r.clerk_user_id = ${clerkUserId}
       AND fl.team_id = ${supportedClubId}
-      AND f.season = 2026
+      AND f.season = ${SEASON}
       AND f.round_number IS NOT NULL
   `.catch(() => []) : []
 

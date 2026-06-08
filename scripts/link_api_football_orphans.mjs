@@ -14,6 +14,7 @@
 
 import { neon } from '@neondatabase/serverless'
 import { fetchPlayerById, sleep } from '../lib/api-football.js'
+import { SEASON } from '../lib/season.js'
 
 const sql = neon(process.env.DATABASE_URL)
 const DRY_RUN = process.argv.includes('--dry-run')
@@ -134,8 +135,8 @@ function matchByDob(dob, teamId) {
 }
 
 // 観測シーズンを先頭に、過去シーズンへフォールバックして dob を探す
-// (2024〜2025在籍→2026離脱の選手は season=2026 では空で返るため)
-const FALLBACK_SEASONS = [2026, 2025, 2024]
+// (前々シーズン在籍→今季離脱の選手は当季 season では空で返るため、過去2季も試す)
+const FALLBACK_SEASONS = [SEASON, SEASON - 1, SEASON - 2]
 
 const newLinks = []  // { canonical_id, api_football_id, name }
 const pendings = []  // pending_reviews 用
