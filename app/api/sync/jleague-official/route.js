@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { COMP_YEARS } from '@/lib/season'
 import {
   fetchMatchListForSeason,
   prepareMatch,
@@ -33,8 +34,8 @@ import {
 export const maxDuration = 10  // Vercel Hobby
 
 const LEAGUE_MAP = {
-  j1:   { compYears: '20261', compFrame: '35', leagueId: 98 },
-  j2j3: { compYears: '20261', compFrame: '36', leagueId: 2  },
+  j1:   { compYears: COMP_YEARS, compFrame: '35', leagueId: 98 },
+  j2j3: { compYears: COMP_YEARS, compFrame: '36', leagueId: 2  },
 }
 
 function listDateToYmd(s) {

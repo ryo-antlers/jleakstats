@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 async function getStandings(group) {
   const [fixtures, teams] = await Promise.all([
@@ -8,7 +9,7 @@ async function getStandings(group) {
       FROM fixtures f
       JOIN teams_master ht ON f.home_team_id = ht.id
       JOIN teams_master at ON f.away_team_id = at.id
-      WHERE f.season = 2026 AND f.status IN ('FT', 'AET', 'PEN')
+      WHERE f.season = ${SEASON} AND f.status IN ('FT', 'AET', 'PEN')
         AND ht.group_name = ${group} AND at.group_name = ${group}
     `.catch(() => []),
     sql`
@@ -56,7 +57,7 @@ async function getStatsByTeam(group) {
     FROM fixture_statistics fps
     JOIN fixtures f ON fps.fixture_id = f.id
     JOIN teams_master tm ON fps.team_id = tm.id
-    WHERE f.season = 2026 AND tm.group_name = ${group}
+    WHERE f.season = ${SEASON} AND tm.group_name = ${group}
       AND fps.possession IS NOT NULL
     GROUP BY fps.team_id
   `.catch(() => [])

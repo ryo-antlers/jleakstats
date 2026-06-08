@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 function calcPoints(p, conceded, isWin) {
   let pts = 0
@@ -100,7 +101,7 @@ export async function GET() {
       fps.team_id
     FROM fixture_player_stats fps
     JOIN fixtures f ON fps.fixture_id = f.id
-    WHERE f.season = 2026
+    WHERE f.season = ${SEASON}
       AND f.status IN ('FT', 'AET', 'PEN')
       AND fps.position IN ('G', 'D', 'M', 'F')
       AND fps.minutes > 0

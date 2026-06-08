@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import TeamsEditor from './teams-editor'
 
 export const revalidate = 0  // 常に最新
@@ -10,11 +11,11 @@ async function getAllTeams() {
            t.color_primary, t.color_secondary, t.group_name, t.category,
            (
              SELECT COUNT(*) FROM fixtures f
-             WHERE f.season = 2026 AND (f.home_team_id = t.id OR f.away_team_id = t.id)
+             WHERE f.season = ${SEASON} AND (f.home_team_id = t.id OR f.away_team_id = t.id)
            ) AS fixtures_2026,
            (
              SELECT MIN(f.league_id) FROM fixtures f
-             WHERE f.season = 2026 AND (f.home_team_id = t.id OR f.away_team_id = t.id)
+             WHERE f.season = ${SEASON} AND (f.home_team_id = t.id OR f.away_team_id = t.id)
            ) AS league_id_2026
     FROM teams_master t
     ORDER BY t.id ASC

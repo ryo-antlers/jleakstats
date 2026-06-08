@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import {
   dbLeagueToJleaguePath,
   fetchRoundListing,
@@ -50,7 +51,7 @@ export async function GET(request) {
       FROM fixtures f
       LEFT JOIN teams_master th ON th.id = f.home_team_id
       LEFT JOIN teams_master ta ON ta.id = f.away_team_id
-      WHERE f.season = 2026
+      WHERE f.season = ${SEASON}
         AND f.status = 'NS'
         AND f.referee_ja IS NULL
         AND f.date BETWEEN NOW() + INTERVAL '1 hour'

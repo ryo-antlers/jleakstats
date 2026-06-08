@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 async function getPlayerStats(group) {
   return await sql`
@@ -13,7 +14,7 @@ async function getPlayerStats(group) {
     JOIN fixtures f ON fps.fixture_id = f.id
     JOIN players_master pm ON fps.player_id = pm.id
     JOIN teams_master tm ON fps.team_id = tm.id
-    WHERE f.season = 2026 AND tm.group_name = ${group}
+    WHERE f.season = ${SEASON} AND tm.group_name = ${group}
     GROUP BY fps.player_id, pm.name_ja, pm.name_en, tm.color_primary
     HAVING SUM(fps.shots_total) > 0
     ORDER BY SUM(fps.goals) DESC, SUM(fps.shots_total) DESC

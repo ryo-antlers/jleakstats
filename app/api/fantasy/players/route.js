@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 
 export const revalidate = 300  // Next.js: 5分間キャッシュ
 
@@ -27,12 +28,12 @@ export async function GET() {
         SELECT f.home_team_id AS team_id, ot.abbr AS opponent_abbr, f.date
         FROM fixtures f
         JOIN teams_master ot ON f.away_team_id = ot.id
-        WHERE f.season = 2026 AND f.status NOT IN ('FT', 'AET', 'PEN')
+        WHERE f.season = ${SEASON} AND f.status NOT IN ('FT', 'AET', 'PEN')
         UNION ALL
         SELECT f.away_team_id AS team_id, ot.abbr AS opponent_abbr, f.date
         FROM fixtures f
         JOIN teams_master ot ON f.home_team_id = ot.id
-        WHERE f.season = 2026 AND f.status NOT IN ('FT', 'AET', 'PEN')
+        WHERE f.season = ${SEASON} AND f.status NOT IN ('FT', 'AET', 'PEN')
       ) sub
       ORDER BY team_id, date ASC
     ) nf ON nf.team_id = tm.id

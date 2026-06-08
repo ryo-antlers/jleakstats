@@ -1,4 +1,5 @@
 import sql from '@/lib/db'
+import { SEASON } from '@/lib/season'
 import { fetchOdds } from '@/lib/api-football'
 
 // 開催前試合のオッズを同期
@@ -11,7 +12,7 @@ export async function GET(request) {
     const in7days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const fixtures = await sql`
       SELECT id FROM fixtures
-      WHERE season = 2026
+      WHERE season = ${SEASON}
         AND status NOT IN ('FT', 'AET', 'PEN')
         AND date <= ${in7days}
       ORDER BY date ASC

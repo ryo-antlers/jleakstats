@@ -9,6 +9,7 @@
 import { neon } from '@neondatabase/serverless'
 import { load } from 'cheerio'
 import { setTimeout as sleep } from 'timers/promises'
+import { SEASON } from '../lib/season.js'
 
 const sql = neon(process.env.DATABASE_URL)
 const DRY_RUN = process.argv.includes('--dry-run')
@@ -21,7 +22,7 @@ const ABOLISH_AUTO_THRESHOLD = 5
 const ABOLISH_HARD_LIMIT = 20
 const API_BASE = 'https://www.jleague.jp/api/player/list/'
 const UA = 'jleakstats.com/1.0 (+contact: jackcrispin13@gmail.com)'
-const YEAR = 2026
+const YEAR = SEASON
 const MAX_PAGES = 300
 
 const normalize = s => s ? s.normalize('NFKC').replace(/[\s　・]+/g, '').toLowerCase() : null
