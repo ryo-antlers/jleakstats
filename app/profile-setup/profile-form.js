@@ -197,19 +197,18 @@ export default function ProfileForm({
     return () => { cancelled = true }
   }, [clubId, originalClubIdRef, initialPlayers])
 
-  // 推し選手選択時: その選手の背番号を自動入力 (既に入力済みでも上書きする)
+  // 今季のユニ選択時: その選手の背番号を採用 (ユーザーによる上書きは不可)
   const handleFavoritePlayerChange = (e) => {
     const val = e.target.value
     if (val === '') {
       setFavoritePlayerId(null)
+      setJerseyNumber('')
       return
     }
     const id = Number(val)
     setFavoritePlayerId(id)
     const player = players.find(p => Number(p.id) === id)
-    if (player?.number != null) {
-      setJerseyNumber(String(player.number))
-    }
+    setJerseyNumber(player?.number != null ? String(player.number) : '')
   }
 
   // 年 Select 変更時: その年の推しクラブの試合一覧を fetch
@@ -271,15 +270,6 @@ export default function ProfileForm({
     ? (normalizeColor(selectedClub.color_primary) ?? '#444')
     : '#444'
 
-  // jersey のクライアントバリデーション
-  const jerseyError = (() => {
-    const v = jerseyNumber.trim()
-    if (v === '') return null
-    const n = Number(v)
-    if (!Number.isInteger(n) || n < 1 || n > 99) return '1〜99の数字'
-    return null
-  })()
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
@@ -309,11 +299,6 @@ export default function ProfileForm({
       setError('クラブを選んでください')
       return
     }
-    if (jerseyError) {
-      setError(`背番号: ${jerseyError}`)
-      return
-    }
-
     const jerseyToSend = jerseyNumber.trim() === '' ? null : Number(jerseyNumber)
 
     setLoading(true)
@@ -522,8 +507,8 @@ export default function ProfileForm({
         }}>
           <div style={groupLabelStyle}>プロフィール詳細 (任意)</div>
 
-          {/* 推し選手 */}
-          <Field label="推し選手">
+          {/* 今季のユニ */}
+          <Field label="今季のユニ">
             <select
               value={favoritePlayerId ?? ''}
               onChange={handleFavoritePlayerChange}
@@ -539,23 +524,7 @@ export default function ProfileForm({
                 </option>
               ))}
             </select>
-            <p style={hintStyle}>選ぶと下の背番号に自動入力されます (上書き可)。</p>
-          </Field>
-
-          {/* 背番号 */}
-          <Field label="背番号">
-            <input
-              type="number"
-              min="1"
-              max="99"
-              value={jerseyNumber}
-              onChange={e => setJerseyNumber(e.target.value)}
-              placeholder="1〜99"
-              style={{ ...inputStyle, width: '6em' }}
-            />
-            {jerseyError && (
-              <p style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4 }}>{jerseyError}</p>
-            )}
+            <p style={hintStyle}>背番号は選んだ選手のものが自動で設定されます。</p>
           </Field>
 
           {/* 初観戦試合 */}
