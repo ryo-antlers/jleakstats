@@ -422,6 +422,48 @@ async function getRefereeTeamRecord(refereeJaOfficial, teamId) {
   return { w: Number(r.w) || 0, d: Number(r.d) || 0, l: Number(r.l) || 0, total: Number(r.total) || 0 }
 }
 
+// 比較用ベースライン: その審判がそのチームを担当した期間 (初担当年〜最新年) における
+// 全審判 (= 全試合) でのそのチームの勝率。審判固有の勝率が「相性」かどうかの基準値。
+async function getRefereeTeamBaseline(refereeJaOfficial, teamId) {
+  if (!refereeJaOfficial) return { w: 0, d: 0, l: 0, total: 0, minYear: null, maxYear: null }
+  const rows = await sql`
+    WITH span AS (
+      SELECT MIN(date) AS min_d, MAX(date) AS max_d
+      FROM fixtures
+      WHERE referee_ja_official = ${refereeJaOfficial}
+        AND status IN ('FT','AET','PEN')
+        AND (home_team_id = ${teamId} OR away_team_id = ${teamId})
+    )
+    SELECT
+      SUM(CASE
+        WHEN (f.home_team_id = ${teamId} AND f.home_score > f.away_score)
+          OR (f.away_team_id = ${teamId} AND f.away_score > f.home_score)
+          OR (f.status='PEN' AND f.home_team_id = ${teamId} AND f.home_penalty > f.away_penalty)
+          OR (f.status='PEN' AND f.away_team_id = ${teamId} AND f.away_penalty > f.home_penalty)
+        THEN 1 ELSE 0 END) AS w,
+      SUM(CASE WHEN f.home_score = f.away_score AND f.status != 'PEN' THEN 1 ELSE 0 END) AS d,
+      SUM(CASE
+        WHEN (f.home_team_id = ${teamId} AND f.home_score < f.away_score)
+          OR (f.away_team_id = ${teamId} AND f.away_score < f.home_score)
+          OR (f.status='PEN' AND f.home_team_id = ${teamId} AND f.home_penalty < f.away_penalty)
+          OR (f.status='PEN' AND f.away_team_id = ${teamId} AND f.away_penalty < f.home_penalty)
+        THEN 1 ELSE 0 END) AS l,
+      COUNT(*) AS total,
+      EXTRACT(YEAR FROM (SELECT min_d FROM span))::int AS min_year,
+      EXTRACT(YEAR FROM (SELECT max_d FROM span))::int AS max_year
+    FROM fixtures f, span
+    WHERE f.status IN ('FT','AET','PEN')
+      AND (f.home_team_id = ${teamId} OR f.away_team_id = ${teamId})
+      AND f.date >= date_trunc('year', span.min_d)
+      AND f.date < date_trunc('year', span.max_d) + interval '1 year'
+  `.catch(() => [])
+  const r = rows[0] ?? {}
+  return {
+    w: Number(r.w) || 0, d: Number(r.d) || 0, l: Number(r.l) || 0, total: Number(r.total) || 0,
+    minYear: r.min_year ?? null, maxYear: r.max_year ?? null,
+  }
+}
+
 async function getRefereeTeamFirstMatch(refereeJaOfficial, teamId) {
   if (!refereeJaOfficial) return null
   const rows = await sql`
@@ -937,7 +979,7 @@ export default async function FixturePage({ params }) {
   // 試合前審判発表済 (公式記録未取込)
   const isPreMatchRefereeAnnounced = !hasStarted && !!fixture.referee_ja && !fixture.referee_ja_official
   const refereeLimit = 5
-  const [homeRefereeHistory, awayRefereeHistory, homeRefereeRecord, awayRefereeRecord, homeRefereeFirst, awayRefereeFirst, refereeJa] = hasReferee
+  const [homeRefereeHistory, awayRefereeHistory, homeRefereeRecord, awayRefereeRecord, homeRefereeFirst, awayRefereeFirst, homeRefereeBaseline, awayRefereeBaseline, refereeJa] = hasReferee
     ? await Promise.all([
         getRefereeHistory(refereeKey, fixture.home_team_id, fixture.id, refereeLimit),
         getRefereeHistory(refereeKey, fixture.away_team_id, fixture.id, refereeLimit),
@@ -945,9 +987,11 @@ export default async function FixturePage({ params }) {
         getRefereeTeamRecord(refereeKey, fixture.away_team_id),
         getRefereeTeamFirstMatch(refereeKey, fixture.home_team_id),
         getRefereeTeamFirstMatch(refereeKey, fixture.away_team_id),
+        getRefereeTeamBaseline(refereeKey, fixture.home_team_id),
+        getRefereeTeamBaseline(refereeKey, fixture.away_team_id),
         fixture.referee_en ? getRefereeJa(fixture.referee_en) : Promise.resolve(null),
       ])
-    : [[], [], { w:0, d:0, l:0, total:0 }, { w:0, d:0, l:0, total:0 }, null, null, null]
+    : [[], [], { w:0, d:0, l:0, total:0 }, { w:0, d:0, l:0, total:0 }, null, null, { w:0, d:0, l:0, total:0, minYear:null, maxYear:null }, { w:0, d:0, l:0, total:0, minYear:null, maxYear:null }, null]
 
   const [seasonFixtures, allTeams, seasonTeamStats, seasonPlayerStats, recentFormRows, h2hRows, teamHistory, homeGoalsVsAway, awayGoalsVsHome] = showPreMatchView
     ? await Promise.all([
@@ -1716,6 +1760,7 @@ export default async function FixturePage({ params }) {
             homeColor={homeColor} awayColor={awayColor}
             homeRecord={homeRefereeRecord} awayRecord={awayRefereeRecord}
             homeFirst={homeRefereeFirst} awayFirst={awayRefereeFirst}
+            homeBaseline={homeRefereeBaseline} awayBaseline={awayRefereeBaseline}
             homeHistory={homeRefereeHistory} awayHistory={awayRefereeHistory}
           />
         </section>

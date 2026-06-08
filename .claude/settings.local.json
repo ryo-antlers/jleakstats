@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(git commit -m ':*)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(npx next *)",
+      "Bash(node -e \"require\\('@babel/core'\\) || 0\")",
+      "Bash(node --input-type=module -e \"import\\('fs'\\).then\\(async fs=>{try{const s=await import\\('child_process'\\);}catch\\(e\\){}}\\)\")",
+      "Bash(node -e 'new \\(require\\('\\\\''vm'\\\\''\\).Script\\)\\(require\\('\\\\''fs'\\\\''\\).readFileSync\\('\\\\''__TRACKED_VAR__'\\\\'','\\\\''utf8'\\\\''\\).replace\\(/^import.*$/gm,'\\\\'''\\\\''\\).replace\\(/^export default /gm,'\\\\'''\\\\''\\).replace\\(/^export /gm,'\\\\'''\\\\''\\)\\)')",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'feat: 審判勝率に同期間・全審判平均との比較を追加 *)"
     ]
   }
 }

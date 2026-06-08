@@ -56,12 +56,32 @@ function WinRateDonut({ record, clubColor, align }) {
   )
 }
 
-function Column({ align, teamId, clubColor, record, firstMatch, history, openKey, setOpenKey }) {
+function BaselineLine({ record, baseline, align }) {
+  if (!record?.total || !baseline?.total || baseline.minYear == null) return null
+  const refPct = (record.w / record.total) * 100
+  const basePct = (baseline.w / baseline.total) * 100
+  const delta = Math.round(refPct) - Math.round(basePct)
+  const span = baseline.minYear === baseline.maxYear
+    ? `${baseline.minYear}`
+    : `${baseline.minYear}–${baseline.maxYear}`
+  const deltaColor = delta > 0 ? '#d76d6d' : delta < 0 ? '#6d9bd7' : 'rgba(255,255,255,0.4)'
+  return (
+    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: align, margin: '2px 0 0 0', lineHeight: 1.4 }}>
+      <span>{`${span} 全審判平均 ${Math.round(basePct)}%`}</span>
+      <span style={{ color: deltaColor, marginLeft: 4 }}>
+        {`(${delta > 0 ? '+' : ''}${delta}pt)`}
+      </span>
+    </div>
+  )
+}
+
+function Column({ align, teamId, clubColor, record, baseline, firstMatch, history, openKey, setOpenKey }) {
   const firstKey = `${align}-first`
   const rowKey = (i) => `${align}-row-${i}`
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       <WinRateDonut record={record} clubColor={clubColor} align={align} />
+      <BaselineLine record={record} baseline={baseline} align={align} />
       <RefereeFirstMatchLine
         firstMatch={firstMatch}
         teamId={teamId}
@@ -95,6 +115,7 @@ export default function RefereeSection({
   homeTeamId, awayTeamId, homeColor, awayColor,
   homeRecord, awayRecord,
   homeFirst, awayFirst,
+  homeBaseline, awayBaseline,
   homeHistory, awayHistory,
 }) {
   const [openKey, setOpenKey] = useState(null)
@@ -102,12 +123,12 @@ export default function RefereeSection({
     <div className="ha-stack-mobile" style={{ display: 'flex', gap: 16 }}>
       <Column
         align="left" teamId={homeTeamId} clubColor={homeColor}
-        record={homeRecord} firstMatch={homeFirst} history={homeHistory}
+        record={homeRecord} baseline={homeBaseline} firstMatch={homeFirst} history={homeHistory}
         openKey={openKey} setOpenKey={setOpenKey}
       />
       <Column
         align="left" teamId={awayTeamId} clubColor={awayColor}
-        record={awayRecord} firstMatch={awayFirst} history={awayHistory}
+        record={awayRecord} baseline={awayBaseline} firstMatch={awayFirst} history={awayHistory}
         openKey={openKey} setOpenKey={setOpenKey}
       />
     </div>
